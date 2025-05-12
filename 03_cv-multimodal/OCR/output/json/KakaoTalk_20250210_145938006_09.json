@@ -1,0 +1,26 @@
+[
+    {
+        "predictions": {
+            "inference_id": "dc110f0b-e3e5-46c8-9cdb-ea1df467f344",
+            "predictions": {
+                "image": {
+                    "width": 4000,
+                    "height": 3000
+                },
+                "predictions": [
+                    {
+                        "width": 1336.0,
+                        "height": 648.0,
+                        "x": 1320.0,
+                        "y": 2346.0,
+                        "confidence": 0.9017285108566284,
+                        "class_id": 0,
+                        "class": "Electronic Shelf Label",
+                        "detection_id": "b01ecb1f-df81-49b7-b89f-9475026ddbad",
+                        "parent_id": "image"
+                    }
+                ]
+            }
+        }
+    }
+]

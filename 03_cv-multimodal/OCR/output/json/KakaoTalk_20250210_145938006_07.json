@@ -1,0 +1,14 @@
+[
+    {
+        "predictions": {
+            "inference_id": "81abafa2-7211-4f6a-bcae-91b3e3896dc8",
+            "predictions": {
+                "image": {
+                    "width": null,
+                    "height": null
+                },
+                "predictions": []
+            }
+        }
+    }
+]

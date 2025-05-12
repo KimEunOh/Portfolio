@@ -1,0 +1,37 @@
+[
+    {
+        "predictions": {
+            "inference_id": "9ce49e08-e562-4ec9-9940-3c5c22baba6c",
+            "predictions": {
+                "image": {
+                    "width": 4000,
+                    "height": 3000
+                },
+                "predictions": [
+                    {
+                        "width": 1491.0,
+                        "height": 691.0,
+                        "x": 1405.5,
+                        "y": 1755.5,
+                        "confidence": 0.9364730715751648,
+                        "class_id": 0,
+                        "class": "Electronic Shelf Label",
+                        "detection_id": "072eb181-f2aa-4340-8624-f98b8629392b",
+                        "parent_id": "image"
+                    },
+                    {
+                        "width": 1475.0,
+                        "height": 684.0,
+                        "x": 3176.5,
+                        "y": 1753.0,
+                        "confidence": 0.927982747554779,
+                        "class_id": 0,
+                        "class": "Electronic Shelf Label",
+                        "detection_id": "39582eee-04f0-4cbd-b9c8-b0d3dc69b657",
+                        "parent_id": "image"
+                    }
+                ]
+            }
+        }
+    }
+]

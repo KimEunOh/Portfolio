@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 에이전트 - N2 그룹웨어</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .header {
+            background-color: #4a6baf;
+            color: white;
+            padding: 1rem 0;
+        }
+        .main-content {
+            flex: 1;
+            padding: 2rem 0;
+        }
+        .chat-container {
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 1rem;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: white;
+        }
+        .chat-input {
+            border-top: 1px solid #dee2e6;
+            padding: 1rem;
+            background-color: white;
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+        .message {
+            margin-bottom: 1rem;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #e9ecef;
+            padding: 0.75rem;
+            border-radius: 1rem;
+            border-bottom-right-radius: 0;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background-color: #4a6baf;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 1rem;
+            border-bottom-left-radius: 0;
+            align-self: flex-start;
+        }
+        .typing-indicator {
+            display: inline-block;
+            padding: 0.75rem;
+            background-color: #e9ecef;
+            border-radius: 1rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .typing-indicator span {
+            height: 10px;
+            width: 10px;
+            float: left;
+            margin: 0 1px;
+            background-color: #9E9EA1;
+            display: block;
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+        .typing-indicator span:nth-of-type(1) {
+            animation: 1s blink infinite 0.3333s;
+        }
+        .typing-indicator span:nth-of-type(2) {
+            animation: 1s blink infinite 0.6666s;
+        }
+        .typing-indicator span:nth-of-type(3) {
+            animation: 1s blink infinite 0.9999s;
+        }
+        @keyframes blink {
+            50% {
+                opacity: 1;
+            }
+        }
+        .footer {
+            padding: 1rem 0;
+            background-color: #343a40;
+            color: white;
+        }
+        .api-info {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">API 에이전트</h1>
+                <a href="/" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-home"></i> 홈으로
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="main-content">
+        <div class="container">
+            <div class="row">
+                <!-- 채팅 영역 -->
+                <div class="col-lg-8 mb-4">
+                    <div class="chat-container card">
+                        <div class="chat-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">N2 그룹웨어 API 대화형 인터페이스</h5>
+                                <button id="clear-chat" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-trash"></i> 대화 초기화
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message assistant-message">
+                                안녕하세요! N2 그룹웨어 API를 자연어로 이용할 수 있도록 도와드리겠습니다. 어떤 도움이 필요하신가요?
+                            </div>
+                            <div class="typing-indicator" id="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <form id="chat-form">
+                                <div class="input-group">
+                                    <input type="text" id="message-input" class="form-control" placeholder="메시지를 입력하세요..." required>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-paper-plane"></i> 전송
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 정보 영역 -->
+                <div class="col-lg-4">
+                    <div class="api-info">
+                        <h5>사용 가능한 API 기능</h5>
+                        <ul class="list-group mt-3">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                서버 상태 확인
+                                <span class="badge bg-primary rounded-pill">check_server</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                결재양식 목록 조회
+                                <span class="badge bg-primary rounded-pill">get_approval_form_list</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                결재 승인/반려
+                                <span class="badge bg-primary rounded-pill">approve_document</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                결재정보 저장
+                                <span class="badge bg-primary rounded-pill">save_approval</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                잔여 연차 확인
+                                <span class="badge bg-primary rounded-pill">check_remaining_days</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                결재 취소
+                                <span class="badge bg-primary rounded-pill">cancel_approval</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                결재 라인 조회
+                                <span class="badge bg-primary rounded-pill">get_approval_line</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">사용 예시</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small">다음과 같은 질문을 해보세요:</p>
+                            <ul class="small">
+                                <li>"서버 상태 확인해줘"</li>
+                                <li>"결재 양식 목록 조회해줘 (작성자 ID: 01180001)"</li>
+                                <li>"내 연차 잔여일수 확인해줘 (직원 ID: 01180001)"</li>
+                                <li>"결재 문서 승인해줘 (문서 ID: 8, 결재자 ID: 01160001)"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="footer text-center">
+        <div class="container">
+            <p class="mb-0">© 2024 N2 그룹웨어 API 에이전트</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chatForm = document.getElementById('chat-form');
+            const messageInput = document.getElementById('message-input');
+            const chatMessages = document.getElementById('chat-messages');
+            const typingIndicator = document.getElementById('typing-indicator');
+            const clearChatBtn = document.getElementById('clear-chat');
+            
+            let sessionId = localStorage.getItem('api_agent_session_id') || '';
+            
+            // 대화 초기화 버튼
+            clearChatBtn.addEventListener('click', function() {
+                if (confirm('대화 내용을 모두 지우시겠습니까?')) {
+                    chatMessages.innerHTML = '<div class="message assistant-message">안녕하세요! N2 그룹웨어 API를 자연어로 이용할 수 있도록 도와드리겠습니다. 어떤 도움이 필요하신가요?</div>';
+                    sessionId = '';
+                    localStorage.removeItem('api_agent_session_id');
+                }
+            });
+            
+            // 채팅 폼 제출
+            chatForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // 사용자 메시지 추가
+                addMessage(message, 'user');
+                messageInput.value = '';
+                
+                // 타이핑 인디케이터 표시
+                typingIndicator.style.display = 'inline-block';
+                
+                try {
+                    // API 호출
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            agent_type: 'api',
+                            session_id: sessionId
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // 세션 ID 저장
+                    if (data.session_id) {
+                        sessionId = data.session_id;
+                        localStorage.setItem('api_agent_session_id', sessionId);
+                    }
+                    
+                    // 응답 메시지 추가
+                    addMessage(data.response, 'assistant');
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'assistant');
+                } finally {
+                    // 타이핑 인디케이터 숨김
+                    typingIndicator.style.display = 'none';
+                    
+                    // 스크롤 맨 아래로
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            });
+            
+            // 메시지 추가 함수
+            function addMessage(content, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                
+                // 링크 변환
+                const linkifiedContent = content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+                
+                messageDiv.innerHTML = linkifiedContent;
+                
+                // 타이핑 인디케이터 앞에 삽입
+                chatMessages.insertBefore(messageDiv, typingIndicator);
+                
+                // 스크롤 맨 아래로
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

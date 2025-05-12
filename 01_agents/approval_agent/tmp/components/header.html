@@ -1,0 +1,15 @@
+<header class="header">
+    <div class="header-content">
+        <div class="logo">
+            <a href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='images/icons/logo.png') }}" alt="GW Agent Logo">
+            </a>
+        </div>
+        <nav class="nav">
+            <ul>
+                <li><a href="{{ url_for('home') }}">홈</a></li>
+                <li><a href="{{ url_for('chat_page') }}">채팅</a></li>
+            </ul>
+        </nav>
+    </div>
+</header> 

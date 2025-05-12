@@ -1,0 +1,29 @@
+LLaVA 모델을 파인튜닝하는 방법에 대해 자세히 설명드릴게요. LLaVA 모델은 언어와 이미지를 통합하여 이해하는 멀티모달 모델로, 커스텀 데이터셋을 사용하여 파인튜닝할 수 있습니다. 아래는 파인튜닝 과정의 주요 단계입니다:
+
+### 1. 데이터 준비
+먼저, 파인튜닝에 사용할 커스텀 데이터셋을 준비해야 합니다. 데이터셋은 이미지와 텍스트 쌍으로 구성되어야 하며, 각 이미지에 대한 설명이나 질문이 포함되어야 합니다. 예를 들어, OK-VQA 데이터셋을 사용할 수 있습니다¹.
+
+### 2. 데이터 전처리
+데이터를 LLaVA 모델이 이해할 수 있는 형식으로 변환해야 합니다. 이를 위해 데이터셋을 특정 형식으로 포맷팅하는 헬퍼 함수를 사용할 수 있습니다. 예를 들어, 이미지를 인코딩하고 텍스트와 함께 JSON 형식으로 저장하는 스크립트를 작성할 수 있습니다².
+
+### 3. 모델 설치 및 설정
+LLaVA 모델을 설치하고 필요한 설정을 합니다. DeepSpeed와 같은 툴을 사용하여 모델을 효율적으로 학습시킬 수 있습니다. 또한, Weights & Biases와 같은 툴을 사용하여 학습 과정을 모니터링할 수 있습니다².
+
+### 4. 파인튜닝
+모델을 파인튜닝합니다. 이 과정에서는 준비된 데이터셋을 사용하여 모델을 학습시키며, 학습 중간에 성능을 평가하고 필요한 경우 하이퍼파라미터를 조정합니다. 파인튜닝 과정은 GPU를 사용하여 수행하는 것이 일반적입니다¹.
+
+### 5. 배포
+파인튜닝이 완료된 모델을 배포합니다. Gradio와 같은 인터페이스를 사용하여 모델을 웹 애플리케이션으로 배포할 수 있습니다².
+
+이 과정이 도움이 되길 바랍니다! 추가로 궁금한 점이 있으면 언제든지 말씀해 주세요.
+
+¹: [Weights & Biases 튜토리얼](https://wandb.ai/byyoung3/ml-news/reports/How-to-Fine-Tune-LLava-on-a-Custom-Dataset--Vmlldzo2NjUwNTc1)
+²: [Colab 노트북](https://colab.research.google.com/github/brevdev/notebooks/blob/main/llava-finetune.ipynb)
+
+원본: Copilot과의 대화, 2024. 10. 24.
+(1) How to Fine-Tune LLaVA on a Custom Dataset. https://wandb.ai/byyoung3/ml-news/reports/How-to-Fine-Tune-LLava-on-a-Custom-Dataset--Vmlldzo2NjUwNTc1.
+(2) Fine-tune and deploy the multimodal LLaVA model with DeepSpeed. https://colab.research.google.com/github/brevdev/notebooks/blob/main/llava-finetune.ipynb.
+(3) Finetuning LLaVa on Custom Dataset. https://readmedium.com/finetuning-llava-on-custom-dataset-3df209aceb6b.
+(4) LLaVA-Video: Video Instruction Tuning with Synthetic Data. https://llava-vl.github.io/blog/2024-09-30-llava-video/.
+(5) Fine-tuning Llama 3.2 and Using It Locally: A Step-by-Step Guide. https://www.datacamp.com/tutorial/fine-tuning-llama-3-2.
+(6) undefined. https://api.openai.com/v1/chat/completions.

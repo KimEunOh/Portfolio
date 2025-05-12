@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}GW Agent - 채팅{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-page">
+    <div class="chat-sidebar">
+        <h2>대화 목록</h2>
+        <div class="chat-list">
+            <!-- 대화 목록이 여기에 동적으로 추가됩니다 -->
+        </div>
+    </div>
+    
+    <div class="chat-main">
+        {% include 'components/chat.html' %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %} 
