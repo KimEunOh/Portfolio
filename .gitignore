@@ -65,3 +65,6 @@ target/
 02_LLM/dify/
 00_docs/발표자료/*.pptx
 00_docs/발표자료/*.zip
+00_docs/연구개발보고서/
+00_docs/api_key/
+00_docs/project_migration_status.md
