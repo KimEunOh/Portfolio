@@ -70,3 +70,6 @@ target/
 00_docs/project_migration_status.md
 01_agents/approval_agent/gw_agent/N2_GW_API명세서_v01 1.xlsx
 01_agents/approval_agent/gw_agent/tmp/
+SECURITY_AUDIT.md
+77_side/
+99_archive/
