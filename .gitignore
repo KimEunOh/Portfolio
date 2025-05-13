@@ -78,6 +78,7 @@ bfg-1.15.0.jar
 02_LLM/socket/test/
 02_LLM/socket/tmp/
 03_cv-multimodal/QA_AI/
+99_archive/DDL/
 
 # Cursor 설정 파일
 **/.cursorrules
