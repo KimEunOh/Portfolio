@@ -112,6 +112,7 @@
   - Data Definition Language 의 약자
   - 데이터베이스 스키마를 정의하는 일련의 SQL 명령
   - AI를 통해 DDL 기반의  **Domain(Entity) 클래스**와 **Repository 인터페이스**를 생성
+  - 회사 보안 관련 내용 포함으로 삭제제
 
   ### 3. [dify/](99_archive/dify/)
   - Dify 프로젝트
