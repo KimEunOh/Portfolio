@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N2 GW 통합 챗봇</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8f9fa;
+        }
+        
+        .footer {
+            margin-top: auto;
+            padding: 1rem 0;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .chat-container {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background-color: #6c757d;
+            color: white;
+            padding: 1rem;
+        }
+        
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #ffffff;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: 1rem;
+            position: relative;
+        }
+        
+        .message-user {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+            border-top-right-radius: 0;
+        }
+        
+        .message-bot {
+            background-color: #e9ecef;
+            color: #212529;
+            margin-right: auto;
+            border-top-left-radius: 0;
+        }
+        
+        /* HTML 카드가 포함된 메시지의 스타일 */
+        .message-bot-card {
+            background-color: transparent;
+            color: #212529;
+            margin-right: auto;
+            border-radius: 0;
+            padding: 0;
+            max-width: 100%;
+            width: 100%;
+            box-shadow: none;
+        }
+        
+        .vacation-card {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin: 8px 0;
+            padding: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+        
+        .vacation-card h3 {
+            color: #3a3a3a;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+        }
+        
+        .vacation-card .info-row {
+            display: flex;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        
+        .vacation-card .label {
+            font-weight: bold;
+            width: 100px;
+            min-width: 100px;
+            color: #555;
+        }
+        
+        .vacation-card .value {
+            flex-grow: 1;
+        }
+        
+        .vacation-card .approvers {
+            margin-top: 12px;
+        }
+        
+        .vacation-card .approver {
+            background-color: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        
+        .vacation-card .remain-days {
+            margin-top: 16px;
+            padding-top: 8px;
+            border-top: 1px solid #ddd;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .chat-input {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .intent-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+        
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            margin: 0 1px;
+            background-color: #6c757d;
+            display: block;
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+        
+        .typing-indicator span:nth-of-type(1) {
+            animation: 1s blink infinite 0.3333s;
+        }
+        .typing-indicator span:nth-of-type(2) {
+            animation: 1s blink infinite 0.6666s;
+        }
+        .typing-indicator span:nth-of-type(3) {
+            animation: 1s blink infinite 0.9999s;
+        }
+        
+        @keyframes blink {
+            50% {
+                opacity: 1;
+            }
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+        
+        .step-indicator .step {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            padding: 5px;
+            border-bottom: 3px solid #eee;
+        }
+        
+        .step-indicator .step.active {
+            border-color: #007bff;
+            font-weight: bold;
+        }
+        
+        .step-indicator .step.completed {
+            border-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 바 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">N2 GW 챗봇</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">홈</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/general">통합 챗봇</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- 채팅 컨테이너 -->
+                    <div class="chat-container">
+                        <div class="chat-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">N2 GW 통합 챗봇</h5>
+                            <button id="clear-chat" class="btn btn-sm btn-outline-light">초기화</button>
+                        </div>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message message-bot">
+                                <div>안녕하세요! N2 그룹웨어 통합 챗봇입니다. 무엇을 도와드릴까요?<br>
+                                일반적인 질문이나 연차/휴가 신청에 관한 내용으로 대화할 수 있습니다.</div>
+                            </div>
+                            <div class="typing-indicator" id="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <form id="chat-form">
+                                <div class="input-group">
+                                    <input type="text" id="user-input" class="form-control" placeholder="메시지를 입력하세요..." autocomplete="off">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <!-- 세션 정보 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">세션 정보</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="session-info">
+                                <p class="mb-2">세션 ID: <span id="session-id">새 세션</span></p>
+                                <p class="mb-2">현재 모드: <span id="current-intent" class="badge bg-primary">일반</span></p>
+                                <p class="mb-2">직원 ID: <span id="employee-id">01180001</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 연차 처리 단계 -->
+                    <div class="card mb-3" id="vacation-steps-card" style="display: none;">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">연차 신청 진행 상태</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="step-indicator">
+                                <div class="step" data-step="START">시작</div>
+                                <div class="step" data-step="COLLECT_INFO">정보수집</div>
+                                <div class="step" data-step="CONFIRM_INFO">정보확인</div>
+                                <div class="step" data-step="SUBMIT_REQUEST">제출</div>
+                                <div class="step" data-step="END">완료</div>
+                            </div>
+                            <div id="missing-info" class="mt-2" style="display: none;">
+                                <p class="small text-muted mb-1">필요한 정보:</p>
+                                <div id="missing-info-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 모드 설명 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">챗봇 모드</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    일반 대화 모드
+                                    <span class="badge bg-primary rounded-pill">기본</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    연차 신청 모드
+                                    <span class="badge bg-success rounded-pill">자동전환</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 사용 예시 -->
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">사용 예시</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small">다음과 같은 질문을 해보세요:</p>
+                            <ul class="small">
+                                <li>"안녕하세요, 오늘 날씨가 어때요?"</li>
+                                <li>"N2 그룹웨어에 대해 알려줘"</li>
+                                <li>"연차 신청하고 싶어요"</li>
+                                <li>"내 휴가 일수가 몇 일 남았나요?"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="footer text-center">
+        <div class="container">
+            <p class="mb-0">© 2024 N2 그룹웨어 통합 챗봇</p>
+        </div>
+    </footer>
+
+    <!-- 스크립트 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 변수 및 요소
+            const chatForm = document.getElementById('chat-form');
+            const userInput = document.getElementById('user-input');
+            const chatMessages = document.getElementById('chat-messages');
+            const clearChatBtn = document.getElementById('clear-chat');
+            const typingIndicator = document.getElementById('typing-indicator');
+            const sessionIdSpan = document.getElementById('session-id');
+            const currentIntentSpan = document.getElementById('current-intent');
+            const employeeIdSpan = document.getElementById('employee-id');
+            const vacationStepsCard = document.getElementById('vacation-steps-card');
+            const missingInfoDiv = document.getElementById('missing-info');
+            const missingInfoList = document.getElementById('missing-info-list');
+            
+            // 세션 및 상태 관리
+            let sessionId = localStorage.getItem('chatSessionId');
+            let sessionState = JSON.parse(localStorage.getItem('chatSessionState') || '{}');
+            
+            if (!sessionId) {
+                sessionId = generateUUID();
+                localStorage.setItem('chatSessionId', sessionId);
+            }
+            
+            // 기존 세션 상태 있으면 로드
+            if (sessionState && Object.keys(sessionState).length > 0) {
+                updateSessionInfo(sessionId, sessionState);
+                updateVacationSteps(sessionState.current_step || 'START', sessionState.missing_info || [], sessionState);
+            }
+            
+            // 입력 처리
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const message = userInput.value.trim();
+                if (!message) return;
+                
+                // 입력 초기화
+                userInput.value = '';
+                
+                // 사용자 메시지 표시
+                appendMessage(message, 'user');
+                
+                // 타이핑 표시기 표시
+                showTypingIndicator();
+                
+                try {
+                    // API 요청
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            session_id: sessionId,
+                            session_state: sessionState
+                        })
+                    });
+                    
+                    // 타이핑 표시기 숨기기
+                    hideTypingIndicator();
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`API 오류: ${response.status} - ${errorText}`);
+                    }
+                    
+                    // 응답 처리
+                    const data = await response.json();
+                    sessionId = data.session_id || sessionId;
+                    sessionState = data.session_state || {};
+                    
+                    // 세션 정보 저장
+                    localStorage.setItem('chatSessionId', sessionId);
+                    localStorage.setItem('chatSessionState', JSON.stringify(sessionState));
+                    
+                    // 메타데이터 확인
+                    const metadata = data.metadata || {};
+                    
+                    // 일반 텍스트 응답 항상 표시
+                    appendMessage(data.response, 'bot');
+
+                    // 연차 신청 카드가 있으면 추가로 표시
+                    if (metadata.card_html) {
+                        appendCardHTML(metadata.card_html);
+                    }
+                    
+                    // 세션 정보 업데이트
+                    updateSessionInfo(sessionId, sessionState);
+                    
+                    // 연차 처리 단계 업데이트
+                    updateVacationSteps(
+                        sessionState.current_step || 'START', 
+                        sessionState.missing_info || [],
+                        sessionState
+                    );
+                    
+                } catch (error) {
+                    console.error('에러:', error);
+                    hideTypingIndicator();
+                    appendMessage(`오류가 발생했습니다: ${error.message}`, 'bot', 'error');
+                }
+            });
+            
+            // 채팅 초기화
+            clearChatBtn.addEventListener('click', function() {
+                // 새 세션 생성
+                sessionId = generateUUID();
+                sessionState = {};
+                
+                localStorage.setItem('chatSessionId', sessionId);
+                localStorage.setItem('chatSessionState', JSON.stringify(sessionState));
+                
+                // 채팅창 초기화
+                chatMessages.innerHTML = `
+                    <div class="message message-bot">
+                        <div>안녕하세요! N2 그룹웨어 통합 챗봇입니다. 무엇을 도와드릴까요?<br>
+                        일반적인 질문이나 연차/휴가 신청에 관한 내용으로 대화할 수 있습니다.</div>
+                    </div>
+                    <div class="typing-indicator" id="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                `;
+                
+                // 세션 정보 초기화
+                updateSessionInfo(sessionId, {});
+                
+                // 연차 단계 정보 초기화
+                updateVacationSteps('START', [], {});
+                
+                // 알림
+                alert('대화가 초기화되었습니다.');
+            });
+            
+            // 메시지 추가 함수
+            function appendMessage(text, sender, type = 'normal') {
+                const message = document.createElement('div');
+                message.className = `message message-${sender}`;
+                
+                if (type === 'error') {
+                    message.classList.add('message-error');
+                    message.style.backgroundColor = '#f8d7da';
+                    message.style.color = '#721c24';
+                }
+                
+                // 텍스트에 줄바꿈이 있으면 처리
+                const formattedText = text.replace(/\n/g, '<br>');
+                message.innerHTML = `<div>${formattedText}</div>`;
+                
+                chatMessages.insertBefore(message, typingIndicator);
+                scrollToBottom();
+            }
+            
+            // 카드 HTML 추가 함수
+            function appendCardHTML(html) {
+                const message = document.createElement('div');
+                message.className = `message message-bot-card`;
+                message.innerHTML = html;
+                
+                chatMessages.insertBefore(message, typingIndicator);
+                scrollToBottom();
+            }
+            
+            // 세션 정보 업데이트
+            function updateSessionInfo(id, state) {
+                sessionIdSpan.textContent = id.substring(0, 8) + '...';
+                
+                // 직원 ID 업데이트
+                employeeIdSpan.textContent = state.employee_id || '01180001';
+                
+                // 현재 의도 업데이트
+                const currentIntent = state.current_intent || 'general';
+                currentIntentSpan.textContent = currentIntent === 'vacation' ? '연차 신청' : '일반';
+                currentIntentSpan.className = `badge ${currentIntent === 'vacation' ? 'bg-success' : 'bg-primary'}`;
+            }
+            
+            // 연차 처리 단계 업데이트
+            function updateVacationSteps(currentStep, missingInfo, state) {
+                // 단계 상태 업데이트
+                const steps = document.querySelectorAll('.step-indicator .step');
+                
+                // 현재 의도가 연차 신청이면 단계 카드 표시
+                const currentIntent = state.current_intent || 'general';
+                vacationStepsCard.style.display = currentIntent === 'vacation' ? 'block' : 'none';
+                
+                if (currentIntent !== 'vacation') return;
+                
+                // 단계 업데이트
+                let foundCurrent = false;
+                
+                steps.forEach(step => {
+                    step.classList.remove('active', 'completed');
+                    
+                    const stepName = step.getAttribute('data-step');
+                    
+                    if (stepName === currentStep) {
+                        step.classList.add('active');
+                        foundCurrent = true;
+                    } else if (!foundCurrent) {
+                        step.classList.add('completed');
+                    }
+                });
+                
+                // 누락된 정보 표시
+                if (missingInfo && missingInfo.length > 0) {
+                    missingInfoDiv.style.display = 'block';
+                    missingInfoList.innerHTML = '';
+                    
+                    const infoLabels = {
+                        'vacation_type': '휴가 종류',
+                        'start_date': '시작일',
+                        'end_date': '종료일',
+                        'reason': '사유',
+                        'half_day_type': '오전/오후 구분'
+                    };
+                    
+                    missingInfo.forEach(info => {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge bg-warning text-dark me-2 mb-1';
+                        badge.textContent = infoLabels[info] || info;
+                        missingInfoList.appendChild(badge);
+                    });
+                } else {
+                    missingInfoDiv.style.display = 'none';
+                }
+            }
+            
+            // 타이핑 표시기 함수
+            function showTypingIndicator() {
+                typingIndicator.style.display = 'flex';
+            }
+            
+            function hideTypingIndicator() {
+                typingIndicator.style.display = 'none';
+            }
+            
+            // 스크롤 함수
+            function scrollToBottom() {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // UUID 생성
+            function generateUUID() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+        });
+    </script>
+</body>
+</html> 
