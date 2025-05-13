@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스트리밍 채팅</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f0f0f;
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            height: 100vh;
+            overflow-y: auto;
+            transition: margin-right 0.3s ease;
+        }
+
+        .main-screen.chat-active {
+            margin-right: 350px;
+        }
+
+        .room-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        .room-card {
+            background: #272727;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .room-card:hover {
+            background: #3f3f3f;
+            transform: translateY(-2px);
+        }
+
+        .room-card h3 {
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .room-card p {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .chat-sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 350px;
+            min-width: 300px;
+            max-width: 500px;
+            background: #0f0f0f;
+            border-left: 1px solid #303030;
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .chat-sidebar.active {
+            display: flex;
+        }
+
+        .chat-window {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #0f0f0f;
+            border-bottom: 1px solid #303030;
+        }
+
+        .chat-header h2 {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .exit-button {
+            padding: 6px 12px;
+            background: #272727;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .exit-button:hover {
+            background: #3f3f3f;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column-reverse;
+            min-height: 0;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            animation: fadeIn 0.2s ease-in-out;
+            order: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background: #272727;
+        }
+
+        .system-message {
+            background: #303030;
+            text-align: center;
+            margin: 8px 0;
+            font-size: 12px;
+            color: #aaa;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .message-info {
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .message-timestamp {
+            font-size: 11px;
+            color: #666;
+            margin-left: 4px;
+        }
+
+        .message-content {
+            font-size: 14px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .chat-input {
+            padding: 12px;
+            background: #0f0f0f;
+            border-top: 1px solid #303030;
+        }
+
+        .chat-input form {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 8px 12px;
+            background: #272727;
+            border: 1px solid #303030;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .chat-input input:focus {
+            border-color: #1a73e8;
+        }
+
+        .chat-input button {
+            padding: 8px 16px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .chat-input button:hover {
+            background: #1557b0;
+        }
+
+        @media (max-width: 768px) {
+            .chat-sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .main-screen.chat-active {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-screen" id="main-screen">
+        <h1>스트리밍 채팅</h1>
+        <div class="room-list">
+            {% for room_id, room_name in chat_rooms.items() %}
+            <div class="room-card" data-room-id="{{ room_id }}">
+                <h3>{{ room_name }}</h3>
+                <p>현재 참여자: <span class="participant-count">0</span>명</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="chat-sidebar" id="chat-sidebar">
+        <div class="chat-window">
+            <div class="chat-header">
+                <h2 id="current-room-name">실시간 채팅</h2>
+                <button class="exit-button" id="exit-button">나가기</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input">
+                <form id="chat-form">
+                    <input type="text" id="message-input" placeholder="메시지를 입력하세요..." required>
+                    <button type="submit">전송</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let ws = null;
+        let currentRoom = null;
+        let userId = null;
+        const MAX_MESSAGES = 200;
+        let userScrolled = false;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        const RECONNECT_DELAY = 2000;
+        let messageIds = new Set(); // 중복 메시지 체크를 위한 Set
+
+        // 메시지 추가 함수
+        function appendMessage(message) {
+            // 중복 메시지 체크
+            if (messageIds.has(message.id)) {
+                return;
+            }
+            messageIds.add(message.id);
+                
+            const messagesDiv = document.getElementById('chat-messages');
+            if (!messagesDiv) return;
+
+            const messageElement = createMessageElement(message);
+            if (messageElement) {
+                // 최상단에 메시지 추가 (column-reverse로 인해 화면에서는 하단에 표시됨)
+                messagesDiv.insertBefore(messageElement, messagesDiv.firstChild);
+
+                // 메시지 개수 제한
+                while (messagesDiv.children.length > MAX_MESSAGES) {
+                    messagesDiv.removeChild(messagesDiv.lastChild);
+                    // Set에서도 오래된 메시지 ID 제거
+                    if (messagesDiv.lastChild) {
+                        const oldMessageId = messagesDiv.lastChild.dataset.messageId;
+                        messageIds.delete(oldMessageId);
+                    }
+                }
+
+                // 자동 스크롤
+                if (!userScrolled) {
+                    requestAnimationFrame(() => {
+                        messagesDiv.scrollTop = 0;
+                    });
+            }
+            }
+        }
+
+        // 메시지 엘리먼트 생성 함수
+        function createMessageElement(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${message.type}-message`;
+            messageElement.dataset.messageId = message.id; // 메시지 ID 저장
+
+            if (message.type === 'system') {
+                messageElement.textContent = message.content;
+                messageElement.style.color = '#888';
+                messageElement.style.textAlign = 'center';
+                messageElement.style.padding = '4px 0';
+                return messageElement;
+            }
+
+            const messageInfo = document.createElement('div');
+            messageInfo.className = 'message-info';
+            
+            const nickname = document.createElement('span');
+            nickname.textContent = message.nickname || '익명';
+            messageInfo.appendChild(nickname);
+
+            if (message.timestamp) {
+                const timestamp = document.createElement('span');
+                timestamp.className = 'message-timestamp';
+                const date = new Date(message.timestamp);
+                if (!isNaN(date.getTime())) {
+                    timestamp.textContent = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                }
+                messageInfo.appendChild(timestamp);
+            }
+            
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = message.content || '';
+
+            messageElement.appendChild(messageInfo);
+            messageElement.appendChild(content);
+
+            return messageElement;
+        }
+
+        // 스크롤 이벤트 리스너
+        function initializeScrollListener() {
+            const messagesDiv = document.getElementById('chat-messages');
+            if (!messagesDiv) return;
+
+            let scrollTimeout;
+            messagesDiv.addEventListener('scroll', () => {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    const isAtBottom = messagesDiv.scrollTop === 0;
+                    userScrolled = !isAtBottom;
+                }, 150); // 디바운스 적용
+            });
+        }
+
+        // WebSocket 메시지 처리
+        function handleMessage(message) {
+            console.log('Processing message:', message); // 디버깅 로그 추가
+
+            if (typeof message === 'string') {
+                try {
+                    message = JSON.parse(message);
+                } catch (e) {
+                    console.error('Failed to parse message:', e);
+                    return;
+                }
+            }
+
+            if (message.type === 'room_status') {
+                updateAllParticipantCounts(message.content);
+            } else if (message.type === 'ping') {
+                ws.send(JSON.stringify({type: 'pong'}));
+                return;
+            } else if (message.type === 'connection_established') {
+                console.log('Connection established');
+                return;
+            } else if (message.type === 'system' || message.type === 'user' || message.type === 'admin') {
+                // 메시지 타임스탬프 확인
+                if (!message.timestamp) {
+                    message.timestamp = new Date().toISOString();
+                }
+                // 메시지 ID 확인
+                if (!message.id) {
+                    message.id = 'msg-' + Math.random().toString(36).substr(2, 9);
+                }
+                appendMessage(message);
+            } else if (Array.isArray(message)) {
+                // 배치 메시지 처리
+                message.forEach(msg => {
+                    if (!msg.timestamp) {
+                        msg.timestamp = new Date().toISOString();
+                    }
+                    if (!msg.id) {
+                        msg.id = 'msg-' + Math.random().toString(36).substr(2, 9);
+                    }
+                    handleMessage(msg);
+                });
+            }
+        }
+
+        // WebSocket 연결 함수
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                console.log('이미 WebSocket이 연결되어 있습니다.');
+                return;
+            }
+
+            cleanupWebSocket();
+            
+            try {
+                console.log(`WebSocket 연결 시도: ws://${window.location.host}/ws/chat/${userId}/${currentRoom}`);
+                ws = new WebSocket(`ws://${window.location.host}/ws/chat/${userId}/${currentRoom}`);
+            
+                ws.onopen = () => {
+                    console.log('WebSocket 연결 성공');
+                    reconnectAttempts = 0;
+                    // 연결 성공 시 메시지 초기화
+                    messageIds.clear();
+                    document.getElementById('chat-messages').innerHTML = '';
+
+                    // 연결 유지를 위한 ping 전송 시작
+                    startPingInterval();
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Received message:', data);
+                        
+                        if (data.type === 'pong') {
+                            console.log('Received pong');
+                            return;
+                        }
+                        
+                        handleMessage(data);
+                    } catch (error) {
+                        console.error('메시지 처리 중 오류:', error);
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket 오류:', error);
+                };
+
+                ws.onclose = (event) => {
+                    console.log('WebSocket 연결 종료:', event.code, event.reason);
+                    stopPingInterval();
+                    
+                    if (event.code === 4000) {
+                        console.log('서버에서 연결을 거부했습니다:', event.reason);
+                        return;
+                    }
+
+                    if (currentRoom && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        console.log(`재연결 시도 ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}`);
+                        reconnectAttempts++;
+                        setTimeout(connectWebSocket, RECONNECT_DELAY * reconnectAttempts);
+                    }
+                };
+            } catch (error) {
+                console.error('WebSocket 연결 실패:', error);
+            }
+        }
+
+        let pingInterval = null;
+
+        // Ping 전송 시작
+        function startPingInterval() {
+            stopPingInterval();  // 기존 interval 정리
+            pingInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    console.log('Sending ping');
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                }
+            }, 30000);  // 30초마다 ping 전송
+        }
+
+        // Ping 전송 중지
+        function stopPingInterval() {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
+        }
+
+        // WebSocket 연결 해제 및 정리
+        function cleanupWebSocket() {
+            stopPingInterval();
+            
+            if (ws) {
+                // 이벤트 핸들러 제거
+                ws.onmessage = null;
+                ws.onclose = null;
+                ws.onerror = null;
+
+                // 연결이 열려있으면 정상적으로 종료
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.close(1000, "Normal closure");
+                }
+                ws = null;
+            }
+        }
+
+        // 채팅방 입장
+        document.querySelectorAll('.room-card').forEach(card => {
+            card.addEventListener('click', async () => {
+                const newRoomId = card.dataset.roomId;
+                if (currentRoom === newRoomId) return;
+
+                // 초기화
+                messageIds.clear();
+                userScrolled = false;
+                reconnectAttempts = 0;
+                
+                // 이전 연결 정리
+                cleanupWebSocket();
+                
+                // UI 초기화
+                document.getElementById('chat-messages').innerHTML = '';
+                currentRoom = newRoomId;
+                document.getElementById('current-room-name').textContent = 
+                    card.querySelector('h3').textContent;
+
+                // 사용자 ID 생성 (없는 경우에만)
+                if (!userId) {
+                    userId = 'user-' + Math.random().toString(36).substr(2, 9);
+                }
+
+                // UI 표시
+                document.getElementById('main-screen').classList.add('chat-active');
+                document.getElementById('chat-sidebar').classList.add('active');
+                
+                // 스크롤 이벤트 리스너 초기화
+                initializeScrollListener();
+                
+                // 잠시 대기 후 WebSocket 연결 시도
+                await new Promise(resolve => setTimeout(resolve, 100));
+                connectWebSocket();
+            });
+        });
+
+        // 메시지 전송
+        document.getElementById('chat-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const messageInput = document.getElementById('message-input');
+            const content = messageInput.value.trim();
+            
+            if (content && ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'user',
+                    content: content,
+                    room_id: currentRoom,
+                    user_id: userId,
+                    timestamp: new Date().toISOString()
+                };
+                
+                ws.send(JSON.stringify(message));
+                messageInput.value = '';
+            }
+        });
+
+        // 채팅방 나가기
+        document.getElementById('exit-button').addEventListener('click', () => {
+            cleanupWebSocket();
+            stopPingInterval();
+            
+            document.getElementById('chat-sidebar').classList.remove('active');
+            document.getElementById('main-screen').classList.remove('chat-active');
+            document.getElementById('chat-messages').innerHTML = '';
+            currentRoom = null;
+            messageIds.clear();
+            userScrolled = false;
+            reconnectAttempts = 0;
+        });
+                
+        // 참가자 수 업데이트 함수
+        function updateAllParticipantCounts(rooms) {
+            if (!rooms) return;
+            
+            console.log('Updating participant counts:', rooms); // 디버깅 로그
+            
+            Object.entries(rooms).forEach(([roomId, count]) => {
+                const roomElement = document.querySelector(`.room-card[data-room-id="${roomId}"] .participant-count`);
+                if (roomElement) {
+                    roomElement.textContent = count;
+                    console.log(`Updated room ${roomId} count to ${count}`); // 디버깅 로그
+                }
+            });
+        }
+    </script>
+</body>
+</html> 

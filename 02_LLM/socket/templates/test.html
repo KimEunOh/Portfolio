@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>실시간 채팅</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #chat-box {
+            width: 90%;
+            max-width: 600px;
+            height: 400px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            display: none;
+            flex-direction: column;
+        }
+        #message-form {
+            display: none;
+            width: 90%;
+            max-width: 600px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+        }
+        #send-button {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .my-message {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+            text-align: right;
+        }
+        .other-message {
+            background-color: #f1f0f0;
+            align-self: flex-start;
+            text-align: left;
+        }
+        .system-message {
+            background-color: #ffe7ba;
+            align-self: center;
+            text-align: center;
+            font-style: italic;
+        }
+        .timestamp {
+            font-size: 10px;   
+            color: #999;      
+            margin-right: 5px; 
+            font-weight: normal; 
+        }
+    </style>
+</head>
+<body>
+    <h1>실시간 채팅</h1>
+    <div>
+        <label for="user-name">사용자 이름:</label>
+        <select id="user-name">
+            <option value="">선택하세요</option>
+        </select>
+        <label for="recipient-name">대화 상대:</label>
+        <select id="recipient-name">
+            <option value="">선택하세요</option>
+        </select>
+        <button id="start-chat" disabled>대화 시작</button>
+    </div>
+    <div id="chat-box"></div>
+    <form id="message-form">
+        <input type="text" id="message-input" placeholder="메시지를 입력하세요..." autocomplete="off" required />
+        <button type="submit" id="send-button">전송</button>
+    </form>
+
+    <script>
+        const names = ["은오", "철수", "영희", "수지", "AI"];
+        const userNameSelect = document.getElementById('user-name');
+        const recipientNameSelect = document.getElementById('recipient-name');
+        const startChatButton = document.getElementById('start-chat');
+        const chatBox = document.getElementById('chat-box');
+
+        let ws = null;
+        let currentRoomId = null;
+        let userName = '';
+        let recipientName = '';
+
+        // 사용자 옵션과 상대방 옵션을 select에 추가
+        names.forEach(name => {
+            const userOption = document.createElement('option');
+            userOption.value = name;
+            userOption.textContent = name;
+            userNameSelect.appendChild(userOption);
+
+            const recipientOption = document.createElement('option');
+            recipientOption.value = name;
+            recipientOption.textContent = name;
+            recipientNameSelect.appendChild(recipientOption);
+        });
+
+        // 유니코드 문자열 -> Base64 변환 함수 (UTF-8 인코딩)
+        function base64Encode(str) {
+            const utf8Bytes = new TextEncoder().encode(str);
+            let binary = '';
+            utf8Bytes.forEach(byte => {
+                binary += String.fromCharCode(byte);
+            });
+            return btoa(binary);
+        }
+
+        // 채팅창에 메시지 추가
+        function addMessage(sender, text, time) {
+            const messageElem = document.createElement('div');
+            messageElem.classList.add('message');
+
+            // 시간 표시용 <span>
+            const timeSpan = document.createElement('span');
+            timeSpan.classList.add('timestamp');
+            timeSpan.textContent = `[${time}] `; // 원하는 형식으로 조정 가능
+
+            // 메시지 본문 <span>
+            const contentSpan = document.createElement('span');
+
+            if (sender === userName) {
+                messageElem.classList.add('my-message');
+                contentSpan.textContent = `나: ${text}`;
+
+                messageElem.appendChild(timeSpan);
+                messageElem.appendChild(contentSpan);
+            } else if (sender === 'System') {
+                messageElem.classList.add('system-message');
+                // 시스템 메시지는 시간 표시가 필요 없다면 timeSpan 안 붙여도 됨
+                contentSpan.textContent = text;
+                messageElem.appendChild(contentSpan);
+            } else {
+                messageElem.classList.add('other-message');
+                contentSpan.textContent = `${sender}: ${text}`;
+                messageElem.appendChild(contentSpan);
+                messageElem.appendChild(timeSpan);
+            }
+
+            // 채팅창에 메시지 추가
+            chatBox.appendChild(messageElem);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // 방(room) 접속 (WebSocket)
+        function connectToRoom(roomId, userName) {
+            if (ws) {
+                ws.close();
+            }
+
+            // Base64 인코딩된 roomId, userName을 URL에 포함
+            const encodedRoomId = base64Encode(roomId);
+            const encodedUserName = base64Encode(userName);
+
+            ws = new WebSocket(`ws://localhost:8000/ws/${encodedRoomId}/${encodedUserName}`);
+            currentRoomId = roomId;
+
+            ws.onmessage = function(event) {
+                // 서버가 "sender||time||content" 형태로 보내준다고 가정
+                const parts = event.data.split('||');
+                if (parts.length === 3) {
+                    // parts가 세 부분(sender, time, content)으로 정상 분리된 경우
+                    const [sender, time, content] = parts;
+                    addMessage(sender, content, time);
+                } else {
+                    // 구분자('||')가 없거나 parts의 개수가 3이 아닌 경우
+                    // 그냥 전체 문자열을 'System' 메시지로 표시
+                    addMessage('System', event.data);
+                }
+            };
+        }
+
+        // 대화 시작 버튼 활성화 여부 체크
+        function updateChatButtonState() {
+            userName = userNameSelect.value;
+            recipientName = recipientNameSelect.value;
+            if (userName && recipientName && userName !== recipientName) {
+                startChatButton.disabled = false;
+            } else {
+                startChatButton.disabled = true;
+            }
+        }
+
+        userNameSelect.addEventListener('change', updateChatButtonState);
+        recipientNameSelect.addEventListener('change', updateChatButtonState);
+
+        // "대화 시작" 버튼 클릭
+        startChatButton.addEventListener('click', async function() {
+            if (userName && recipientName && userName !== recipientName) {
+                // 기존 채팅 내용 삭제
+                chatBox.innerHTML = '';
+
+                // 방 아이디(문자열) -> 알파벳순 정렬
+                const sortedNames = [userName, recipientName].sort();
+                const roomId = sortedNames.join('_');
+
+                // 1) 과거 메시지 먼저 가져오기
+                try {
+                    const res = await fetch(`/rooms/${roomId}/messages`);
+                    const oldMessages = await res.json();  // [{senderName, msg, ts}, ...]
+                    // 2) 불러온 메시지를 채팅창에 추가
+                    oldMessages.forEach(m => {
+                        addMessage(m.senderName, m.msg, m.ts);
+                    });
+                } catch (err) {
+                    console.error("이전 메시지 조회 실패:", err);
+                }
+
+                // 3) WebSocket 연결
+                connectToRoom(roomId, userName);
+
+                // 채팅 UI 표시
+                chatBox.style.display = 'flex';
+                document.getElementById('message-form').style.display = 'flex';
+            }
+        });
+
+        // 메시지 전송
+        document.getElementById('message-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            if (message && ws && currentRoomId) {
+                ws.send(message);  // 서버로 전송
+                input.value = '';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'app_metrics'
+    static_configs:
+      - targets: ['app:8080']
+        labels:
+          service: 'llm_api'
+  
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          
+  # Node Exporter를 사용할 경우 추가
+  #- job_name: 'node_exporter'
+  #  static_configs:
+  #    - targets: ['node-exporter:9100']
+  #      labels:
+  #        service: 'node_metrics'
+  
+  # vLLM 서버에서 /metrics 엔드포인트가 지원되지 않아 비활성화
+  # - job_name: 'vllm_metrics'
+  #   metrics_path: /metrics
+  #   static_configs:
+  #     - targets: ['4ucbikmtl97a44-8000.proxy.runpod.net'] 

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>채팅 통계</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f0f0f;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .stats-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stats-card {
+            background: #272727;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .stats-card h3 {
+            margin-bottom: 15px;
+            color: #1a73e8;
+        }
+
+        .stats-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .stats-label {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .chart-container {
+            background: #272727;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .room-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .room-selector select {
+            padding: 8px 16px;
+            background: #272727;
+            color: #fff;
+            border: 1px solid #1a73e8;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .room-selector select:focus {
+            outline: none;
+            border-color: #1557b0;
+        }
+
+        .refresh-button {
+            padding: 8px 16px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .refresh-button:hover {
+            background: #1557b0;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stats-container">
+        <div class="stats-header">
+            <h1>채팅 통계</h1>
+        </div>
+
+        <div class="room-selector">
+            <select id="roomSelect">
+                {% for room_id, room_name in chat_rooms.items() %}
+                <option value="{{ room_id }}">{{ room_name }}</option>
+                {% endfor %}
+            </select>
+            <button class="refresh-button" onclick="refreshStats()">새로고침</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stats-card">
+                <h3>오늘의 통계</h3>
+                <div class="stats-value" id="todayMessages">0</div>
+                <div class="stats-label">총 메시지</div>
+                <div class="stats-value" id="todayAdminMessages">0</div>
+                <div class="stats-label">관리자 메시지</div>
+                <div class="stats-value" id="todayUsers">0</div>
+                <div class="stats-label">고유 사용자</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>전체 통계</h3>
+                <div class="stats-value" id="totalUsers">0</div>
+                <div class="stats-label">총 사용자</div>
+                <div class="stats-value" id="totalJoins">0</div>
+                <div class="stats-label">총 입장 횟수</div>
+                <div class="stats-value" id="totalMessages">0</div>
+                <div class="stats-label">총 메시지</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>실시간 통계</h3>
+                <div class="stats-value" id="activeUsers">0</div>
+                <div class="stats-label">활성 사용자 (최근 10분)</div>
+                <div class="stats-value" id="peakUsers">0</div>
+                <div class="stats-label">최대 동시 접속자</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>시스템 성능</h3>
+                <div class="stats-value" id="cpuUsage">0%</div>
+                <div class="stats-label">CPU 사용률</div>
+                <div class="stats-value" id="memoryUsage">0 MB</div>
+                <div class="stats-label">메모리 사용량</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>WebSocket 상태</h3>
+                <div class="stats-value" id="activeConnections">0</div>
+                <div class="stats-label">활성 연결</div>
+                <div class="stats-value" id="connectionErrors">0</div>
+                <div class="stats-label">연결 오류</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>메시지 처리</h3>
+                <div class="stats-value" id="messagesPerSecond">0</div>
+                <div class="stats-label">초당 메시지</div>
+                <div class="stats-value" id="errorCount">0</div>
+                <div class="stats-label">오류 발생</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="timeDistributionChart"></canvas>
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let timeDistributionChart;
+        let performanceChart;
+
+        function initializeCharts() {
+            const ctx = document.getElementById('timeDistributionChart').getContext('2d');
+            timeDistributionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}시`),
+                    datasets: [{
+                        label: '시간대별 메시지 수',
+                        data: Array(24).fill(0),
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#fff'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#fff'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#fff'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU 사용률 (%)',
+                        data: [],
+                        borderColor: '#1a73e8',
+                        fill: false
+                    }, {
+                        label: '메모리 사용량 (MB)',
+                        data: [],
+                        borderColor: '#34a853',
+                        fill: false
+                    }, {
+                        label: '초당 메시지',
+                        data: [],
+                        borderColor: '#ea4335',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#fff'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#fff'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#fff'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function fetchStats() {
+            const roomId = document.getElementById('roomSelect').value;
+            try {
+                const [statsResponse, metricsResponse] = await Promise.all([
+                    fetch(`/stats/room/${roomId}`),
+                    fetch(`/stats/metrics/${roomId}`)
+                ]);
+                
+                const statsData = await statsResponse.json();
+                const metricsData = await metricsResponse.json();
+                
+                // 기존 통계 업데이트
+                updateExistingStats(statsData);
+                
+                // 시스템 성능 통계 업데이트
+                updatePerformanceStats(metricsData);
+                
+                // 차트 업데이트
+                updateCharts(statsData, metricsData);
+            } catch (error) {
+                console.error('통계 데이터 가져오기 실패:', error);
+            }
+        }
+
+        function updateExistingStats(statsData) {
+            document.getElementById('todayMessages').textContent = statsData.today_stats.total_messages;
+            document.getElementById('todayAdminMessages').textContent = statsData.today_stats.admin_messages;
+            document.getElementById('todayUsers').textContent = statsData.today_stats.unique_users;
+            document.getElementById('totalUsers').textContent = statsData.total_stats.total_users;
+            document.getElementById('totalJoins').textContent = statsData.total_stats.total_joins;
+            document.getElementById('totalMessages').textContent = statsData.total_stats.total_messages;
+            document.getElementById('activeUsers').textContent = statsData.total_stats.active_users;
+            document.getElementById('peakUsers').textContent = statsData.today_stats.peak_users;
+            
+            // 시간대별 분포 차트 업데이트
+            const timeDistribution = statsData.today_stats.time_distribution;
+            const chartData = Array(24).fill(0);
+            Object.entries(timeDistribution).forEach(([hour, count]) => {
+                chartData[parseInt(hour)] = count;
+            });
+            
+            timeDistributionChart.data.datasets[0].data = chartData;
+            timeDistributionChart.update();
+        }
+
+        function updatePerformanceStats(metrics) {
+            if (!metrics || !metrics.current) return;
+            
+            const current = metrics.current;
+            document.getElementById('cpuUsage').textContent = `${current.cpu_usage.toFixed(1)}%`;
+            document.getElementById('memoryUsage').textContent = `${current.memory_usage.toFixed(1)} MB`;
+            document.getElementById('activeConnections').textContent = current.active_connections;
+            document.getElementById('connectionErrors').textContent = current.connection_errors;
+            document.getElementById('messagesPerSecond').textContent = current.messages_per_second.toFixed(2);
+            document.getElementById('errorCount').textContent = current.error_count;
+        }
+
+        function updateCharts(statsData, metricsData) {
+            // 기존 시간대별 분포 차트 업데이트
+            const timeDistribution = statsData.today_stats.time_distribution;
+            const chartData = Array(24).fill(0);
+            Object.entries(timeDistribution).forEach(([hour, count]) => {
+                chartData[parseInt(hour)] = count;
+            });
+            timeDistributionChart.data.datasets[0].data = chartData;
+            timeDistributionChart.update();
+
+            // 성능 차트 업데이트
+            if (metricsData && metricsData.timestamps && metricsData.timestamps.length > 0) {
+                const labels = metricsData.timestamps.map(ts => {
+                    const date = new Date(ts);
+                    return date.toLocaleTimeString();
+                });
+
+                performanceChart.data.labels = labels;
+                performanceChart.data.datasets[0].data = metricsData.cpu_usage;
+                performanceChart.data.datasets[1].data = metricsData.memory_usage;
+                performanceChart.data.datasets[2].data = metricsData.messages_per_second;
+                performanceChart.update();
+            }
+        }
+
+        function refreshStats() {
+            fetchStats();
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCharts();
+            fetchStats();
+            
+            // 1초마다 자동 새로고침
+            setInterval(fetchStats, 1000);
+        });
+
+        // 채팅방 변경 시 통계 업데이트
+        document.getElementById('roomSelect').addEventListener('change', fetchStats);
+    </script>
+</body>
+</html> 

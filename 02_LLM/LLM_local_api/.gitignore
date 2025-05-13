@@ -1,0 +1,54 @@
+# 가상 환경
+venv/
+env/
+ENV/
+
+# Python 캐시 파일
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 로컬 설정 파일
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 로그 파일
+*.log
+logs/
+
+# 데이터베이스 파일
+*.db
+*.sqlite3
+
+# FAISS 인덱스 파일 (필요에 따라 주석 처리)
+faiss/index/
+
+# 문서 파일 (필요에 따라 주석 처리)
+# documents/
+
+# IDE 관련 파일
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store 

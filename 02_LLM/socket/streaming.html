@@ -1,0 +1,263 @@
+// 전역 변수
+let ws = null;
+let currentRoom = null;
+let userId = 'user-' + Math.random().toString(36).substr(2, 9);  // 임시 사용자 ID 생성
+const MAX_MESSAGES = 200;
+let userScrolled = false;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 2000;
+let messageIds = new Set();
+let userNickname = null;  // 닉네임 저장용 변수 추가
+let isAuthenticated = false;  // 인증 상태 확인용 변수 추가
+const MAX_MESSAGES_PER_PAGE = 50;  // 페이지당 최대 메시지 수
+let lastMessageTimestamp = null;    // 마지막 메시지 타임스탬프
+let isLoadingMessages = false;      // 메시지 로딩 상태
+let hasMoreMessages = true;         // 추가 메시지 존재 여부
+
+// 로그인 상태 확인 함수
+async function checkLoginStatus() {
+    try {
+        const response = await fetch('/user/check-status');
+        const data = await response.json();
+        if (data.is_authenticated) {
+            isAuthenticated = true;
+            userId = data.user_id;
+            userNickname = data.nickname;
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('로그인 상태 확인 실패:', error);
+        return false;
+    }
+}
+
+// 채팅방 입장
+document.querySelectorAll('.room-card').forEach(card => {
+    card.addEventListener('click', async () => {
+        const newRoomId = card.dataset.roomId;
+        if (currentRoom === newRoomId) return;
+
+        // 초기화
+        messageIds.clear();
+        userScrolled = false;
+        
+        // 이전 연결 정리
+        cleanupWebSocket();
+        
+        // UI 초기화
+        document.getElementById('chat-messages').innerHTML = '';
+        currentRoom = newRoomId;
+        document.getElementById('current-room-name').textContent = 
+            card.querySelector('h3').textContent;
+
+        // UI 표시
+        document.getElementById('main-screen').classList.add('chat-active');
+        document.getElementById('chat-sidebar').classList.add('active');
+        
+        // 초기 메시지 로드
+        await loadInitialMessages();
+        
+        // 스크롤 이벤트 리스너 초기화
+        initializeScrollListener();
+        
+        // WebSocket 연결
+        connectWebSocket();
+    });
+});
+
+// WebSocket 연결 함수
+function connectWebSocket() {
+    cleanupWebSocket();
+    
+    try {
+        ws = new WebSocket(`ws://${window.location.host}/ws/chat/${userId}/${currentRoom}`);
+    
+        ws.onopen = () => {
+            console.log('WebSocket 연결 성공');
+            reconnectAttempts = 0;
+            // 연결 성공 시 메시지 초기화
+            messageIds.clear();
+            document.getElementById('chat-messages').innerHTML = '';
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Received message:', data);
+                handleMessage(data);
+            } catch (error) {
+                console.error('메시지 처리 중 오류:', error);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket 오류:', error);
+        };
+
+        ws.onclose = (event) => {
+            console.log('WebSocket 연결 종료:', event.code, event.reason);
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                setTimeout(connectWebSocket, RECONNECT_DELAY);
+            }
+        };
+    } catch (error) {
+        console.error('WebSocket 연결 실패:', error);
+    }
+}
+
+// 이전 메시지 로드 함수
+async function loadPreviousMessages() {
+    if (isLoadingMessages || !hasMoreMessages || !currentRoom) return;
+    
+    try {
+        isLoadingMessages = true;
+        const messagesDiv = document.getElementById('chat-messages');
+        const url = `/messages/${currentRoom}?limit=${MAX_MESSAGES_PER_PAGE}${
+            lastMessageTimestamp ? `&before=${lastMessageTimestamp}` : ''
+        }`;
+        
+        const response = await fetch(url);
+        const messages = await response.json();
+        
+        if (messages.length < MAX_MESSAGES_PER_PAGE) {
+            hasMoreMessages = false;
+        }
+        
+        if (messages.length > 0) {
+            // 가장 오래된 메시지의 타임스탬프 저장
+            lastMessageTimestamp = messages[messages.length - 1].timestamp;
+            
+            // 메시지 추가
+            const fragment = document.createDocumentFragment();
+            messages.forEach(message => {
+                const messageElement = createMessageElement(message);
+                if (messageElement) {
+                    fragment.appendChild(messageElement);
+                }
+            });
+            
+            // 현재 스크롤 위치 저장
+            const oldHeight = messagesDiv.scrollHeight;
+            const oldScroll = messagesDiv.scrollTop;
+            
+            // 메시지 추가
+            messagesDiv.appendChild(fragment);
+            
+            // 스크롤 위치 조정
+            messagesDiv.scrollTop = messagesDiv.scrollHeight - oldHeight + oldScroll;
+        }
+    } catch (error) {
+        console.error('이전 메시지 로드 실패:', error);
+    } finally {
+        isLoadingMessages = false;
+    }
+}
+
+// 스크롤 이벤트 리스너
+function initializeScrollListener() {
+    const messagesDiv = document.getElementById('chat-messages');
+    if (!messagesDiv) return;
+
+    let scrollTimeout;
+    messagesDiv.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            const scrollPosition = messagesDiv.scrollHeight + messagesDiv.scrollTop;
+            const isNearBottom = Math.abs(scrollPosition - messagesDiv.clientHeight) < 50;
+            userScrolled = !isNearBottom;
+
+            // 스크롤이 상단에 가까워지면 이전 메시지 로드
+            if (messagesDiv.scrollTop < 200 && hasMoreMessages && !isLoadingMessages) {
+                loadPreviousMessages();
+            }
+        }, 150);
+    });
+}
+
+// 메시지 추가 함수 수정
+function appendMessage(message) {
+    if (messageIds.has(message.id)) {
+        return;
+    }
+    messageIds.add(message.id);
+    
+    const messagesDiv = document.getElementById('chat-messages');
+    if (!messagesDiv) return;
+
+    const messageElement = createMessageElement(message);
+    if (messageElement) {
+        // 최근 메시지는 상단에 추가
+        messagesDiv.insertBefore(messageElement, messagesDiv.firstChild);
+
+        // 메시지 개수 제한
+        while (messagesDiv.children.length > MAX_MESSAGES) {
+            const lastChild = messagesDiv.lastChild;
+            if (lastChild) {
+                const messageId = lastChild.dataset.messageId;
+                messageIds.delete(messageId);
+                messagesDiv.removeChild(lastChild);
+            }
+        }
+
+        // 자동 스크롤 (사용자가 수동으로 스크롤하지 않은 경우에만)
+        if (!userScrolled) {
+            requestAnimationFrame(() => {
+                messagesDiv.scrollTop = 0;
+            });
+        }
+    }
+}
+
+// 채팅방 입장 시 초기 메시지 로드
+async function loadInitialMessages() {
+    messageIds.clear();
+    lastMessageTimestamp = null;
+    hasMoreMessages = true;
+    document.getElementById('chat-messages').innerHTML = '';
+    await loadPreviousMessages();
+}
+
+// 메시지 처리 함수
+function handleMessage(message) {
+    appendMessage(message);
+}
+
+// 채팅방 입장 이벤트 수정
+document.querySelectorAll('.room-card').forEach(card => {
+    card.addEventListener('click', async () => {
+        const newRoomId = card.dataset.roomId;
+        if (currentRoom === newRoomId) return;
+
+        // 초기화
+        currentRoom = newRoomId;
+        document.getElementById('current-room-name').textContent = 
+            card.querySelector('h3').textContent;
+
+        // UI 표시
+        document.getElementById('main-screen').classList.add('chat-active');
+        document.getElementById('chat-sidebar').classList.add('active');
+        
+        // 이전 연결 정리
+        cleanupWebSocket();
+        
+        // 초기 메시지 로드
+        await loadInitialMessages();
+        
+        // 스크롤 이벤트 리스너 초기화
+        initializeScrollListener();
+        
+        // WebSocket 연결
+        connectWebSocket();
+    });
+});
+
+// WebSocket 연결 정리 함수
+function cleanupWebSocket() {
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+} 

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 이미지 채팅</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            display: flex;
+            height: 85vh;
+        }
+        .chat-messages {
+            flex: 2;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-right: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .image-preview {
+            flex: 1;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #4a9eff;
+            color: white;
+        }
+        .bot-message {
+            align-self: flex-start;
+            background-color: #e9e9eb;
+            color: #333;
+        }
+        .input-area {
+            display: flex;
+            margin-top: 20px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        #send-button {
+            padding: 12px 24px;
+            background-color: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #send-button:hover {
+            background-color: #3a8eff;
+        }
+        .loading {
+            align-self: center;
+            display: none;
+            margin: 20px 0;
+        }
+        .loading div {
+            width: 12px;
+            height: 12px;
+            background-color: #4a9eff;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 5px;
+            animation: loading 1.5s infinite ease-in-out;
+        }
+        .loading div:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .loading div:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes loading {
+            0%, 100% { transform: scale(0.5); }
+            50% { transform: scale(1.2); }
+        }
+        .image-container {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        .image-container img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .image-container img:hover {
+            transform: scale(1.02);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .source-info {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .source-references {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .sources-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #4a9eff;
+        }
+        .source-references ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .source-references li {
+            margin-bottom: 3px;
+        }
+        .image-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        /* 모달 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 80%;
+            max-height: 80vh;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>RAG 이미지 채팅 시스템</h1>
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot-message">
+                안녕하세요! 문서 기반 질문에 답변해 드리겠습니다. 무엇을 도와드릴까요?
+            </div>
+            <div class="loading" id="loading">
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+        </div>
+        <div class="image-preview" id="image-preview">
+            <h3>참조 이미지</h3>
+            <div id="image-container"></div>
+        </div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="message-input" placeholder="메시지를 입력하세요...">
+        <button id="send-button">전송</button>
+    </div>
+
+    <!-- 이미지 모달 -->
+    <div id="image-modal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const chatMessages = document.getElementById('chat-messages');
+            const loading = document.getElementById('loading');
+            const imageContainer = document.getElementById('image-container');
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-image');
+            const closeBtn = document.getElementsByClassName('close')[0];
+
+            // 모달 닫기 이벤트
+            closeBtn.onclick = function() {
+                modal.style.display = "none";
+            }
+            
+            // 모달 외부 클릭 시 닫기
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+
+            // 응답 데이터 처리 함수
+            function processResponseData(data, botMessageElement) {
+                // 응답 텍스트 업데이트
+                if (data.full_text) {
+                    botMessageElement.textContent = data.full_text;
+                } else if (data.text) {
+                    botMessageElement.textContent += data.text;
+                }
+                
+                // 출처 정보가 있으면 표시
+                if (data.sources && data.sources.length > 0) {
+                    // 이미 출처 정보 요소가 있는지 확인
+                    let sourcesElement = botMessageElement.querySelector('.source-references');
+                    if (!sourcesElement) {
+                        sourcesElement = document.createElement('div');
+                        sourcesElement.className = 'source-references';
+                        botMessageElement.appendChild(sourcesElement);
+                    }
+                    
+                    // 출처 정보 업데이트
+                    sourcesElement.innerHTML = '<hr><div class="sources-title">참고 문서</div>';
+                    const uniqueSources = Array.from(new Set(data.sources.map(s => JSON.stringify(s))))
+                        .map(s => JSON.parse(s));
+                    
+                    const sourceList = document.createElement('ul');
+                    uniqueSources.forEach(source => {
+                        const item = document.createElement('li');
+                        item.textContent = `${source.file} (페이지: ${source.page})`;
+                        sourceList.appendChild(item);
+                    });
+                    sourcesElement.appendChild(sourceList);
+                }
+                
+                // 스크롤 업데이트
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                return {
+                    images: data.images || [],
+                    sources: data.sources || [],
+                    done: !!data.done
+                };
+            }
+
+            // 스트림 버퍼 처리 함수
+            function processStreamBuffer(buffer, botMessageElement) {
+                // SSE 포맷 처리 (data: {...}\n\n)
+                const lines = buffer.split('\n\n');
+                const remainingBuffer = lines.pop() || ''; // 마지막 미완성 라인 보관
+                
+                let images = [];
+                let sources = [];
+                let isDone = false;
+                
+                for (const line of lines) {
+                    if (line.trim() && line.startsWith('data: ')) {
+                        try {
+                            // JSON 파싱
+                            const jsonStr = line.substring(6).trim();
+                            if (!jsonStr || jsonStr === '[DONE]') continue;
+                            
+                            const data = JSON.parse(jsonStr);
+                            const result = processResponseData(data, botMessageElement);
+                            
+                            // 데이터 수집
+                            if (result.images.length && !images.length) {
+                                images = result.images;
+                            }
+                            if (result.sources.length) {
+                                sources = result.sources;
+                            }
+                            if (result.done) {
+                                isDone = true;
+                                break;
+                            }
+                        } catch (e) {
+                            console.error('스트리밍 데이터 파싱 오류:', e, line);
+                        }
+                    }
+                }
+                
+                return {
+                    remainingBuffer, 
+                    images, 
+                    sources, 
+                    done: isDone
+                };
+            }
+
+            // 스트리밍 응답 처리 함수
+            async function handleStreamingResponse(fetchResponse, botMessageElement) {
+                const reader = fetchResponse.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let images = [];
+                
+                // 이미지 컨테이너 초기화
+                imageContainer.innerHTML = '';
+                
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        // 디코딩 및 청크 처리
+                        buffer += decoder.decode(value, { stream: true });
+                        const result = processStreamBuffer(buffer, botMessageElement);
+                        buffer = result.remainingBuffer;
+                        
+                        // 이미지 정보 수집
+                        if (result.images.length > 0 && images.length === 0) {
+                            images = result.images;
+                        }
+                        
+                        if (result.done) break;
+                    }
+                    
+                    // 이미지 표시 (완료 후)
+                    if (images.length > 0) {
+                        displayImages(images);
+                    }
+                } catch (error) {
+                    console.error('스트림 처리 오류:', error);
+                    botMessageElement.textContent += '\n[스트리밍 처리 중 오류가 발생했습니다]';
+                }
+            }
+
+            // 일반 응답 처리 함수
+            async function handleNormalResponse(fetchResponse, botMessageElement) {
+                const data = await fetchResponse.json();
+                
+                // 응답 표시
+                botMessageElement.textContent = data.text;
+                
+                // 출처 정보가 있으면 표시
+                if (data.sources && data.sources.length > 0) {
+                    const sourcesElement = document.createElement('div');
+                    sourcesElement.className = 'source-references';
+                    sourcesElement.innerHTML = '<hr><div class="sources-title">참고 문서</div>';
+                    
+                    const uniqueSources = Array.from(new Set(data.sources.map(s => JSON.stringify(s))))
+                        .map(s => JSON.parse(s));
+                    
+                    const sourceList = document.createElement('ul');
+                    uniqueSources.forEach(source => {
+                        const item = document.createElement('li');
+                        item.textContent = `${source.file} (페이지: ${source.page})`;
+                        sourceList.appendChild(item);
+                    });
+                    sourcesElement.appendChild(sourceList);
+                    botMessageElement.appendChild(sourcesElement);
+                }
+                
+                // 이미지가 있으면 표시
+                imageContainer.innerHTML = '';
+                if (data.images && data.images.length > 0) {
+                    displayImages(data.images);
+                }
+            }
+
+            // 이미지 표시 함수
+            function displayImages(images) {
+                images.forEach((img, index) => {
+                    const imgElement = document.createElement('div');
+                    imgElement.className = 'image-container';
+                    
+                    // 파일 경로에서 파일명만 추출
+                    const fileName = getFileName(img.source);
+                    
+                    imgElement.innerHTML = `
+                        <div class="image-title">참조 이미지 ${index + 1}</div>
+                        <div class="source-info">출처: ${fileName}, 페이지: ${img.page}</div>
+                        <img src="data:image/png;base64,${img.data}" alt="참조 이미지 ${index + 1}">
+                    `;
+                    imageContainer.appendChild(imgElement);
+                    
+                    // 이미지 클릭 시 모달로 확대 표시
+                    const imgNode = imgElement.querySelector('img');
+                    imgNode.onclick = function() {
+                        modal.style.display = "flex";
+                        modalImg.src = this.src;
+                    }
+                });
+            }
+            
+            // 파일 경로에서 파일명만 추출하는 함수
+            function getFileName(path) {
+                if (!path) return "알 수 없음";
+                const parts = path.split(/[/\\]/);
+                return parts[parts.length - 1];
+            }
+
+            // 메시지 전송 함수
+            async function sendMessage() {
+                const message = messageInput.value.trim();
+                if (message === '') return;
+
+                // 사용자 메시지 표시
+                const userMessageElement = document.createElement('div');
+                userMessageElement.className = 'message user-message';
+                userMessageElement.textContent = message;
+                chatMessages.appendChild(userMessageElement);
+                
+                // 입력창 초기화 및 스크롤
+                messageInput.value = '';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // 로딩 표시
+                loading.style.display = 'block';
+                
+                // 봇 메시지 요소 미리 생성
+                const botMessageElement = document.createElement('div');
+                botMessageElement.className = 'message bot-message';
+                botMessageElement.textContent = ''; // 스트리밍될 내용
+                chatMessages.appendChild(botMessageElement);
+                
+                try {
+                    // 서버에 메시지 전송
+                    const formData = new FormData();
+                    formData.append('prompt', message);
+                    formData.append('stream', 'true'); // 스트리밍 모드 사용
+                    
+                    // 서버 요청
+                    const fetchResponse = await fetch('/chat', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    // 응답 유형에 따라 처리 방식 분기
+                    const contentType = fetchResponse.headers.get('content-type');
+                    if (contentType && contentType.includes('text/event-stream')) {
+                        // 스트리밍 응답 처리
+                        await handleStreamingResponse(fetchResponse, botMessageElement);
+                    } else {
+                        // 일반 JSON 응답 처리
+                        await handleNormalResponse(fetchResponse, botMessageElement);
+                    }
+                } catch (error) {
+                    console.error('오류:', error);
+                    botMessageElement.textContent = '죄송합니다, 메시지 처리 중 오류가 발생했습니다.';
+                } finally {
+                    loading.style.display = 'none';
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+
+            // 전송 버튼 클릭 이벤트
+            sendButton.addEventListener('click', sendMessage);
+            
+            // 엔터 키 입력 이벤트
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
