@@ -103,9 +103,6 @@
   - 주요 기능 : 트리맵 시각화(squarify), SVR, GradientBoostingRegressor, Sequential 모델, Adam 옵티마이저
   - 주요 기술 스택:  scikit-learn, TensorFlow/Keras, Optuna, Flask, pandas, numpy, matplotlib, seaborn, plotly, etc.
 
-## 77_side ('77_side/')
-  - 사이드 프로젝트
-
 ## 99_archive ('99_archive/')
   ### 1. cua ('cua/')
   - Computer using agent 활용 예제
