@@ -8,6 +8,9 @@
 ### 1. [approval_agent/](01_agents/approval_agent/)
 - 전자결재 챗봇 구현
   - API 통신 기반 결재 정보 불러오기 및 전송 프로세스 구현
+  - LangGraph의 상태 기반 워크플로우로 복잡한 대화 흐름 관리
+  - 연차 신청 프로세스를 자연어 대화로 처리하는 대화형 인터페이스
+  - 문의 의도 파악, 연차 정보 수집, 검증, 제출 등의 프로세스 자동화
 - 주요 기술 스택: 
   - FastAPI, Uvicorn, Jinja2
   - LangChain, LangGraph, OpenAI
@@ -16,10 +19,12 @@
 ## [02_LLM/](02_LLM/)
 - Large Language Model 관련 프로젝트
 ### 1. [LLM_local_api/](02_LLM/LLM_local_api/)
-- togetherai를 활용하여 GPU 클라우드 서버와 연동한 챗봇. 
-  - 문서에서 관련 높은 페이지의 이미지를 추출하여 답변으로 활용하는 지식 기반 챗봇.
-  - 사용량 및 자원 관리를 위한 Prometheus, Grafana 활용
-  - 배포 및 모니터링을 위한 Docker, Docker Compose 활용
+- RAG 기반 문서 질의응답 시스템
+  - PDF에서 텍스트와 이미지를 추출하여 지식 기반 QA 시스템 구현
+  - FAISS 벡터 DB를 활용한 시맨틱 검색
+  - 대용량 PDF 처리와 멀티모달 정보 통합
+  - Docker 컨테이너화를 통한 배포 및 확장성 확보
+  - Prometheus/Grafana 기반 시스템 모니터링
 - 주요 기술 스택: 
   - FastAPI, Uvicorn, Flask
   - LangChain, LangGraph, FAISS
@@ -27,29 +32,25 @@
   - Docker, Docker Compose
 
 ### 2. [socket/](02_LLM/socket/)
-- 소켓 통신을 활용한 실시간 채팅방 구현
-  - 1:1 채팅, 스트리밍 채팅, AI와의 채팅 구현
-  - 사용자 인증, 채팅방 관리, 시스템 모니터링, 통계 수집 등
+- WebSocket 기반 실시간 스트리밍 채팅 시스템
+  - 대규모 동시 접속과 실시간 메시지 처리를 위한 확장 가능한 아키텍처
+  - WebSocket 기반 지연 시간을 최소화한 양방향 통신
+  - AI 기반 대화 기능 통합 (OpenAI GPT)
+  - 샤딩 아키텍처와 메시지 큐잉을 통한 성능 최적화
+  - 유저 인증, 채팅방 관리, 시스템 모니터링, 통계 수집 등
 - 주요 기술 스택: 
-  - WebSocket, JWT & bcrypt, psutil
+  - WebSocket, FastAPI, SQLAlchemy
+  - JWT & bcrypt, OpenAI API
+  - Locust (부하 테스트)
+  - psutil (시스템 모니터링)
 
 ## [03_cv-multimodal/](03_cv-multimodal/)
 ### 1. [deepfake/](03_cv-multimodal/deepfake/)
-- Fine-tuning을 통한 도메인 특화 모델 구현(딥페이크 탐지)
 - CLIP 유사도 기반 Multimodal RAG 검증 기법 구현
-- 주요 기능:
-  - CLIP 기반 분석
-    - 이미지-텍스트 간 의미적 유사도 계산
-    - 멀티모달 임베딩 추출 및 비교
-    - GradCAM++, LayerCAM을 통한 판단 근거 시각화
-  - LLaVA 모델 활용
-    - 이미지 내용 자연어 설명 생성
-    - 커스텀 데이터셋 기반 파인튜닝
-    - 설명 생성 결과의 신뢰도 평가
-  - RAG 파이프라인
-    - 멀티모달 검색 및 검증
-    - 텍스트 중심의 RAG를 멀티모달 환경으로 확장
-    - 재현율 향상을 통한 탐지 누락 방지
+  - 멀티모달 모델(CLIP, LLaVA)을 활용한 이미지-텍스트 의미적 유사도 분석
+  - GradCAM++, LayerCAM을 통한 AI 모델의 판단 근거 시각화
+  - YOLOv8 기반 객체 탐지와 연계된 특징 분석
+  - 멀티모달 RAG 시스템의 응답 신뢰도 검증
 - 주요 기술 스택:
   - PyTorch, transformers, together-cli
   - CLIP, LLaVA, YOLOv8
@@ -57,19 +58,18 @@
   - pandas, numpy, captum
 
 ### 2. [OCR/](03_cv-multimodal/OCR/)
-- 촬영된 테이블 이미지를 다시 엑셀(csv)로 추출하는 프로젝트
-- 주요 기능:
-  - 마트 가격표를 멀티모달 모델을 이용하여 가격, 제품명, 상품 코드 등을 추출하여 csv 파일 변환 및 저장
-  - 바운딩 박스를 통한 모델 학습
-  - YOLOv5를 활용하여 가격표 영역 바운딩 박스 검출 및 좌표 추출
-  - 추출된 좌표를 기반으로 가격표 영역 추출 및 엑셀(csv)로 저장
-  - 혹은 LMM을 활용한 테이블 이미지 or 가격표 영역 검출 및 추출(gemini, gpt-4o, etc.)
-  - 이를 위한 다양한 프롬프트 엔지니어링 적용
+- 소매점 상품 정보 OCR 및 데이터 추출 자동화 시스템
+  - 두 가지 독립 시스템으로 구성:
+    1. 테이블 이미지 CSV 변환 시스템: 정형화된 상품 목록 테이블에서 CSV 파일로 직접 변환
+    2. 가격표 인식 및 데이터 추출 시스템: 매장 가격표를 자동 인식하고 상품 정보 추출
+  - 프롬프트 엔지니어링을 통한 OCR 데이터 구조화
+  - YOLOv5를 활용한 가격표 영역 자동 인식 (mAP@0.5 = 0.91)
+  - GPT-4o, o3-mini, Gemini 모델 활용 및 성능 비교
 - 주요 기술 스택: 
   - YOLOv5, PyTorch, ultralytics
   - OpenCV, Pillow, torchvision
   - Tesseract OCR, Gemini, GPT-4V
-  - scipy, numpy, pandas
+  - LangChain, scipy, numpy, pandas
 
 
 ## [04_data-science/](04_data-science/)
