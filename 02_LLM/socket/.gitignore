@@ -23,3 +23,9 @@ Thumbs.db
 *.lib
 *.so
 *.dylib 
+
+# Database
+chat.db
+
+# Test code
+test/

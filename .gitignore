@@ -74,6 +74,9 @@ SECURITY_AUDIT.md
 77_side/
 bfg-1.15.0.jar
 01_agents/approval_agent/tmp/
+02_LLM/socket/chat.db
+02_LLM/socket/test/
+02_LLM/socket/tmp/
 
 # Cursor 설정 파일
 **/.cursorrules
