@@ -72,4 +72,4 @@ target/
 01_agents/approval_agent/gw_agent/tmp/
 SECURITY_AUDIT.md
 77_side/
-99_archive/
+bfg-1.15.0.jar

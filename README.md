@@ -118,6 +118,7 @@
 
   ### 3. dify ('dify/')
   - Dify 프로젝트
+  - Made by Teddynote
   - dify 와 Openwebui를 활용하여 웹 애플리케이션 구현
 
   ### 6. MCP_example ('MCP_example/')
