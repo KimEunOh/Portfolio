@@ -73,3 +73,7 @@ target/
 SECURITY_AUDIT.md
 77_side/
 bfg-1.15.0.jar
+01_agents/approval_agent/tmp/
+
+# Cursor 설정 파일
+**/.cursorrules
