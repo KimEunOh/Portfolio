@@ -1,11 +1,11 @@
 ## 프로젝트 구조
 
-## 00_docs ('00_docs/')
+## [00_docs/](00_docs/)
 - 프로젝트 관련 문서
   - 1. 발표자료 : AI 컨퍼런스 관련 자료
 
-## 01_agents ('01_agents/')
-### 1. approval_agent ('approval_agent/')
+## [01_agents/](01_agents/)
+### 1. [approval_agent/](01_agents/approval_agent/)
 - 전자결재 챗봇 구현
   - API 통신 기반 결재 정보 불러오기 및 전송 프로세스 구현
 - 주요 기술 스택: 
@@ -13,9 +13,9 @@
   - LangChain, LangGraph, OpenAI
 
 
-## 02_LLM ('02_LLM/')
+## [02_LLM/](02_LLM/)
 - Large Language Model 관련 프로젝트
-### 1. LLM_local_api ('LLM_local_api/')
+### 1. [LLM_local_api/](02_LLM/LLM_local_api/)
 - togetherai를 활용하여 GPU 클라우드 서버와 연동한 챗봇. 
   - 문서에서 관련 높은 페이지의 이미지를 추출하여 답변으로 활용하는 지식 기반 챗봇.
   - 사용량 및 자원 관리를 위한 Prometheus, Grafana 활용
@@ -26,15 +26,15 @@
   - OpenAI, Together AI
   - Docker, Docker Compose
 
-### 2. socket ('socket/')
+### 2. [socket/](02_LLM/socket/)
 - 소켓 통신을 활용한 실시간 채팅방 구현
   - 1:1 채팅, 스트리밍 채팅, AI와의 채팅 구현
   - 사용자 인증, 채팅방 관리, 시스템 모니터링, 통계 수집 등
 - 주요 기술 스택: 
   - WebSocket, JWT & bcrypt, psutil
 
-## 03_cv-multimodal ('03_cv-multimodal/')
-### 1. deepfake ('deepfake/')
+## [03_cv-multimodal/](03_cv-multimodal/)
+### 1. [deepfake/](03_cv-multimodal/deepfake/)
 - Fine-tuning을 통한 도메인 특화 모델 구현(딥페이크 탐지)
 - CLIP 유사도 기반 Multimodal RAG 검증 기법 구현
 - 주요 기능:
@@ -56,7 +56,7 @@
   - GradCAM++, LayerCAM, EigenGradCAM
   - pandas, numpy, captum
 
-### 2. OCR ('OCR/')
+### 2. [OCR/](03_cv-multimodal/OCR/)
 - 촬영된 테이블 이미지를 다시 엑셀(csv)로 추출하는 프로젝트
 - 주요 기능:
   - 마트 가격표를 멀티모달 모델을 이용하여 가격, 제품명, 상품 코드 등을 추출하여 csv 파일 변환 및 저장
@@ -72,17 +72,17 @@
   - scipy, numpy, pandas
 
 
-## 04_data-science ('04_data-science/')
+## [04_data-science/](04_data-science/)
   - 데이터 전처리, 분석 및 시각화, 예측 모델 구현
-  ### 1. vacation ('vacation/')
+  ### 1. [vacation/](04_data-science/vacation/)
   - 연차 기록 크롤링 및 Dash 기반 대시보드 구성
   - Selenium, Dash
-  ### 2. travel_time ('travel_time/')
+  ### 2. [travel_time/](04_data-science/travel_time/)
   - 5개의 근무지를 할당받은 경우, 최적 경로 추천 프로젝트
   - Naver Maps API, Geocoding API 활용
   - 캐싱을 통한 연산 속도 및 자원 최적화
   - 자체적인 TSP (Traveling Salesman Problem) 알고리즘 구현
-  ### 3. HR_Analytics ('HR_Analytics/') 
+  ### 3. [HR_Analytics/](04_data-science/HR_Analytics/) 
   - IBM HR Analytics Employee Attrition & Performance 데이터 기반 퇴사 예측 프로젝트
   - 데이터 전처리 및 분석 프로세스 구현 (seaborn, matplotlib, plotly)
   - Scikit-learn 기반 이직 확률 예측 모델 구현
@@ -93,32 +93,32 @@
     - GeoPandas/folium 기반 지도 시각화
     - 구·카테고리별 매출 패턴 분석
     - Dash를 통한 대시보드 구성
-  ### 4. demo ('demo/') 
+  ### 4. [demo/](04_data-science/demo/) 
   - 더미데이터를 생성하고, 시각화 하는 프로젝트
   - 파견업체에서 기록한 근무 직원들의 근무 내용에 대한 데이터를 상정하고 생성
   - 주요 기술: bootstrap, dash
   - 주요 알고리즘: 가우시안 함수를 사용한 데이터 분포 조절, 직원과 근무 시간, 피드백 점수에 따른 판매량 등 변수를 고려한 독창적인 생성 알고리즘 구현
-  ### 5. otour ('otour/')
+  ### 5. [otour/](04_data-science/otour/)
   - 여행사 데이터를 기반으로, 데이터 분석 및 ML & DL 모델 구현
   - 주요 기능 : 트리맵 시각화(squarify), SVR, GradientBoostingRegressor, Sequential 모델, Adam 옵티마이저
   - 주요 기술 스택:  scikit-learn, TensorFlow/Keras, Optuna, Flask, pandas, numpy, matplotlib, seaborn, plotly, etc.
 
-## 99_archive ('99_archive/')
-  ### 1. cua ('cua/')
+## [99_archive/](99_archive/)
+  ### 1. [cua/](99_archive/cua/)
   - Computer using agent 활용 예제
   - AI가 사용자의 화면을 인식하고, 좌표를 기반으로 마우스 클릭, 키 입력등의 작업을 수행할 수 있도록 하는 프로젝트
 
-  ### 2. DDL ('DDL/')
+  ### 2. [DDL/](99_archive/DDL/)
   - Data Definition Language 의 약자
   - 데이터베이스 스키마를 정의하는 일련의 SQL 명령
   - AI를 통해 DDL 기반의  **Domain(Entity) 클래스**와 **Repository 인터페이스**를 생성
 
-  ### 3. dify ('dify/')
+  ### 3. [dify/](99_archive/dify/)
   - Dify 프로젝트
   - Made by Teddynote
   - dify 와 Openwebui를 활용하여 웹 애플리케이션 구현
 
-  ### 6. MCP_example ('MCP_example/')
+  ### 6. [MCP_example/](99_archive/MCP_example/)
   - MCP 프로젝트 예제
   - Made by Teddynote
   - smithery 에서 가져온 도구들을 바인딩하는 예제 
