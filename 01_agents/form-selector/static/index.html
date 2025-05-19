@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전자결재 양식 추천봇</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #5a5a5a;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+            min-height: 80px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #resultArea, #debugInfo {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        #resultArea .card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+        #resultArea .card h2 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        #debugInfo pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .error-message {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 전자결재 양식 추천봇</h1>
+        
+        <label for="userInput">요청사항을 입력하세요:</label>
+        <textarea id="userInput" placeholder="예: 3일간 대전 출장 가는 비용 결재 올릴래요"></textarea>
+        
+        <button onclick="submitRequest()">양식 추천받기</button>
+        
+        <h2>추천 양식:</h2>
+        <div id="resultArea">
+            <p>여기에 추천된 양식 HTML이 표시됩니다.</p>
+        </div>
+
+        <h2>디버그 정보:</h2>
+        <div id="debugInfo">
+            <p>서버 응답 정보가 여기에 표시됩니다.</p>
+        </div>
+    </div>
+
+    <script>
+        async function submitRequest() {
+            const userInput = document.getElementById('userInput').value;
+            const resultArea = document.getElementById('resultArea');
+            const debugInfo = document.getElementById('debugInfo');
+
+            resultArea.innerHTML = '<p>요청 중...</p>';
+            debugInfo.innerHTML = '';
+
+            if (!userInput.trim()) {
+                resultArea.innerHTML = '<p class="error-message">요청 내용을 입력해주세요.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/form-selector', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ input: userInput }),
+                });
+
+                const data = await response.json();
+                
+                // Display debug info
+                debugInfo.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+                if (response.ok && data.html) {
+                    resultArea.innerHTML = data.html;
+                } else {
+                    const errorMessage = data.detail || data.error || '양식을 가져오는데 실패했습니다.';
+                    resultArea.innerHTML = `<p class="error-message">오류: ${errorMessage}</p>`;
+                }
+            } catch (error) {
+                console.error('Request failed:', error);
+                resultArea.innerHTML = `<p class="error-message">요청 처리 중 오류가 발생했습니다: ${error.message}</p>`;
+                debugInfo.innerHTML = `<pre>Client-side error: ${error.stack}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html> 

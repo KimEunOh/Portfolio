@@ -113,14 +113,14 @@
   - Data Definition Language 의 약자
   - 데이터베이스 스키마를 정의하는 일련의 SQL 명령
   - AI를 통해 DDL 기반의  **Domain(Entity) 클래스**와 **Repository 인터페이스**를 생성
-  - 회사 보안 관련 내용 포함으로 삭제제
+  - 회사 보안 관련 내용 포함으로 삭제
 
   ### 3. [dify/](99_archive/dify/)
   - Dify 프로젝트
   - Made by Teddynote
   - dify 와 Openwebui를 활용하여 웹 애플리케이션 구현
 
-  ### 6. [MCP_example/](99_archive/MCP_example/)
+  ### 4. [MCP_example/](99_archive/MCP_example/)
   - MCP 프로젝트 예제
   - Made by Teddynote
   - smithery 에서 가져온 도구들을 바인딩하는 예제 
