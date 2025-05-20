@@ -80,7 +80,7 @@
         <h1>📝 전자결재 양식 추천봇</h1>
         
         <label for="userInput">요청사항을 입력하세요:</label>
-        <textarea id="userInput" placeholder="예: 3일간 대전 출장 가는 비용 결재 올릴래요"></textarea>
+        <textarea id="userInput" placeholder="예: 오늘 오후 3시에 마케팅팀 주간 회의가 있었는데, 회의실 대관료 5만원이랑 다과비 2만원 썼어요. 참석자는 김민수, 이영희, 박철수입니다."></textarea>
         
         <button onclick="submitRequest()">양식 추천받기</button>
         
@@ -123,10 +123,30 @@
                 // Display debug info
                 debugInfo.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
 
-                if (response.ok && data.html) {
-                    resultArea.innerHTML = data.html;
+                if (response.ok && data.html_template) {
+                    resultArea.innerHTML = data.html_template;
+                    
+                    // 슬롯 값 채우기 (setTimeout 및 로깅 추가)
+                    setTimeout(() => {
+                        if (data.slots) {
+                            console.log("Attempting to fill slots:", data.slots); // 슬롯 데이터 로깅
+                            for (const key in data.slots) {
+                                const element = resultArea.querySelector(`#${key}`);
+                                if (element) {
+                                    console.log(`Found element for id '${key}' within resultArea. Attempting to set value: '${data.slots[key]}'`);
+                                    element.value = data.slots[key];
+                                    console.log(`Value set for '${key}'. Current element value: '${element.value}'`);
+                                } else {
+                                    console.warn(`Element with id '${key}' not found within resultArea.`);
+                                }
+                            }
+                        } else {
+                            console.log("No slots data found in the response.");
+                        }
+                    }, 100); // 100ms 지연 후 실행
+
                 } else {
-                    const errorMessage = data.detail || data.error || '양식을 가져오는데 실패했습니다.';
+                    const errorMessage = data.message_to_user || data.detail || data.error || '양식을 가져오는데 실패했습니다.';
                     resultArea.innerHTML = `<p class="error-message">오류: ${errorMessage}</p>`;
                 }
             } catch (error) {

@@ -5,4 +5,5 @@ langchain-openai
 langchain-community
 pydantic
 dotenv
-faiss-cpu 
+faiss-cpu
+python-dateutil 

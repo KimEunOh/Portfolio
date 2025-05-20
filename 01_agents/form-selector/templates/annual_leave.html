@@ -1,10 +1,12 @@
 <div class="card">
   <h2>연차 신청서</h2>
   <form>
-    <label>연차 사유:</label><br>
-    <input type="text" name="reason"><br>
-    <label>연차 기간:</label><br>
-    <input type="date" name="start_date"> ~ <input type="date" name="end_date"><br>
+    <label for="reason">연차 사유:</label><br>
+    <input type="text" id="reason" name="reason"><br>
+    <label for="start_date">연차 기간 (시작일):</label><br>
+    <input type="date" id="start_date" name="start_date"><br>
+    <label for="end_date">연차 기간 (종료일):</label><br>
+    <input type="date" id="end_date" name="end_date"><br>
     <button type="submit">제출</button>
   </form>
 </div> 

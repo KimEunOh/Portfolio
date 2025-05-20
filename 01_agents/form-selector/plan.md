@@ -121,12 +121,12 @@
 ### 7.1. LLM 응답 품질 향상
 
 *   **Few-shot 프롬프팅**: `llm.py`의 프롬프트에 다양한 예시 입출력 쌍을 추가하여 LLM의 `form_type` 분류 및 `slots` 추출 정확도 향상. (완료 - 외부 파일로 관리)
-*   **LLM 모델 변경 및 파라미터 튜닝**: 현재 `gpt-4o` 또는 `gpt-3.5-turbo` 사용 중. 필요시 다른 모델(예: Claude, Gemini) 테스트 또는 `temperature`, `top_p` 등 파라미터 조정. (gpt-3.5-turbo로 변경 테스트)
+*   **LLM 모델 변경 및 파라미터 튜닝**: 현재 `gpt-4o` 또는 `gpt-3.5-turbo` 사용 중. 필요시 다른 모델(예: Claude, Gemini) 테스트 또는 `temperature`, `top_p` 등 파라미터 조정. (완료 - 수정없음음)
 *   **OutputParser 재시도 로직**: LLM 출력이 Pydantic 스키마와 불일치할 경우, `OutputFixingParser` 등을 활용하여 자동 교정 시도 또는 재요청 로직 추가. (OutputFixingParser 적용 및 실패 시 사용자 되묻기 로직 추가 완료)
 
 ### 7.2. RAG 성능 개선
 
-*   **임베딩 모델 최적화**: 현재 `OpenAIEmbeddings` 사용 중. 한국어 특화 임베딩 모델 (예: `ko-sroberta-multitask`, `paraphrase-multilingual-mpnet-base-v2` 등 HuggingFace 모델)로 변경하여 검색 품질 향상 고려.
+*   **임베딩 모델 최적화**: 현재 `OpenAIEmbeddings` 사용 중. 한국어 특화 임베딩 모델 (예: `ko-sroberta-multitask`, `paraphrase-multilingual-mpnet-base-v2` 등 HuggingFace 모델)로 변경하여 검색 품질 향상 고려. (완료 - 추후 고려)
 *   **Advanced RAG 기법 적용**:
     *   **Query Transformation**: 사용자 입력(`input`)을 그대로 사용하지 않고, LLM을 통해 검색에 더 적합한 형태로 변환 (예: 키워드 확장, 질문 재구성).
     *   **Re-ranking**: 초기 검색 결과(예: Top-N개)를 가져온 후, 더 정교한 모델(예: Cross-encoder)을 사용하여 순위를 재조정.

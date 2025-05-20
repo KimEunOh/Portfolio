@@ -4,7 +4,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from form_selector.schema import UserInput
-from form_selector.service import classify_and_get_template
+from form_selector.service import classify_and_extract_slots_for_template
 import os
 from dotenv import load_dotenv
 from fastapi.responses import HTMLResponse
@@ -34,20 +34,19 @@ async def read_root():
 @app.post("/form-selector")
 async def form_selector_endpoint(user_input: UserInput):
     try:
-        result = classify_and_get_template(user_input)
+        result = classify_and_extract_slots_for_template(user_input)
 
         if "error" in result:
             error_type = result.get("error")
-            if error_type == "PARSING_FAILED_ASK_USER":
-                # LLM 파싱 최종 실패로 사용자에게 되묻는 경우는 200 OK로 응답.
-                # 프론트엔드에서 이 응답을 보고 사용자에게 선택지를 제시하는 등의 UI 처리.
+            if (
+                error_type == "CLASSIFICATION_FAILED"
+                or error_type == "TEMPLATE_NOT_FOUND"
+                or error_type == "CLASSIFICATION_UNEXPECTED_ERROR"
+            ):
+                if error_type == "TEMPLATE_NOT_FOUND":
+                    raise HTTPException(status_code=404, detail=result)
                 return result
-            elif error_type == "TEMPLATE_NOT_FOUND":
-                # RAG 검색 실패 또는 지원하지 않는 양식의 경우 404 에러.
-                # detail에 result 전체를 전달하여 프론트에서 활용 가능하게 함.
-                raise HTTPException(status_code=404, detail=result)
-            else:
-                # 기타 정의된 에러 타입 (예: "UNEXPECTED_PROCESSING_ERROR")
+            elif error_type == "UNEXPECTED_PROCESSING_ERROR":
                 raise HTTPException(status_code=500, detail=result)
 
         # 성공적인 결과 반환
