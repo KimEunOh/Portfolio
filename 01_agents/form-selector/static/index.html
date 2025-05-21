@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>전자결재 양식 추천봇</title>
+    <link rel="stylesheet" href="/ui/style.css">
     <style>
         body {
             font-family: sans-serif;
@@ -96,18 +97,140 @@
     </div>
 
     <script>
+        // Functions from the primary index.html (debugged version)
+        function fillFormFields(slots) {
+            console.trace("fillFormFields called"); // 호출 스택 추적
+            if (!slots) return;
+            for (const key in slots) {
+                if (slots.hasOwnProperty(key)) {
+                    const value = slots[key];
+                    
+                    // Handle 'items', 'expense_items', 'card_usage_items' separately
+                    if (key === 'items' || key === 'expense_items' || key === 'card_usage_items') {
+                        if (value && Array.isArray(value) && value.length > 0) {
+                            console.log(`[fillFormFields] Data for '${key}' found (length: ${value.length}). This data should be processed by the form-specific script (e.g., inventory_scripts.js). Contents:`, value);
+                        } else {
+                            console.log(`[fillFormFields] No data or empty array for '${key}'.`);
+                        }
+                        // Do not attempt to find an element with these IDs to set its value directly.
+                        // These are typically handled by dedicated scripts that populate tables or lists.
+                        continue; 
+                    }
+                    
+                    // Ensure elements are searched globally if they are part of the injected template
+                    const element = document.getElementById(key); 
+                    if (element) {
+                        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                            element.value = value;
+                        } else if (element.tagName === 'SELECT') {
+                            let optionFound = false;
+                            for (let i = 0; i < element.options.length; i++) {
+                                if (element.options[i].value === String(value)) { 
+                                    element.options[i].selected = true;
+                                    optionFound = true;
+                                    break;
+                                }
+                            }
+                            if (!optionFound) {
+                                console.warn(`[fillFormFields] No option with value '${value}' found for select ID '${key}'. Attempting to set value directly.`);
+                                element.value = value; 
+                            }
+                        } else if (element.tagName === 'SPAN') {
+                            element.textContent = value;
+                        }
+                    } else {
+                        console.warn(`[fillFormFields] Element with ID '${key}' not found globally.`);
+                    }
+                }
+            }
+        }
+
+        function populateSelectWithOptions(selectId, start, end, step = 1, leadingZero = true) {
+            console.log(`%c[populateSelectWithOptions] CALLED for id: ${selectId}. Args: start=${start}, end=${end}, step=${step}, leadingZero=${leadingZero}`, "color: blue; font-weight: bold;");
+            try {
+                // Ensure elements are searched globally as they are injected into resultArea (form-container equivalent)
+                const selectElement = document.getElementById(selectId); 
+                
+                if (!selectElement) {
+                    console.error(`[populateSelectWithOptions] CRITICAL: Element with ID '${selectId}' absolutely not found. Cannot populate options.`);
+                    return;
+                }
+
+                if (selectElement.tagName !== 'SELECT') {
+                    console.error(`[populateSelectWithOptions] CRITICAL: Element with ID '${selectId}' is not a SELECT element (tagName: ${selectElement.tagName}). Cannot populate options.`);
+                    return;
+                }
+
+                console.log(`[populateSelectWithOptions] Confirmed element for ${selectId}: TAGNAME=${selectElement.tagName}, ID=${selectElement.id}. Current options count: ${selectElement.options ? selectElement.options.length : 'N/A'}`);
+                
+                selectElement.innerHTML = ''; 
+                console.log(`[populateSelectWithOptions] Cleared innerHTML for: ${selectId}. Options count after clear: ${selectElement.options.length}`);
+
+                for (let i = start; i <= end; i += step) {
+                    const option = document.createElement('option');
+                    let valueStr = String(i);
+                    let textStr = String(i);
+                    if (leadingZero && i < 10) {
+                        valueStr = '0' + i;
+                        textStr = '0' + i;
+                    }
+                    option.value = valueStr;
+                    option.textContent = textStr;
+                    selectElement.appendChild(option);
+                }
+                console.log(`[populateSelectWithOptions] Finished populating: ${selectId}. New options count: ${selectElement.options.length}`);
+            } catch (error) {
+                console.error(`[populateSelectWithOptions] UNEXPECTED ERROR for id '${selectId}':`, error);
+            }
+            console.log(`[populateSelectWithOptions] FINISHED for id: ${selectId}`);
+        }
+
+        function populateTimeOptions() {
+            console.log("%c[populateTimeOptions] CALLED", "color: red; font-size: 16px; font-weight: bold;");
+            try {
+                const overtimeHourElement = document.getElementById('overtime_hour');
+                if (overtimeHourElement) {
+                    populateSelectWithOptions('overtime_hour', 0, 23, 1, true);
+                } else {
+                    console.log("[populateTimeOptions] Element with ID 'overtime_hour' not found. Skipping population.");
+                }
+
+                const overtimeMinuteElement = document.getElementById('overtime_minute');
+                if (overtimeMinuteElement) {
+                    populateSelectWithOptions('overtime_minute', 0, 50, 10, true);
+                } else {
+                    console.log("[populateTimeOptions] Element with ID 'overtime_minute' not found. Skipping population.");
+                }
+            } catch (error) {
+                console.error("[populateTimeOptions] UNEXPECTED ERROR:", error);
+            }
+            console.log("[populateTimeOptions] FINISHED");
+        }
+
+        function setTodayToDraftDate() {
+            const draftDateElement = document.getElementById('header_draft_date'); // Assuming this ID exists in the new templates
+            if (draftDateElement) {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const formattedDate = `${year}-${month}-${day}`;
+
+                if (draftDateElement.tagName === 'INPUT') {
+                    draftDateElement.value = formattedDate;
+                } else if (draftDateElement.tagName === 'SPAN') {
+                    draftDateElement.textContent = formattedDate;
+                }
+            }
+        }
+
         async function submitRequest() {
             const userInput = document.getElementById('userInput').value;
             const resultArea = document.getElementById('resultArea');
             const debugInfo = document.getElementById('debugInfo');
 
-            resultArea.innerHTML = '<p>요청 중...</p>';
-            debugInfo.innerHTML = '';
-
-            if (!userInput.trim()) {
-                resultArea.innerHTML = '<p class="error-message">요청 내용을 입력해주세요.</p>';
-                return;
-            }
+            resultArea.innerHTML = '<p>양식을 검색 중입니다...</p>';
+            debugInfo.innerHTML = ''; // 이전 디버그 정보 초기화
 
             try {
                 const response = await fetch('/form-selector', {
@@ -115,44 +238,117 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ input: userInput }),
+                    body: JSON.stringify({ input: userInput })
                 });
 
-                const data = await response.json();
-                
-                // Display debug info
-                debugInfo.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-
-                if (response.ok && data.html_template) {
-                    resultArea.innerHTML = data.html_template;
-                    
-                    // 슬롯 값 채우기 (setTimeout 및 로깅 추가)
-                    setTimeout(() => {
-                        if (data.slots) {
-                            console.log("Attempting to fill slots:", data.slots); // 슬롯 데이터 로깅
-                            for (const key in data.slots) {
-                                const element = resultArea.querySelector(`#${key}`);
-                                if (element) {
-                                    console.log(`Found element for id '${key}' within resultArea. Attempting to set value: '${data.slots[key]}'`);
-                                    element.value = data.slots[key];
-                                    console.log(`Value set for '${key}'. Current element value: '${element.value}'`);
-                                } else {
-                                    console.warn(`Element with id '${key}' not found within resultArea.`);
-                                }
-                            }
-                        } else {
-                            console.log("No slots data found in the response.");
-                        }
-                    }, 100); // 100ms 지연 후 실행
-
-                } else {
-                    const errorMessage = data.message_to_user || data.detail || data.error || '양식을 가져오는데 실패했습니다.';
-                    resultArea.innerHTML = `<p class="error-message">오류: ${errorMessage}</p>`;
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: "서버 응답을 JSON으로 파싱하는데 실패했습니다." }));
+                    throw new Error(`서버 오류: ${response.status} - ${errorData.detail || response.statusText}`);
                 }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    resultArea.innerHTML = `<p class="error-message">오류: ${data.message_to_user || data.error}</p>`;
+                    if (data.available_forms) {
+                        resultArea.innerHTML += `<p>사용 가능한 양식: ${data.available_forms.join(', ')}</p>`;
+                    }
+                } else {
+                    resultArea.innerHTML = data.html_template;
+                    console.log("[submitRequest] Received html_template (first 500 chars):", data.html_template.substring(0, 500) + "...");
+                    console.log("[submitRequest] Attempting to set resultArea.innerHTML.");
+                    console.log("[submitRequest] SUCCESSFULLY SET resultArea.innerHTML.");
+
+
+                    // 이전에 로드된 양식별 스크립트가 있다면 제거 (중복 실행 방지)
+                    const existingScript = document.getElementById('dynamic-form-script');
+                    if (existingScript) {
+                        existingScript.remove();
+                    }
+
+                    // 새 양식에 맞는 스크립트 경로 결정
+                    let scriptSrc = '';
+                    const formType = data.form_type;
+
+                    if (formType === '비품/소모품 구입내역서') {
+                        scriptSrc = 'inventory_scripts.js';
+                    } else if (formType === '구매 품의서') {
+                        scriptSrc = 'purchase_approval_scripts.js';
+                    } else if (formType === '개인경비 사용내역서') {
+                        scriptSrc = 'personal_expense_scripts.js';
+                    } else if (formType === '법인카드 지출내역서') {
+                        scriptSrc = 'corporate_card_scripts.js';
+                    }
+                    // 다른 양식에 대한  else if  조건들을 여기에 추가
+
+                    if (scriptSrc) {
+                        const scriptElement = document.createElement('script');
+                        scriptElement.id = 'dynamic-form-script';
+                        scriptElement.src = scriptSrc;
+                        scriptElement.type = 'text/javascript';
+                        scriptElement.async = false; 
+
+                        scriptElement.onload = () => {
+                            console.log(`[submitRequest] Successfully loaded and executed: ${scriptSrc}`);
+                            // DOMContentLoaded는 이미 발생했을 수 있으므로, 각 스크립트가 자체적으로 초기화하는지 확인.
+                            // 필요시 여기서 명시적 초기화 함수 호출.
+                            // 예: if (formType === '비품/소모품 구입내역서' && typeof initializeInventoryForm === 'function') initializeInventoryForm();
+
+                            // 스크립트 로드 후 rAF 콜백 실행
+                            requestAnimationFrame(() => {
+                                console.log("[submitRequest] rAF callback triggered AFTER SCRIPT LOAD. Processing order: populateTimeOptions -> fillFormFields -> setTodayToDraftDate");
+                                console.log("[submitRequest] Inside rAF, Before populateTimeOptions - #overtime_hour:", resultArea.querySelector('#overtime_hour'), "#overtime_minute:", resultArea.querySelector('#overtime_minute'));
+                                if (typeof populateTimeOptions === "function") {
+                                    populateTimeOptions();
+                                }
+                                console.log("[submitRequest] Inside rAF, After populateTimeOptions - #overtime_hour.innerHTML:", resultArea.querySelector('#overtime_hour') ? resultArea.querySelector('#overtime_hour').innerHTML.substring(0,100) : "not found", "#overtime_minute.innerHTML:", resultArea.querySelector('#overtime_minute') ? resultArea.querySelector('#overtime_minute').innerHTML.substring(0,100) : "not found");
+
+                                console.log("[submitRequest] Calling fillFormFields with slots:", data.slots);
+                                if (typeof fillFormFields === "function") {
+                                    fillFormFields(data.slots);
+                                }
+
+                                if (typeof setTodayToDraftDate === "function") {
+                                    setTodayToDraftDate();
+                                }
+                                console.log("[submitRequest] All functions in rAF callback finished.");
+                            });
+                        };
+                        scriptElement.onerror = () => {
+                            console.error(`[submitRequest] ERROR loading script: ${scriptSrc}`);
+                        };
+                        document.body.appendChild(scriptElement);
+                        console.log(`[submitRequest] Attempting to load script: ${scriptSrc}`);
+                    } else {
+                        console.log(`[submitRequest] No specific script to load for form_type: ${formType}`);
+                        // 스크립트 로드 없이 rAF 콜백 실행 (스크립트가 없는 양식의 경우)
+                        requestAnimationFrame(() => {
+                            console.log("[submitRequest] rAF callback triggered (NO SCRIPT LOAD). Processing order: populateTimeOptions -> fillFormFields -> setTodayToDraftDate");
+                            if (typeof populateTimeOptions === "function") populateTimeOptions();
+                            if (typeof fillFormFields === "function") fillFormFields(data.slots);
+                            if (typeof setTodayToDraftDate === "function") setTodayToDraftDate();
+                            console.log("[submitRequest] All functions in rAF callback finished (NO SCRIPT LOAD).");
+                        });
+                    }
+                    // 중요: requestAnimationFrame 호출을 scriptElement.onload 콜백 내부 또는 scriptSrc가 없는 경우의 else 블록으로 이동시킴.
+                    // 이렇게 함으로써 fillFormFields 등이 새 DOM 및 로드된 스크립트 환경에서 실행되도록 보장.
+                }
+                
+                // 디버그 정보 업데이트
+                const debugOutput = {
+                    form_type: data.form_type,
+                    keywords: data.keywords,
+                    slots: data.slots,
+                    original_input: data.original_input,
+                    error: data.error,
+                    message_to_user: data.message_to_user
+                };
+                debugInfo.innerHTML = `<pre>${JSON.stringify(debugOutput, null, 2)}</pre>`;
+
             } catch (error) {
-                console.error('Request failed:', error);
+                console.error('Error in submitRequest:', error);
                 resultArea.innerHTML = `<p class="error-message">요청 처리 중 오류가 발생했습니다: ${error.message}</p>`;
-                debugInfo.innerHTML = `<pre>Client-side error: ${error.stack}</pre>`;
+                debugInfo.innerHTML = `<pre>${error.stack}</pre>`;
             }
         }
     </script>

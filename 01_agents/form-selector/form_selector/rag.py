@@ -16,6 +16,9 @@ FAISS_INDEX_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../faiss_index")
 )
 
+# form_configs.py에서 FORM_CONFIGS를 가져와서 form_type 매핑에 사용
+from .form_configs import FORM_CONFIGS
+
 # 전역 VectorStore 인스턴스 (앱 로드 시 초기화 권장)
 vector_store: Optional[FAISS] = None
 
@@ -40,37 +43,45 @@ def _build_or_load_vector_store() -> FAISS:
     if not os.path.exists(TEMPLATE_DIR):
         raise FileNotFoundError(f"Template directory not found: {TEMPLATE_DIR}")
 
+    # HTML 파일명과 form_type을 매핑 (메타데이터로 사용)
+    # config.html_template_path (예: "templates/annual_leave.html")에서 순수 파일명(예: "annual_leave.html")을 키로 사용
+    filename_to_form_type_map = {
+        os.path.basename(config.html_template_path): form_name
+        for form_name, config in FORM_CONFIGS.items()
+    }
+
     for filename in os.listdir(TEMPLATE_DIR):
         if filename.endswith(".html"):
             file_path = os.path.join(TEMPLATE_DIR, filename)
-            form_type = filename.replace(".html", "").replace("_", " ").title()
-            # 예: annual_leave.html -> Annual Leave
-            # 실제 form_type과 일치하도록 조정 필요 (현재는 파일명 기반으로 단순 생성)
-            # develop-doc.md 에 있는 form_type과 일치 시키려면, 아래와 같이 수정
-            if filename == "annual_leave.html":
-                form_type = "연차 신청서"
-            elif filename == "business_trip.html":
-                form_type = "출장비 신청서"
-            elif filename == "meeting_expense.html":
-                form_type = "회의비 지출결의서"
-            elif filename == "other_expense.html":
-                form_type = "기타 비용 청구서"
-            else:
-                form_type = filename.replace(".html", "")  # Fallback
+
+            # filename_to_form_type_map을 사용하여 form_configs.py에 정의된 form_type 가져오기
+            form_type = filename_to_form_type_map.get(filename)
+
+            if not form_type:
+                # FORM_CONFIGS에 정의되지 않은 HTML 파일은 경고 후 건너뛰거나 기본값 처리
+                print(
+                    f"Warning: HTML template '{filename}' is not defined in FORM_CONFIGS. Skipping or using fallback form_type."
+                )
+                # form_type = filename.replace(".html", "").replace("_", " ").title() # 예: 이전 fallback
+                # 여기서는 일단 건너뛰도록 처리 (엄격한 관리)
+                continue
 
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            # 메타데이터에 form_type을 포함시켜 검색 시 활용 가능
-            # 검색 쿼리 자체에 form_type을 명시적으로 넣는 것이 더 정확할 수 있음
             documents.append(
                 Document(
                     page_content=content,
                     metadata={"form_type": form_type, "source": filename},
                 )
             )
+            print(
+                f"Added '{filename}' to FAISS documents with form_type: '{form_type}'"
+            )
 
     if not documents:
-        raise ValueError("No HTML templates found to build vector store.")
+        raise ValueError(
+            "No HTML templates (defined in FORM_CONFIGS) found to build vector store."
+        )
 
     vector_store = FAISS.from_documents(documents, embeddings)
     vector_store.save_local(FAISS_INDEX_PATH)
@@ -102,9 +113,10 @@ def retrieve_template(form_type: str, keywords: List[str] = None) -> Optional[st
     print(f"RAG Query: {query}")
 
     try:
-        # 가장 유사한 문서 1개 검색
-        # retriever = vs.as_retriever(search_kwargs={"k": 1, "filter": {"form_type": form_type}})) # 메타데이터 필터링 예시
-        retriever = vs.as_retriever(search_kwargs={"k": 1})
+        # 가장 유사한 문서 1개 검색, form_type 메타데이터로 필터링
+        retriever = vs.as_retriever(
+            search_kwargs={"k": 1, "filter": {"form_type": form_type}}
+        )
         results = retriever.invoke(query)
 
         if results:

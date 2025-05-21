@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>파견 및 출장 보고서</title>
+    <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+    <div class="card">
+        <h2>파견 및 출장 보고서</h2>
+        <form id="dispatch_businesstrip_report_form">
+            <label for="title">제목:</label><br>
+            <input type="text" id="title" name="title"><br>
+
+            <label for="start_date">시작일:</label><br>
+            <input type="date" id="start_date" name="start_date"><br>
+
+            <label for="end_date">종료일:</label><br>
+            <input type="date" id="end_date" name="end_date"><br>
+
+            <label for="duration_days">총 일수:</label><br>
+            <input type="number" id="duration_days" name="duration_days" min="0"><br>
+
+            <label for="origin">출발지:</label><br>
+            <input type="text" id="origin" name="origin"><br>
+
+            <label for="destination">파견지 또는 출장지:</label><br>
+            <input type="text" id="destination" name="destination"><br>
+
+            <label for="purpose">파견/출장 목적:</label><br>
+            <input type="text" id="purpose" name="purpose"><br>
+
+            <label for="report_details">주요 업무 내용 및 결과 (보고사항):</label><br>
+            <textarea id="report_details" name="report_details" rows="5"></textarea><br>
+
+            <label for="notes">기타 특이사항:</label><br>
+            <textarea id="notes" name="notes" rows="3"></textarea><br>
+
+            <button type="submit">제출</button>
+        </form>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>교통비 신청서</title>
+    <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+    <div class="card">
+        <h2>교통비 신청서</h2>
+        <form id="transportation_expense_form">
+            <label for="title">제목:</label><br>
+            <input type="text" id="title" name="title"><br>
+
+            <label for="departure_date">출발일 (사용일):</label><br>
+            <input type="date" id="departure_date" name="departure_date"><br>
+
+            <!-- 필요시 도착일 추가 -->
+            <!--
+            <label for="arrival_date">도착일:</label><br>
+            <input type="date" id="arrival_date" name="arrival_date"><br>
+            -->
+
+            <label for="origin">출발지:</label><br>
+            <input type="text" id="origin" name="origin"><br>
+
+            <label for="destination">목적지:</label><br>
+            <input type="text" id="destination" name="destination"><br>
+
+            <label for="purpose">목적 (용무):</label><br>
+            <input type="text" id="purpose" name="purpose"><br>
+
+            <label for="transport_details">교통 내역 상세:</label><br>
+            <textarea id="transport_details" name="transport_details" rows="4" placeholder="예: 지하철 (강남역 -> 시청역) 1,450원, 택시 (시청역 -> 본사) 5,800원"></textarea><br>
+
+            <label for="total_amount">총 금액 (원):</label><br>
+            <input type="number" id="total_amount" name="total_amount" min="0"><br>
+
+            <label for="notes">기타 보고 사항 (비고):</label><br>
+            <textarea id="notes" name="notes" rows="3"></textarea><br>
+
+            <button type="submit">제출</button>
+        </form>
+    </div>
+    <!-- 필요한 경우 JavaScript 파일 연결 -->
+    <!-- <script src="../static/scripts.js"></script> -->
+</body>
+</html> 

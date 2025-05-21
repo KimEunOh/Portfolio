@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>개인경비 사용내역서</title>
+    <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+    <div class="card">
+        <h2>개인경비 사용내역서</h2>
+        <form id="personal_expense_form">
+            <label for="title">문서 제목:</label>
+            <input type="text" id="title" name="title" value="개인경비 사용내역">
+
+            <label for="draft_date">기안일:</label>
+            <input type="date" id="draft_date" name="draft_date">
+
+            <label for="usage_status">사용 현황:</label>
+            <select id="usage_status" name="usage_status">
+                <option value="">선택하세요</option>
+                <option value="personal_cash">개인현금</option>
+                <option value="personal_card">개인카드</option>
+            </select>
+
+            <label for="document_date">작성일자:</label>
+            <input type="date" id="document_date" name="document_date">
+
+            <label for="department">소속:</label>
+            <input type="text" id="department" name="department">
+
+            <label for="drafter_name">작성자:</label>
+            <input type="text" id="drafter_name" name="drafter_name">
+
+            <label for="total_amount_header">총 금액 (상단):</label>
+            <input type="number" id="total_amount_header" name="total_amount_header" readonly>
+
+            <label for="expense_reason">지출 사유:</label>
+            <textarea id="expense_reason" name="expense_reason" rows="4"></textarea>
+            
+            <h3>경비 사용 내역</h3>
+            <div class="item-set">
+                <h4>경비 항목 1</h4>
+                <label for="expense_date_1">사용일자:</label><input type="date" id="expense_date_1" name="expense_date_1">
+                <label for="expense_category_1">분류:</label>
+                <select id="expense_category_1" name="expense_category_1">
+                    <option value="">선택</option>
+                    <option value="traffic">교통비</option>
+                    <option value="accommodation">숙박비</option>
+                    <option value="meals">식대</option>
+                    <option value="entertainment">접대비</option>
+                    <option value="education">교육훈련비</option>
+                    <option value="supplies">소모품비</option>
+                    <option value="other">기타</option>
+                </select>
+                <label for="expense_description_1">사용내역:</label><input type="text" id="expense_description_1" name="expense_description_1">
+                <label for="expense_amount_1">금액:</label><input type="number" id="expense_amount_1" name="expense_amount_1" class="expense-amount-calc">
+                <label for="expense_notes_1">비고:</label><input type="text" id="expense_notes_1" name="expense_notes_1">
+            </div>
+            <div class="item-set">
+                <h4>경비 항목 2</h4>
+                <label for="expense_date_2">사용일자:</label><input type="date" id="expense_date_2" name="expense_date_2">
+                <label for="expense_category_2">분류:</label>
+                <select id="expense_category_2" name="expense_category_2">
+                    <option value="">선택</option>
+                    <option value="traffic">교통비</option>
+                    <option value="accommodation">숙박비</option>
+                    <option value="meals">식대</option>
+                    <option value="entertainment">접대비</option>
+                    <option value="education">교육훈련비</option>
+                    <option value="supplies">소모품비</option>
+                    <option value="other">기타</option>
+                </select>
+                <label for="expense_description_2">사용내역:</label><input type="text" id="expense_description_2" name="expense_description_2">
+                <label for="expense_amount_2">금액:</label><input type="number" id="expense_amount_2" name="expense_amount_2" class="expense-amount-calc">
+                <label for="expense_notes_2">비고:</label><input type="text" id="expense_notes_2" name="expense_notes_2">
+            </div>
+            <div class="item-set">
+                <h4>경비 항목 3</h4>
+                <label for="expense_date_3">사용일자:</label><input type="date" id="expense_date_3" name="expense_date_3">
+                <label for="expense_category_3">분류:</label>
+                <select id="expense_category_3" name="expense_category_3">
+                    <option value="">선택</option>
+                    <option value="traffic">교통비</option>
+                    <option value="accommodation">숙박비</option>
+                    <option value="meals">식대</option>
+                    <option value="entertainment">접대비</option>
+                    <option value="education">교육훈련비</option>
+                    <option value="supplies">소모품비</option>
+                    <option value="other">기타</option>
+                </select>
+                <label for="expense_description_3">사용내역:</label><input type="text" id="expense_description_3" name="expense_description_3">
+                <label for="expense_amount_3">금액:</label><input type="number" id="expense_amount_3" name="expense_amount_3" class="expense-amount-calc">
+                <label for="expense_notes_3">비고:</label><input type="text" id="expense_notes_3" name="expense_notes_3">
+            </div>
+            <div class="item-set">
+                <h4>경비 항목 4</h4>
+                <label for="expense_date_4">사용일자:</label><input type="date" id="expense_date_4" name="expense_date_4">
+                <label for="expense_category_4">분류:</label>
+                <select id="expense_category_4" name="expense_category_4">
+                    <option value="">선택</option>
+                    <option value="traffic">교통비</option>
+                    <option value="accommodation">숙박비</option>
+                    <option value="meals">식대</option>
+                    <option value="entertainment">접대비</option>
+                    <option value="education">교육훈련비</option>
+                    <option value="supplies">소모품비</option>
+                    <option value="other">기타</option>
+                </select>
+                <label for="expense_description_4">사용내역:</label><input type="text" id="expense_description_4" name="expense_description_4">
+                <label for="expense_amount_4">금액:</label><input type="number" id="expense_amount_4" name="expense_amount_4" class="expense-amount-calc">
+                <label for="expense_notes_4">비고:</label><input type="text" id="expense_notes_4" name="expense_notes_4">
+            </div>
+            <div class="item-set">
+                <h4>경비 항목 5</h4>
+                <label for="expense_date_5">사용일자:</label><input type="date" id="expense_date_5" name="expense_date_5">
+                <label for="expense_category_5">분류:</label>
+                <select id="expense_category_5" name="expense_category_5">
+                    <option value="">선택</option>
+                    <option value="traffic">교통비</option>
+                    <option value="accommodation">숙박비</option>
+                    <option value="meals">식대</option>
+                    <option value="entertainment">접대비</option>
+                    <option value="education">교육훈련비</option>
+                    <option value="supplies">소모품비</option>
+                    <option value="other">기타</option>
+                </select>
+                <label for="expense_description_5">사용내역:</label><input type="text" id="expense_description_5" name="expense_description_5">
+                <label for="expense_amount_5">금액:</label><input type="number" id="expense_amount_5" name="expense_amount_5" class="expense-amount-calc">
+                <label for="expense_notes_5">비고:</label><input type="text" id="expense_notes_5" name="expense_notes_5">
+            </div>
+            <div class="item-set">
+                <h4>경비 항목 6</h4>
+                <label for="expense_date_6">사용일자:</label><input type="date" id="expense_date_6" name="expense_date_6">
+                <label for="expense_category_6">분류:</label>
+                <select id="expense_category_6" name="expense_category_6">
+                    <option value="">선택</option>
+                    <option value="traffic">교통비</option>
+                    <option value="accommodation">숙박비</option>
+                    <option value="meals">식대</option>
+                    <option value="entertainment">접대비</option>
+                    <option value="education">교육훈련비</option>
+                    <option value="supplies">소모품비</option>
+                    <option value="other">기타</option>
+                </select>
+                <label for="expense_description_6">사용내역:</label><input type="text" id="expense_description_6" name="expense_description_6">
+                <label for="expense_amount_6">금액:</label><input type="number" id="expense_amount_6" name="expense_amount_6" class="expense-amount-calc">
+                <label for="expense_notes_6">비고:</label><input type="text" id="expense_notes_6" name="expense_notes_6">
+            </div>
+            
+            <label for="total_expense_amount">총 합계 금액 (하단):</label>
+            <input type="number" id="total_expense_amount" name="total_expense_amount" readonly>
+
+            <p><strong>* 영수증 별도 제출</strong></p>
+
+            <button type="submit">제출</button>
+        </form>
+    </div>
+    <script id="items-data" type="application/json">{items_json}</script>
+</body>
+</html>

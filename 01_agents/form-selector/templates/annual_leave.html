@@ -1,12 +1,33 @@
+<head>
+    <meta charset="UTF-8">
+    <title>연차 신청서</title>
+    <link rel="stylesheet" href="/ui/style.css">
+</head>
 <div class="card">
   <h2>연차 신청서</h2>
   <form>
-    <label for="reason">연차 사유:</label><br>
+    <label for="leave_type">휴가 종류:</label><br>
+    <select id="leave_type" name="leave_type">
+      <option value="">선택하세요</option>
+      <option value="annual">연차</option>
+      <option value="half_day_morning">오전 반차</option>
+      <option value="half_day_afternoon">오후 반차</option>
+      <option value="quarter_day_morning">오전 반반차</option>
+      <option value="quarter_day_afternoon">오후 반반차</option>
+    </select><br>
+
+    <label for="reason">휴가 사유:</label><br>
     <input type="text" id="reason" name="reason"><br>
-    <label for="start_date">연차 기간 (시작일):</label><br>
+
+    <label for="leave_days">연차 일수 (숫자):</label><br>
+    <input type="number" id="leave_days" name="leave_days" min="0.25" step="0.25"><br>
+
+    <label for="start_date">휴가 시작일:</label><br>
     <input type="date" id="start_date" name="start_date"><br>
-    <label for="end_date">연차 기간 (종료일):</label><br>
+
+    <label for="end_date">휴가 종료일:</label><br>
     <input type="date" id="end_date" name="end_date"><br>
+
     <button type="submit">제출</button>
   </form>
 </div> 
