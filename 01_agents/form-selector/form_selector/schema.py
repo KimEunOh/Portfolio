@@ -1,3 +1,4 @@
+from enum import Enum
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 
@@ -6,6 +7,11 @@ class UserInput(BaseModel):
     input: str
     # user_id: Optional[str] = None # 사용자 식별자, 필요시 추가
     # session_id: Optional[str] = None # 세션 식별자, 필요시 추가
+
+
+class UsageStatusEnum(str, Enum):
+    PERSONAL_CASH = "personal_cash"
+    PERSONAL_CARD = "personal_card"
 
 
 # 1단계: 양식 분류 모델의 출력 스키마
@@ -152,7 +158,7 @@ class InventoryItem(BaseModel):
     item_total_price: Optional[int] = Field(
         None, description="금액 (숫자, 수량*단가 또는 직접 추출)"
     )
-    item_purpose: Optional[str] = Field(None, description="용도")
+    item_notes: Optional[str] = Field(None, description="용도 또는 비고")
 
 
 class InventoryPurchaseReportSlots(BaseModel):
@@ -225,8 +231,8 @@ class PersonalExpenseReportSlots(BaseModel):
 
     title: Optional[str] = Field(default="개인경비 사용내역", description="문서 제목")
     draft_date: Optional[str] = Field(None, description="기안일 (YYYY-MM-DD)")
-    usage_status: Optional[str] = Field(
-        None, description="사용 현황 (개인현금 또는 개인카드)"
+    usage_status: Optional[UsageStatusEnum] = Field(
+        None, description="사용 현황 (personal_cash 또는 personal_card)"
     )
     document_date: Optional[str] = Field(None, description="작성일자 (YYYY-MM-DD)")
     department: Optional[str] = Field(None, description="소속 부서")

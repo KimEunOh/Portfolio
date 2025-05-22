@@ -22,42 +22,42 @@ class FormConfig(BaseModel):
 FORM_CONFIGS: Dict[str, FormConfig] = {
     "연차 신청서": FormConfig(
         model=AnnualLeaveSlots,
-        prompt_template_path="prompts/annual_leave_slots_prompt.txt",
+        prompt_template_path="annual_leave_slots_prompt.txt",
         html_template_path="templates/annual_leave.html",
     ),
     "야근식대비용 신청서": FormConfig(
         model=DinnerExpenseSlots,
-        prompt_template_path="prompts/dinner_expense_slots_prompt.txt",
+        prompt_template_path="dinner_expense_slots_prompt.txt",
         html_template_path="templates/dinner_expense.html",
     ),
     "교통비 신청서": FormConfig(
         model=TransportationExpenseSlots,
-        prompt_template_path="prompts/transportation_expense_slots_prompt.txt",
+        prompt_template_path="transportation_expense_slots_prompt.txt",
         html_template_path="templates/transportation_expense.html",
     ),
     "파견 및 출장 보고서": FormConfig(
         model=DispatchBusinessTripReportSlots,
-        prompt_template_path="prompts/dispatch_businesstrip_report_slots_prompt.txt",
+        prompt_template_path="dispatch_businesstrip_report_slots_prompt.txt",
         html_template_path="templates/dispatch_businesstrip_report.html",
     ),
     "비품/소모품 구입내역서": FormConfig(
         model=InventoryPurchaseReportSlots,
-        prompt_template_path="prompts/inventory_purchase_report_slots_prompt.txt",
+        prompt_template_path="inventory_purchase_report_slots_prompt.txt",
         html_template_path="templates/inventory_purchase_report.html",
     ),
     "구매 품의서": FormConfig(
         model=PurchaseApprovalFormSlots,
-        prompt_template_path="prompts/purchase_approval_form_slots_prompt.txt",
+        prompt_template_path="purchase_approval_form_slots_prompt.txt",
         html_template_path="templates/purchase_approval_form.html",
     ),
     "개인 경비 사용 내역서": FormConfig(
         model=PersonalExpenseReportSlots,
-        prompt_template_path="prompts/personal_expense_report_slots_prompt.txt",
+        prompt_template_path="personal_expense_report_slots_prompt.txt",
         html_template_path="templates/personal_expense_report.html",
     ),
     "법인카드 지출내역서": FormConfig(
         model=CorporateCardStatementSlots,
-        prompt_template_path="prompts/corporate_card_statement_slots_prompt.txt",
+        prompt_template_path="corporate_card_statement_slots_prompt.txt",
         html_template_path="templates/corporate_card_statement.html",
     ),
 }

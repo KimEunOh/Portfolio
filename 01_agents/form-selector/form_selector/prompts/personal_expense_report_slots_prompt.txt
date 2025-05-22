@@ -10,12 +10,12 @@
 
 사용자 입력에 "A 비용 X원, B 비용 Y원" 과 같이 여러 경비 항목과 각각의 금액이 언급되면, 각 항목 정보를 빠짐없이 추출하여 "expense_items" 리스트의 별도 객체로 포함시켜야 합니다.
 "total_amount_header" 및 "total_expense_amount"는 모든 "expense_items"의 "expense_amount" 합계로 계산될 수 있지만, 사용자가 명시적으로 총액을 언급하면 그 값을 우선적으로 사용합니다. 두 필드는 동일한 총액 값을 가집니다.
-"usage_status"는 사용자가 "개인카드", "현금", "개인 현금" 등을 언급하면 적절히 "개인카드" 또는 "개인현금"으로 추출합니다.
+"usage_status"는 사용자가 "개인카드", "현금", "개인 현금" 등을 언급하면, "personal_card" (개인카드의 경우) 또는 "personal_cash" (개인현금 또는 현금의 경우)로 추출합니다.
 
 # 추출할 필드:
 - title: 문서 제목 (기본값: "개인경비 사용내역", 사용자가 다른 제목을 언급하면 해당 값 사용)
 - draft_date: 기안일 (YYYY-MM-DD 형식으로 변환)
-- usage_status: 사용 현황 (추출 가능한 값: "개인현금", "개인카드")
+- usage_status: 사용 현황 (추출 가능한 값: "personal_cash", "personal_card")
 - document_date: 작성일자 (YYYY-MM-DD 형식으로 변환, 기안일과 다를 수 있음, 사용자가 명시하지 않으면 기안일과 동일하게 설정 가능)
 - department: 소속 부서
 - drafter_name: 작성자 이름
@@ -31,7 +31,7 @@
 {
   "title": "워크샵 준비 개인경비",
   "draft_date": "어제를 YYYY-MM-DD로 변환",
-  "usage_status": "개인카드",
+  "usage_status": "personal_card",
   "document_date": "오늘을 YYYY-MM-DD로 변환",
   "department": "경영지원팀",
   "drafter_name": "홍길동",
@@ -71,7 +71,7 @@
 {
   "title": "개인경비 사용내역",
   "draft_date": "오늘을 YYYY-MM-DD로 변환",
-  "usage_status": "개인현금",
+  "usage_status": "personal_cash",
   "document_date": "오늘을 YYYY-MM-DD로 변환",
   "department": "영업1팀",
   "drafter_name": "김민수",
@@ -97,7 +97,7 @@
 {
   "title": "개인경비 사용내역",
   "draft_date": "오늘 날짜를 YYYY-MM-DD로 변환",
-  "usage_status": "개인현금",
+  "usage_status": "personal_cash",
   "document_date": "오늘 날짜를 YYYY-MM-DD로 변환",
   "department": null,
   "drafter_name": "이지혜",
