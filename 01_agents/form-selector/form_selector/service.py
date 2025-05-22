@@ -568,7 +568,28 @@ def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, 
         slot_chain = SLOT_EXTRACTOR_CHAINS[form_type]
         try:
             # 슬롯 추출 LLM은 Pydantic 모델 객체를 반환합니다.
-            extracted_slots_model = slot_chain.invoke({"input": user_input.input})
+            invoke_payload = {"input": user_input.input}
+            # '연차 신청서'의 경우 또는 다른 날짜 컨텍스트가 필요한 양식의 경우
+            # current_date_iso를 전달합니다.
+            # 실제 운영 시에는 datetime.now().date().isoformat() 사용
+            # FORM_CONFIGS에서 '연차 신청서'에 해당하는 실제 키 값을 사용해야 합니다.
+            # 예시로 "연차 신청서" 문자열을 사용하지만, 실제 설정된 키로 대체해야 합니다.
+            # from .form_configs import ANNUAL_LEAVE_FORM_KEY (만약 정의되어 있다면)
+            annual_leave_form_key = "연차 신청서"  # FORM_CONFIGS의 실제 키로 가정
+
+            if (
+                form_type == annual_leave_form_key
+            ):  # 또는 다른 날짜 컨텍스트가 필요한 양식들
+
+                from datetime import datetime
+
+                current_date_for_llm = datetime.now().date().isoformat()
+                invoke_payload["current_date_iso"] = current_date_for_llm
+                logging.info(
+                    f"Invoking slot chain for '{form_type}' with current_date_iso: {current_date_for_llm}"
+                )
+
+            extracted_slots_model = slot_chain.invoke(invoke_payload)
             logging.info(
                 f"Extracted slots model for {form_type}: {extracted_slots_model}"
             )

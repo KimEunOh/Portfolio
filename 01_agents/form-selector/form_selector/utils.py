@@ -2,7 +2,139 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse, ParserError
 from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
 import re  # 정규표현식 모듈 임포트
-from typing import Optional
+from typing import Optional, Dict, Any, Literal, Union
+from pydantic import BaseModel, Field
+
+from .llm import llm  # llm.py 에서 공유 LLM 객체 가져오기
+from langchain_core.messages import HumanMessage, AIMessage
+
+
+# Function calling을 위한 함수 스키마 정의
+class DateTimeOutput(BaseModel):
+    """날짜/시간 정보 추출 결과"""
+
+    date_time: Optional[str] = Field(
+        description="추출된 날짜/시간 정보. YYYY-MM-DD 또는 YYYY-MM-DDTHH:MM 형식으로 표현. 추출할 수 없는 경우 null."
+    )
+    date_only: bool = Field(
+        description="시간 정보가 없이 날짜 정보만 있는 경우 true, 시간 정보도 있으면 false"
+    )
+
+
+# LLM 기반 날짜/시간 파싱을 위한 함수
+def _call_llm_for_datetime_parsing(text: str, today_iso: str) -> Optional[str]:
+    """
+    주어진 텍스트에서 날짜 또는 날짜시간 정보를 LLM을 통해 파싱합니다.
+    Function calling을 활용하여 결과를 구조화된 형태로 받습니다.
+
+    성공 시 "YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:MM" 형식의 문자열을 반환하고,
+    실패 시 None을 반환합니다.
+
+    Args:
+        text: 파싱할 원본 사용자 입력 문자열 (예: "다음 주 화요일 오후 3시 반")
+        today_iso: LLM에게 컨텍스트로 제공할 오늘 날짜 (YYYY-MM-DD 형식)
+
+    Returns:
+        파싱된 날짜/날짜시간 문자열 또는 None
+    """
+    # 1. 프롬프트 구성
+    prompt = f"""
+오늘 날짜는 {today_iso}입니다.
+사용자 입력 텍스트는 "{text}" 입니다.
+
+이 텍스트에서 날짜 또는 날짜와 시간 정보를 추출하세요.
+만약 텍스트에서 유효한 날짜나 시간 정보를 명확히 추출할 수 없거나, 정보가 부족하여 정확한 변환이 불가능하다면, date_time을 null로 설정하세요.
+
+예를 들어:
+- 입력이 "내일 회의"라면 시간 정보가 없으므로 date_time="{(datetime.fromisoformat(today_iso) + timedelta(days=1)).strftime('%Y-%m-%d')}", date_only=true
+- 입력이 "내일 오후 3시"라면 date_time="{(datetime.fromisoformat(today_iso) + timedelta(days=1)).strftime('%Y-%m-%d')}T15:00", date_only=false
+- 입력이 "회의" 라거나 의미없는 문자열이라면 date_time=null, date_only=true
+"""
+
+    # 2. Function calling 설정
+    functions = [
+        {
+            "name": "extract_date_time",
+            "description": "텍스트에서 날짜와 시간 정보를 추출합니다",
+            "parameters": DateTimeOutput.model_json_schema(),
+        }
+    ]
+
+    try:
+        # 3. LLM 호출
+        model_with_functions = llm.bind(functions=functions)
+        response = model_with_functions.invoke(prompt)
+
+        # 4. Function calling 응답 처리
+        if hasattr(response, "tool_calls") and response.tool_calls:
+            # Function calling 응답이 있는 경우
+            tool_call = response.tool_calls[0]
+            if tool_call.get("name") == "extract_date_time":
+                try:
+                    args = tool_call.get("args", {})
+                    date_time = args.get("date_time")
+
+                    # date_time이 None이면 파싱 실패로 처리
+                    if date_time is None:
+                        return None
+
+                    # 날짜 또는 날짜+시간 형식 검증
+                    is_date_format = bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_time))
+                    is_datetime_format = bool(
+                        re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", date_time)
+                    )
+
+                    if is_date_format or is_datetime_format:
+                        try:
+                            if is_datetime_format:
+                                datetime.strptime(date_time, "%Y-%m-%dT%H:%M")
+                            else:  # is_date_format
+                                datetime.strptime(date_time, "%Y-%m-%d")
+                            return date_time
+                        except ValueError:
+                            return None
+                    return None
+                except Exception as e:
+                    print(f"Function calling 응답 처리 중 오류 (utils.py): {e}")
+                    return None
+
+        # Function calling 응답이 없거나 처리 실패 시 일반 응답 처리
+        if hasattr(response, "content") and isinstance(response.content, str):
+            content = response.content.strip()
+
+            # 응답에서 ISO 날짜/시간 패턴 추출 시도
+            date_pattern = r"\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?"
+            date_matches = re.findall(date_pattern, content)
+
+            if date_matches:
+                date_str = date_matches[0]  # 첫 번째 매치 사용
+
+                # 형식 검증
+                is_date_format = bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_str))
+                is_datetime_format = bool(
+                    re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", date_str)
+                )
+
+                if is_date_format or is_datetime_format:
+                    try:
+                        if is_datetime_format:
+                            datetime.strptime(date_str, "%Y-%m-%dT%H:%M")
+                        else:  # is_date_format
+                            datetime.strptime(date_str, "%Y-%m-%d")
+                        return date_str
+                    except ValueError:
+                        return None
+
+            # "None" 문자열 처리
+            if content.lower() == "none":
+                return None
+
+        return None
+
+    except Exception as e:
+        print(f"LLM API 호출 중 오류 (utils.py): {e}")
+        return None
+
 
 # 한국어 요일 -> dateutil 요일 객체 매핑
 DAY_MAP = {
@@ -154,19 +286,34 @@ def parse_relative_date_to_iso(date_str: str) -> str:
             return original_date_str
 
     except (ParserError, ValueError):  # 일반 파싱 실패 시
+        # 기존 로직 실패 시 LLM 호출 시도
+        llm_result = _call_llm_for_datetime_parsing(
+            original_date_str, datetime.now().date().isoformat()
+        )
+        if llm_result and re.match(r"^\d{4}-\d{2}-\d{2}", llm_result):
+            return llm_result
         return original_date_str
     except Exception:  # 기타 예외
+        # 기타 예외 발생 시 LLM 호출 시도
+        llm_result = _call_llm_for_datetime_parsing(
+            original_date_str, datetime.now().date().isoformat()
+        )
+        if llm_result and re.match(r"^\d{4}-\d{2}-\d{2}", llm_result):
+            return llm_result
         return original_date_str
 
 
 def parse_datetime_description_to_iso_local(datetime_str: str) -> Optional[str]:
     """ "오늘 오후 3시", "내일 10시 반" 같은 문자열을 "YYYY-MM-DDTHH:MM"으로 변환"""
     if not isinstance(datetime_str, str):
-        return datetime_str  # 또는 None 또는 오류 발생
+        # 입력 타입이 문자열이 아니면 LLM 호출 없이 바로 반환 (또는 None)
+        # 이 경우는 보통 오류 상황이므로, LLM에 넘기기보다 빠르게 실패 처리
+        return datetime_str  # 또는 None으로 통일할 수 있음
 
     original_datetime_str = datetime_str.strip()
-    today_date_obj = datetime.now().date()
-    original_datetime_str_lower = original_datetime_str.lower()  # 소문자 버전 캐시
+    original_datetime_str_lower = original_datetime_str.lower()  # 소문자 변환 추가
+    today_obj = datetime.now()  # LLM에 전달할 오늘 날짜를 위해 datetime 객체 사용
+    today_iso_for_llm = today_obj.date().isoformat()
 
     # --- '정오', '자정' 특별 처리 로직 시작 ---
     hour, minute = 0, 0
@@ -205,16 +352,21 @@ def parse_datetime_description_to_iso_local(datetime_str: str) -> Optional[str]:
     if explicit_time_set:
         iso_date_str = parse_relative_date_to_iso(date_part_str_for_special_keywords)
         if not iso_date_str or not re.match(r"\d{4}-\d{2}-\d{2}", iso_date_str):
-            # 날짜 부분 해석 불가시 None 반환
-            # print(f"Debug (explicit_time_set): Could not parse date_part_str: {date_part_str_for_special_keywords} to a valid date. Original: {original_datetime_str}")
-            return None
+            # 날짜 부분 해석 불가시 LLM 시도
+            llm_result = _call_llm_for_datetime_parsing(
+                original_datetime_str, today_iso_for_llm
+            )
+            return llm_result
         try:
             final_dt_obj = datetime.strptime(iso_date_str, "%Y-%m-%d").replace(
                 hour=hour, minute=minute
             )
             return final_dt_obj.strftime("%Y-%m-%dT%H:%M")
         except ValueError:
-            return None
+            llm_result = _call_llm_for_datetime_parsing(
+                original_datetime_str, today_iso_for_llm
+            )
+            return llm_result
     # --- '정오', '자정' 특별 처리 로직 끝 ---
 
     # 1. 날짜 부분 추출 시도 (간단한 키워드 우선)
@@ -298,8 +450,10 @@ def parse_datetime_description_to_iso_local(datetime_str: str) -> Optional[str]:
                 hour = time_obj.hour
                 minute = time_obj.minute
             except (ParserError, ValueError):
-                # print(f"Debug (plain_time_match): Failed to parse time_part_extracted: {time_part_extracted}")
-                return None  # 시간 파싱 실패
+                # 시간 파싱 실패 시 LLM으로 처리 시도
+                return _call_llm_for_datetime_parsing(
+                    original_datetime_str, today_iso_for_llm
+                )
         else:
             # 기존의 전체 문자열 대상 parse 시도
             try:
@@ -314,19 +468,16 @@ def parse_datetime_description_to_iso_local(datetime_str: str) -> Optional[str]:
                 # 하지만 HTML datetime-local은 항상 T HH:MM을 요구하므로, 아래 strftime은 적절.
                 return parsed_dt_obj.strftime("%Y-%m-%dT%H:%M")
             except (ParserError, ValueError):
-                # print(f"Debug (fallback parse): Failed to parse original_datetime_str: {original_datetime_str}")
-                return None
+                # parse 실패 시 LLM으로 처리 시도
+                return _call_llm_for_datetime_parsing(
+                    original_datetime_str, today_iso_for_llm
+                )
 
     # 2. 날짜 부분 변환 (parse_relative_date_to_iso 사용)
     iso_date_str = parse_relative_date_to_iso(date_part_str)
     if not iso_date_str or not re.match(r"\d{4}-\d{2}-\d{2}", iso_date_str):
-        # 날짜 변환 실패 (예: "금요일 3시" -> date_part_str="금요일", iso_date_str="금요일")
-        # 이 경우 오늘 날짜를 기본으로 사용하거나, None 반환
-        # 현재는 명확한 날짜 지정이 없으면 None 반환 (또는 오류)
-        # print(f"Debug: Could not parse date_part_str: {date_part_str} to a valid date. Original: {original_datetime_str}")
-        # 만약 "3시" 처럼 시간만 들어온 경우 date_part_str이 "오늘"로 설정되어 여기까지 오지 않음.
-        # "금요일 3시" 와 같이 요일 + 시간인 경우, parse_relative_date_to_iso가 "금요일"을 그대로 반환.
-        return None  # 날짜 부분 해석 불가
+        # 날짜 부분 해석 불가시 LLM 시도
+        return _call_llm_for_datetime_parsing(original_datetime_str, today_iso_for_llm)
 
     # 3. YYYY-MM-DDTHH:MM 형식으로 조합
     try:
@@ -336,7 +487,7 @@ def parse_datetime_description_to_iso_local(datetime_str: str) -> Optional[str]:
         )
         return final_dt_obj.strftime("%Y-%m-%dT%H:%M")
     except ValueError:  # 날짜/시간 조합 오류 (예: 잘못된 시간 값)
-        return None
+        return _call_llm_for_datetime_parsing(original_datetime_str, today_iso_for_llm)
 
 
 if __name__ == "__main__":
