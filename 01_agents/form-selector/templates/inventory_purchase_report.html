@@ -3,86 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <title>비품/소모품 구입내역서</title>
-    <link rel="stylesheet" href="/ui/style.css">
+    <link rel="stylesheet" href="../static/style.css">
 </head>
-<body>
-    <div class="card">
-        <h2>비품/소모품 구입내역서</h2>
-        <form id="inventory_purchase_form">
+<div class="card">
+    <h2 class="form-title">비품/소모품 구입내역서</h2>
+    <form id="inventory_purchase_form">
+        <div class="form-group">
             <label for="title">문서 제목:</label>
-            <input type="text" id="title" name="title" value="비품/소모품 구입 요청">
+            <input type="text" id="title" name="title" value="비품/소모품 구입 요청" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="request_department">요청 부서:</label>
-            <input type="text" id="request_department" name="request_department">
+            <input type="text" id="request_department" name="request_department" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="requester_name">요청자:</label>
-            <input type="text" id="requester_name" name="requester_name">
+            <input type="text" id="requester_name" name="requester_name" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="request_date">요청일:</label>
-            <input type="date" id="request_date" name="request_date">
+            <input type="date" id="request_date" name="request_date" class="form-control">
+        </div>
 
-            <h3>구입 내역</h3>
-            <div class="item-set">
-                <h4>품목 1</h4>
-                <label for="item_name_1">품명:</label><input type="text" id="item_name_1" name="item_name_1">
-                <label for="item_quantity_1">수량:</label><input type="number" id="item_quantity_1" name="item_quantity_1" class="item-calc">
-                <label for="item_unit_price_1">단가:</label><input type="number" id="item_unit_price_1" name="item_unit_price_1" class="item-calc">
-                <label for="item_total_price_1">금액:</label><input type="number" id="item_total_price_1" name="item_total_price_1">
-                <label for="item_purpose_1">용도:</label><input type="text" id="item_purpose_1" name="item_purpose_1">
+        <h3 class="form-section-title">구입 내역</h3>
+        <div class="item-set">
+            <h4>품목 1</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="item_name_1">품명:</label><input type="text" id="item_name_1" name="item_name_1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_quantity_1">수량:</label><input type="number" id="item_quantity_1" name="item_quantity_1" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_unit_price_1">단가:</label><input type="number" id="item_unit_price_1" name="item_unit_price_1" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_total_price_1">금액:</label><input type="number" id="item_total_price_1" name="item_total_price_1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_purpose_1">용도:</label><input type="text" id="item_purpose_1" name="item_purpose_1" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>품목 2</h4>
-                <label for="item_name_2">품명:</label><input type="text" id="item_name_2" name="item_name_2">
-                <label for="item_quantity_2">수량:</label><input type="number" id="item_quantity_2" name="item_quantity_2" class="item-calc">
-                <label for="item_unit_price_2">단가:</label><input type="number" id="item_unit_price_2" name="item_unit_price_2" class="item-calc">
-                <label for="item_total_price_2">금액:</label><input type="number" id="item_total_price_2" name="item_total_price_2">
-                <label for="item_purpose_2">용도:</label><input type="text" id="item_purpose_2" name="item_purpose_2">
+        </div>
+        <div class="item-set">
+            <h4>품목 2</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="item_name_2">품명:</label><input type="text" id="item_name_2" name="item_name_2" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_quantity_2">수량:</label><input type="number" id="item_quantity_2" name="item_quantity_2" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_unit_price_2">단가:</label><input type="number" id="item_unit_price_2" name="item_unit_price_2" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_total_price_2">금액:</label><input type="number" id="item_total_price_2" name="item_total_price_2" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_purpose_2">용도:</label><input type="text" id="item_purpose_2" name="item_purpose_2" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>품목 3</h4>
-                <label for="item_name_3">품명:</label><input type="text" id="item_name_3" name="item_name_3">
-                <label for="item_quantity_3">수량:</label><input type="number" id="item_quantity_3" name="item_quantity_3" class="item-calc">
-                <label for="item_unit_price_3">단가:</label><input type="number" id="item_unit_price_3" name="item_unit_price_3" class="item-calc">
-                <label for="item_total_price_3">금액:</label><input type="number" id="item_total_price_3" name="item_total_price_3">
-                <label for="item_purpose_3">용도:</label><input type="text" id="item_purpose_3" name="item_purpose_3">
+        </div>
+        <div class="item-set">
+            <h4>품목 3</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="item_name_3">품명:</label><input type="text" id="item_name_3" name="item_name_3" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_quantity_3">수량:</label><input type="number" id="item_quantity_3" name="item_quantity_3" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_unit_price_3">단가:</label><input type="number" id="item_unit_price_3" name="item_unit_price_3" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_total_price_3">금액:</label><input type="number" id="item_total_price_3" name="item_total_price_3" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_purpose_3">용도:</label><input type="text" id="item_purpose_3" name="item_purpose_3" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>품목 4</h4>
-                <label for="item_name_4">품명:</label><input type="text" id="item_name_4" name="item_name_4">
-                <label for="item_quantity_4">수량:</label><input type="number" id="item_quantity_4" name="item_quantity_4" class="item-calc">
-                <label for="item_unit_price_4">단가:</label><input type="number" id="item_unit_price_4" name="item_unit_price_4" class="item-calc">
-                <label for="item_total_price_4">금액:</label><input type="number" id="item_total_price_4" name="item_total_price_4">
-                <label for="item_purpose_4">용도:</label><input type="text" id="item_purpose_4" name="item_purpose_4">
+        </div>
+        <div class="item-set">
+            <h4>품목 4</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="item_name_4">품명:</label><input type="text" id="item_name_4" name="item_name_4" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_quantity_4">수량:</label><input type="number" id="item_quantity_4" name="item_quantity_4" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_unit_price_4">단가:</label><input type="number" id="item_unit_price_4" name="item_unit_price_4" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_total_price_4">금액:</label><input type="number" id="item_total_price_4" name="item_total_price_4" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_purpose_4">용도:</label><input type="text" id="item_purpose_4" name="item_purpose_4" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>품목 5</h4>
-                <label for="item_name_5">품명:</label><input type="text" id="item_name_5" name="item_name_5">
-                <label for="item_quantity_5">수량:</label><input type="number" id="item_quantity_5" name="item_quantity_5" class="item-calc">
-                <label for="item_unit_price_5">단가:</label><input type="number" id="item_unit_price_5" name="item_unit_price_5" class="item-calc">
-                <label for="item_total_price_5">금액:</label><input type="number" id="item_total_price_5" name="item_total_price_5">
-                <label for="item_purpose_5">용도:</label><input type="text" id="item_purpose_5" name="item_purpose_5">
+        </div>
+        <div class="item-set">
+            <h4>품목 5</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="item_name_5">품명:</label><input type="text" id="item_name_5" name="item_name_5" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_quantity_5">수량:</label><input type="number" id="item_quantity_5" name="item_quantity_5" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_unit_price_5">단가:</label><input type="number" id="item_unit_price_5" name="item_unit_price_5" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_total_price_5">금액:</label><input type="number" id="item_total_price_5" name="item_total_price_5" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_purpose_5">용도:</label><input type="text" id="item_purpose_5" name="item_purpose_5" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>품목 6</h4>
-                <label for="item_name_6">품명:</label><input type="text" id="item_name_6" name="item_name_6">
-                <label for="item_quantity_6">수량:</label><input type="number" id="item_quantity_6" name="item_quantity_6" class="item-calc">
-                <label for="item_unit_price_6">단가:</label><input type="number" id="item_unit_price_6" name="item_unit_price_6" class="item-calc">
-                <label for="item_total_price_6">금액:</label><input type="number" id="item_total_price_6" name="item_total_price_6">
-                <label for="item_purpose_6">용도:</label><input type="text" id="item_purpose_6" name="item_purpose_6">
+        </div>
+        <div class="item-set">
+            <h4>품목 6</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="item_name_6">품명:</label><input type="text" id="item_name_6" name="item_name_6" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_quantity_6">수량:</label><input type="number" id="item_quantity_6" name="item_quantity_6" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_unit_price_6">단가:</label><input type="number" id="item_unit_price_6" name="item_unit_price_6" class="form-control item-calc">
+                </div>
+                <div class="form-group">
+                    <label for="item_total_price_6">금액:</label><input type="number" id="item_total_price_6" name="item_total_price_6" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="item_purpose_6">용도:</label><input type="text" id="item_purpose_6" name="item_purpose_6" class="form-control">
+                </div>
             </div>
+        </div>
 
+        <div class="form-group">
             <label for="total_amount">총 합계 금액 (원):</label>
-            <input type="number" id="total_amount" name="total_amount" readonly>
+            <input type="number" id="total_amount" name="total_amount" readonly class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="payment_method">대금지불방법:</label>
-            <input type="text" id="payment_method" name="payment_method">
+            <input type="text" id="payment_method" name="payment_method" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="notes">특이사항:</label>
-            <textarea id="notes" name="notes" rows="4"></textarea>
+            <textarea id="notes" name="notes" rows="4" class="form-control"></textarea>
+        </div>
 
-            <button type="submit">제출</button>
-        </form>
-    </div>
-    <script id="items-data" type="application/json">{items_json}</script>
-</body>
+        <div class="form-group" style="margin-top: var(--spacing-lg);">
+            <button type="submit" class="btn btn-primary">제출</button>
+        </div>
+    </form>
+</div>
+<script id="items-data" type="application/json">{items_json}</script>
 </html>

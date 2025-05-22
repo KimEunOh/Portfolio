@@ -3,163 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <title>법인카드 지출내역서</title>
-    <link rel="stylesheet" href="/ui/style.css">
+    <link rel="stylesheet" href="../static/style.css">
 </head>
-<body>
-    <div class="card">
-        <h2>법인카드 지출내역서</h2>
-        <form id="corporate_card_form">
+<div class="card">
+    <h2 class="form-title">법인카드 지출내역서</h2>
+    <form id="corporate_card_form">
+        <div class="form-group">
             <label for="title">문서 제목:</label>
-            <input type="text" id="title" name="title" value="법인카드 지출내역">
+            <input type="text" id="title" name="title" value="법인카드 지출내역" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="draft_date">기안일:</label>
-            <input type="date" id="draft_date" name="draft_date">
+            <input type="date" id="draft_date" name="draft_date" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="card_number">카드번호:</label>
-            <input type="text" id="card_number" name="card_number" placeholder="예: 1234-56**-****-7890">
-            
+            <input type="text" id="card_number" name="card_number" placeholder="예: 1234-56**-****-7890" class="form-control">
+        </div>
+        
+        <div class="form-group">
             <label for="document_date">작성일자:</label>
-            <input type="date" id="document_date" name="document_date">
+            <input type="date" id="document_date" name="document_date" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="department">소속:</label>
-            <input type="text" id="department" name="department">
+            <input type="text" id="department" name="department" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="drafter_name">작성자:</label>
-            <input type="text" id="drafter_name" name="drafter_name">
+            <input type="text" id="drafter_name" name="drafter_name" class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="total_amount_header">총 금액 (상단):</label>
-            <input type="number" id="total_amount_header" name="total_amount_header" readonly>
+            <input type="number" id="total_amount_header" name="total_amount_header" readonly class="form-control">
+        </div>
 
+        <div class="form-group">
             <label for="expense_reason">지출 사유:</label>
-            <textarea id="expense_reason" name="expense_reason" rows="4"></textarea>
-            
+            <textarea id="expense_reason" name="expense_reason" rows="4" class="form-control"></textarea>
+        </div>
+        
+        <div class="form-group">
             <label for="card_user_name">카드 사용자 성명:</label>
-            <input type="text" id="card_user_name" name="card_user_name">
-            
-            <h3>법인카드 사용 내역</h3>
-            <div class="item-set">
-                <h4>사용 내역 1</h4>
-                <label for="usage_date_1">사용일자:</label><input type="date" id="usage_date_1" name="usage_date_1">
-                <label for="usage_category_1">분류:</label>
-                <select id="usage_category_1" name="usage_category_1">
-                    <option value="">선택</option>
-                    <option value="meals">식대/회식비</option>
-                    <option value="traffic_transport">교통/운반비</option>
-                    <option value="supplies">사무용품비</option>
-                    <option value="entertainment">접대비</option>
-                    <option value="utility">공과금</option>
-                    <option value="welfare">복리후생비</option>
-                    <option value="education">교육훈련비</option>
-                    <option value="other">기타</option>
-                </select>
-                <label for="merchant_name_1">사용내역(가맹점명):</label><input type="text" id="merchant_name_1" name="merchant_name_1">
-                <label for="usage_amount_1">금액:</label><input type="number" id="usage_amount_1" name="usage_amount_1" class="usage-amount-calc">
-                <label for="usage_notes_1">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_1" name="usage_notes_1">
+            <input type="text" id="card_user_name" name="card_user_name" class="form-control">
+        </div>
+        
+        <h3 class="form-section-title">법인카드 사용 내역</h3>
+        <div class="item-set">
+            <h4>사용 내역 1</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="usage_date_1">사용일자:</label><input type="date" id="usage_date_1" name="usage_date_1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_category_1">분류:</label>
+                    <select id="usage_category_1" name="usage_category_1" class="form-control">
+                        <option value="">선택</option>
+                        <option value="meals">식대/회식비</option>
+                        <option value="traffic_transport">교통/운반비</option>
+                        <option value="supplies">사무용품비</option>
+                        <option value="entertainment">접대비</option>
+                        <option value="utility">공과금</option>
+                        <option value="welfare">복리후생비</option>
+                        <option value="education">교육훈련비</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="merchant_name_1">사용내역(가맹점명):</label><input type="text" id="merchant_name_1" name="merchant_name_1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_amount_1">금액:</label><input type="number" id="usage_amount_1" name="usage_amount_1" class="form-control usage-amount-calc">
+                </div>
+                <div class="form-group">
+                    <label for="usage_notes_1">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_1" name="usage_notes_1" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>사용 내역 2</h4>
-                <label for="usage_date_2">사용일자:</label><input type="date" id="usage_date_2" name="usage_date_2">
-                <label for="usage_category_2">분류:</label>
-                <select id="usage_category_2" name="usage_category_2">
-                    <option value="">선택</option>
-                    <option value="meals">식대/회식비</option>
-                    <option value="traffic_transport">교통/운반비</option>
-                    <option value="supplies">사무용품비</option>
-                    <option value="entertainment">접대비</option>
-                    <option value="utility">공과금</option>
-                    <option value="welfare">복리후생비</option>
-                    <option value="education">교육훈련비</option>
-                    <option value="other">기타</option>
-                </select>
-                <label for="merchant_name_2">사용내역(가맹점명):</label><input type="text" id="merchant_name_2" name="merchant_name_2">
-                <label for="usage_amount_2">금액:</label><input type="number" id="usage_amount_2" name="usage_amount_2" class="usage-amount-calc">
-                <label for="usage_notes_2">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_2" name="usage_notes_2">
+        </div>
+        <div class="item-set">
+            <h4>사용 내역 2</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="usage_date_2">사용일자:</label><input type="date" id="usage_date_2" name="usage_date_2" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_category_2">분류:</label>
+                    <select id="usage_category_2" name="usage_category_2" class="form-control">
+                        <option value="">선택</option>
+                        <option value="meals">식대/회식비</option>
+                        <option value="traffic_transport">교통/운반비</option>
+                        <option value="supplies">사무용품비</option>
+                        <option value="entertainment">접대비</option>
+                        <option value="utility">공과금</option>
+                        <option value="welfare">복리후생비</option>
+                        <option value="education">교육훈련비</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="merchant_name_2">사용내역(가맹점명):</label><input type="text" id="merchant_name_2" name="merchant_name_2" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_amount_2">금액:</label><input type="number" id="usage_amount_2" name="usage_amount_2" class="form-control usage-amount-calc">
+                </div>
+                <div class="form-group">
+                    <label for="usage_notes_2">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_2" name="usage_notes_2" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>사용 내역 3</h4>
-                <label for="usage_date_3">사용일자:</label><input type="date" id="usage_date_3" name="usage_date_3">
-                <label for="usage_category_3">분류:</label>
-                <select id="usage_category_3" name="usage_category_3">
-                    <option value="">선택</option>
-                    <option value="meals">식대/회식비</option>
-                    <option value="traffic_transport">교통/운반비</option>
-                    <option value="supplies">사무용품비</option>
-                    <option value="entertainment">접대비</option>
-                    <option value="utility">공과금</option>
-                    <option value="welfare">복리후생비</option>
-                    <option value="education">교육훈련비</option>
-                    <option value="other">기타</option>
-                </select>
-                <label for="merchant_name_3">사용내역(가맹점명):</label><input type="text" id="merchant_name_3" name="merchant_name_3">
-                <label for="usage_amount_3">금액:</label><input type="number" id="usage_amount_3" name="usage_amount_3" class="usage-amount-calc">
-                <label for="usage_notes_3">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_3" name="usage_notes_3">
+        </div>
+        <div class="item-set">
+            <h4>사용 내역 3</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="usage_date_3">사용일자:</label><input type="date" id="usage_date_3" name="usage_date_3" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_category_3">분류:</label>
+                    <select id="usage_category_3" name="usage_category_3" class="form-control">
+                        <option value="">선택</option>
+                        <option value="meals">식대/회식비</option>
+                        <option value="traffic_transport">교통/운반비</option>
+                        <option value="supplies">사무용품비</option>
+                        <option value="entertainment">접대비</option>
+                        <option value="utility">공과금</option>
+                        <option value="welfare">복리후생비</option>
+                        <option value="education">교육훈련비</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="merchant_name_3">사용내역(가맹점명):</label><input type="text" id="merchant_name_3" name="merchant_name_3" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_amount_3">금액:</label><input type="number" id="usage_amount_3" name="usage_amount_3" class="form-control usage-amount-calc">
+                </div>
+                <div class="form-group">
+                    <label for="usage_notes_3">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_3" name="usage_notes_3" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>사용 내역 4</h4>
-                <label for="usage_date_4">사용일자:</label><input type="date" id="usage_date_4" name="usage_date_4">
-                <label for="usage_category_4">분류:</label>
-                <select id="usage_category_4" name="usage_category_4">
-                    <option value="">선택</option>
-                    <option value="meals">식대/회식비</option>
-                    <option value="traffic_transport">교통/운반비</option>
-                    <option value="supplies">사무용품비</option>
-                    <option value="entertainment">접대비</option>
-                    <option value="utility">공과금</option>
-                    <option value="welfare">복리후생비</option>
-                    <option value="education">교육훈련비</option>
-                    <option value="other">기타</option>
-                </select>
-                <label for="merchant_name_4">사용내역(가맹점명):</label><input type="text" id="merchant_name_4" name="merchant_name_4">
-                <label for="usage_amount_4">금액:</label><input type="number" id="usage_amount_4" name="usage_amount_4" class="usage-amount-calc">
-                <label for="usage_notes_4">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_4" name="usage_notes_4">
+        </div>
+        <div class="item-set">
+            <h4>사용 내역 4</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="usage_date_4">사용일자:</label><input type="date" id="usage_date_4" name="usage_date_4" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_category_4">분류:</label>
+                    <select id="usage_category_4" name="usage_category_4" class="form-control">
+                        <option value="">선택</option>
+                        <option value="meals">식대/회식비</option>
+                        <option value="traffic_transport">교통/운반비</option>
+                        <option value="supplies">사무용품비</option>
+                        <option value="entertainment">접대비</option>
+                        <option value="utility">공과금</option>
+                        <option value="welfare">복리후생비</option>
+                        <option value="education">교육훈련비</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="merchant_name_4">사용내역(가맹점명):</label><input type="text" id="merchant_name_4" name="merchant_name_4" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_amount_4">금액:</label><input type="number" id="usage_amount_4" name="usage_amount_4" class="form-control usage-amount-calc">
+                </div>
+                <div class="form-group">
+                    <label for="usage_notes_4">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_4" name="usage_notes_4" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>사용 내역 5</h4>
-                <label for="usage_date_5">사용일자:</label><input type="date" id="usage_date_5" name="usage_date_5">
-                <label for="usage_category_5">분류:</label>
-                <select id="usage_category_5" name="usage_category_5">
-                    <option value="">선택</option>
-                    <option value="meals">식대/회식비</option>
-                    <option value="traffic_transport">교통/운반비</option>
-                    <option value="supplies">사무용품비</option>
-                    <option value="entertainment">접대비</option>
-                    <option value="utility">공과금</option>
-                    <option value="welfare">복리후생비</option>
-                    <option value="education">교육훈련비</option>
-                    <option value="other">기타</option>
-                </select>
-                <label for="merchant_name_5">사용내역(가맹점명):</label><input type="text" id="merchant_name_5" name="merchant_name_5">
-                <label for="usage_amount_5">금액:</label><input type="number" id="usage_amount_5" name="usage_amount_5" class="usage-amount-calc">
-                <label for="usage_notes_5">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_5" name="usage_notes_5">
+        </div>
+        <div class="item-set">
+            <h4>사용 내역 5</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="usage_date_5">사용일자:</label><input type="date" id="usage_date_5" name="usage_date_5" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_category_5">분류:</label>
+                    <select id="usage_category_5" name="usage_category_5" class="form-control">
+                        <option value="">선택</option>
+                        <option value="meals">식대/회식비</option>
+                        <option value="traffic_transport">교통/운반비</option>
+                        <option value="supplies">사무용품비</option>
+                        <option value="entertainment">접대비</option>
+                        <option value="utility">공과금</option>
+                        <option value="welfare">복리후생비</option>
+                        <option value="education">교육훈련비</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="merchant_name_5">사용내역(가맹점명):</label><input type="text" id="merchant_name_5" name="merchant_name_5" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_amount_5">금액:</label><input type="number" id="usage_amount_5" name="usage_amount_5" class="form-control usage-amount-calc">
+                </div>
+                <div class="form-group">
+                    <label for="usage_notes_5">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_5" name="usage_notes_5" class="form-control">
+                </div>
             </div>
-            <div class="item-set">
-                <h4>사용 내역 6</h4>
-                <label for="usage_date_6">사용일자:</label><input type="date" id="usage_date_6" name="usage_date_6">
-                <label for="usage_category_6">분류:</label>
-                <select id="usage_category_6" name="usage_category_6">
-                    <option value="">선택</option>
-                    <option value="meals">식대/회식비</option>
-                    <option value="traffic_transport">교통/운반비</option>
-                    <option value="supplies">사무용품비</option>
-                    <option value="entertainment">접대비</option>
-                    <option value="utility">공과금</option>
-                    <option value="welfare">복리후생비</option>
-                    <option value="education">교육훈련비</option>
-                    <option value="other">기타</option>
-                </select>
-                <label for="merchant_name_6">사용내역(가맹점명):</label><input type="text" id="merchant_name_6" name="merchant_name_6">
-                <label for="usage_amount_6">금액:</label><input type="number" id="usage_amount_6" name="usage_amount_6" class="usage-amount-calc">
-                <label for="usage_notes_6">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_6" name="usage_notes_6">
+        </div>
+        <div class="item-set">
+            <h4>사용 내역 6</h4>
+            <div class="item-fields-grid">
+                <div class="form-group">
+                    <label for="usage_date_6">사용일자:</label><input type="date" id="usage_date_6" name="usage_date_6" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_category_6">분류:</label>
+                    <select id="usage_category_6" name="usage_category_6" class="form-control">
+                        <option value="">선택</option>
+                        <option value="meals">식대/회식비</option>
+                        <option value="traffic_transport">교통/운반비</option>
+                        <option value="supplies">사무용품비</option>
+                        <option value="entertainment">접대비</option>
+                        <option value="utility">공과금</option>
+                        <option value="welfare">복리후생비</option>
+                        <option value="education">교육훈련비</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="merchant_name_6">사용내역(가맹점명):</label><input type="text" id="merchant_name_6" name="merchant_name_6" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="usage_amount_6">금액:</label><input type="number" id="usage_amount_6" name="usage_amount_6" class="form-control usage-amount-calc">
+                </div>
+                <div class="form-group">
+                    <label for="usage_notes_6">비고(내부 사용 목적 등):</label><input type="text" id="usage_notes_6" name="usage_notes_6" class="form-control">
+                </div>
             </div>
-            
+        </div>
+        
+        <div class="form-group">
             <label for="total_usage_amount">총 합계 금액:</label>
-            <input type="number" id="total_usage_amount" name="total_usage_amount" readonly>
+            <input type="number" id="total_usage_amount" name="total_usage_amount" readonly class="form-control">
+        </div>
 
-            <p><strong>* 영수증 별도 제출</strong></p>
+        <p><strong>* 영수증 별도 제출</strong></p>
 
-            <button type="submit">제출</button>
-        </form>
-    </div>
-    <script id="items-data" type="application/json">{items_json}</script>
-</body>
+        <div class="form-group" style="margin-top: var(--spacing-lg);">
+            <button type="submit" class="btn btn-primary">제출</button>
+        </div>
+    </form>
+</div>
+<script id="items-data" type="application/json">{items_json}</script>
 </html>

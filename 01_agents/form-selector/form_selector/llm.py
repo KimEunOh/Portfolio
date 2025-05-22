@@ -139,12 +139,25 @@ def _create_slot_extraction_chain(
     system_message_content_with_instructions = prompt_content_template.replace(
         "{format_instructions}", parser.get_format_instructions()
     )
+
+    # SystemMessagePromptTemplate 사용하여 current_date_iso 변수 명시적으로 처리
+    # system_prompt_template = SystemMessagePromptTemplate.from_template(
+    #     system_message_content_with_instructions
+    # )
+    # human_prompt_template = HumanMessagePromptTemplate.from_template("{input}") # 필요시 이렇게 분리 가능
+
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(content=system_message_content_with_instructions),
+            SystemMessage(
+                content=system_message_content_with_instructions
+            ),  # 직접 SystemMessage 사용
             ("human", "{input}"),
         ]
     )
+    # 참고: 만약 ChatPromptTemplate.from_template을 직접 사용한다면,
+    # 전체 프롬프트를 하나의 문자열로 만들고, input_variables=['input', 'current_date_iso']를 명시해야 함.
+    # from_messages는 내부적으로 partial_variables 등을 처리할 수 있지만, 명시성을 위해 SystemMessagePromptTemplate 사용.
+
     logger.debug(f"'{form_name}' 양식 슬롯 추출 체인 생성 완료.")
     return prompt | llm | parser
 
@@ -194,6 +207,7 @@ if __name__ == "__main__":
                 f"\n[테스트 2] '{form_type}' 슬롯 추출 테스트 입력: '{test_input_text_leave}'"
             )
             slot_chain = SLOT_EXTRACTOR_CHAINS[form_type]
+            # current_date_iso는 더 이상 슬롯 추출 시 필요하지 않음
             slots_result = slot_chain.invoke({"input": test_input_text_leave})
             logger.info(f"'{form_type}' 슬롯 추출 결과: {slots_result}")
         else:
@@ -220,6 +234,7 @@ if __name__ == "__main__":
                 f"\n[테스트 4] '{dinner_form_type}' 슬롯 추출 테스트 입력: '{test_input_dinner[:50]}...'"
             )
             dinner_slot_chain = SLOT_EXTRACTOR_CHAINS[dinner_form_type]
+            # current_date_iso는 더 이상 슬롯 추출 시 필요하지 않음
             dinner_slots_result = dinner_slot_chain.invoke({"input": test_input_dinner})
             logger.info(f"'{dinner_form_type}' 슬롯 추출 결과: {dinner_slots_result}")
         else:

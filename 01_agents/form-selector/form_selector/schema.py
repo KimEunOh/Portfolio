@@ -31,10 +31,10 @@ class AnnualLeaveSlots(BaseModel):
         description="휴가 종류 (예: 연차, 오전 반차, 오후 반차, 오전 반반차, 오후 반반차)",
     )
     start_date: Optional[str] = Field(
-        default=None, description="휴가 시작일 (YYYY-MM-DD 형식)"
+        default=None, description="휴가 시작일 (자연어 표현)"
     )
     end_date: Optional[str] = Field(
-        default=None, description="휴가 종료일 (YYYY-MM-DD 형식)"
+        default=None, description="휴가 종료일 (자연어 표현)"
     )
     reason: Optional[str] = Field(default=None, description="휴가 사유")
     duration: Optional[str] = Field(
@@ -64,23 +64,26 @@ class DinnerExpenseSlots(BaseModel):
     # )
     application_date: Optional[str] = Field(
         default=None,
-        description="신청일 (YYYY-MM-DD 형식으로 변환될 자연어 날짜, 예: 오늘, 2023-11-25)",
+        description="신청일 (자연어 날짜, 예: 오늘, 2023-11-25)",
     )
     work_details: Optional[str] = Field(default=None, description="야근 상세 업무 내용")
     work_date: Optional[str] = Field(
         default=None,
-        description="실제 야근한 날짜 (YYYY-MM-DD 형식으로 변환될 자연어 날짜, 예: 어제, 2023-11-24)",
+        description="실제 야근한 날짜 (자연어 날짜, 예: 어제, 2023-11-24)",
     )
     work_location: Optional[str] = Field(default=None, description="야근 장소")
-    overtime_ampm: Optional[str] = Field(
-        default=None,
-        description="퇴근 시간의 AM 또는 PM (예: 'AM', 'PM', '오전', '오후')",
-    )
-    overtime_hour: Optional[str] = Field(
-        default=None, description="퇴근 시간의 '시' (숫자, 예: '7', '19')"
-    )
-    overtime_minute: Optional[str] = Field(
-        default=None, description="퇴근 시간의 '분' (숫자, 예: '00', '30')"
+    # overtime_ampm: Optional[str] = Field(
+    #     default=None,
+    #     description="퇴근 시간의 AM 또는 PM (예: 'AM', 'PM', '오전', '오후')",
+    # )
+    # overtime_hour: Optional[str] = Field(
+    #     default=None, description="퇴근 시간의 '시' (숫자, 예: '7', '19')"
+    # )
+    # overtime_minute: Optional[str] = Field(
+    #     default=None, description="퇴근 시간의 '분' (숫자, 예: '00', '30')"
+    # )
+    overtime_time: Optional[str] = Field(
+        default=None, description="퇴근 시간 (HH:MM 형식, 예: '19:30', '02:00')"
     )
     dinner_expense_amount: Optional[int] = Field(
         default=None, description="식대 비용 (숫자만, 예: 10000)"
@@ -97,7 +100,7 @@ class TransportationExpenseSlots(BaseModel):
     title: Optional[str] = Field(default=None, description="문서 제목")
     departure_date: Optional[str] = Field(
         default=None,
-        description="출발일 또는 사용일 (YYYY-MM-DD 형식, 자연어 입력 가능)",
+        description="출발일 또는 사용일 (자연어 입력 가능)",
     )
     # arrival_date: Optional[str] = Field(default=None, description="도착일 (YYYY-MM-DD 형식, 자연어 입력 가능)") # 필요시 추가
     origin: Optional[str] = Field(default=None, description="출발지")
@@ -116,10 +119,10 @@ class DispatchBusinessTripReportSlots(BaseModel):
 
     title: Optional[str] = Field(default=None, description="문서 제목")
     start_date: Optional[str] = Field(
-        default=None, description="파견/출장 시작일 (YYYY-MM-DD 형식, 자연어 입력 가능)"
+        default=None, description="파견/출장 시작일 (자연어 입력 가능)"
     )
     end_date: Optional[str] = Field(
-        default=None, description="파견/출장 종료일 (YYYY-MM-DD 형식, 자연어 입력 가능)"
+        default=None, description="파견/출장 종료일 (자연어 입력 가능)"
     )
     duration_days: Optional[str] = Field(
         default=None, description="총 파견/출장 일수 (숫자)"
@@ -153,7 +156,7 @@ class DispatchBusinessTripReportSlots(BaseModel):
 
 class InventoryItem(BaseModel):
     item_name: Optional[str] = Field(None, description="품명")
-    item_quantity: Optional[int] = Field(None, description="수량")
+    item_quantity: Optional[int] = Field(None, description="수량 (숫자)")
     item_unit_price: Optional[int] = Field(None, description="단가 (숫자)")
     item_total_price: Optional[int] = Field(
         None, description="금액 (숫자, 수량*단가 또는 직접 추출)"
@@ -169,7 +172,7 @@ class InventoryPurchaseReportSlots(BaseModel):
     )
     request_department: Optional[str] = Field(None, description="요청 부서")
     requester_name: Optional[str] = Field(None, description="요청자 이름")
-    request_date: Optional[str] = Field(None, description="요청일 (YYYY-MM-DD)")
+    request_date: Optional[str] = Field(None, description="요청일 (자연어 날짜)")
     items: Optional[List[InventoryItem]] = Field(
         None, description="구입 내역 품목 리스트"
     )
@@ -189,7 +192,7 @@ class PurchaseItem(BaseModel):
         None, description="금액 (숫자, 수량*단가 또는 직접 추출)"
     )
     item_delivery_request_date: Optional[str] = Field(
-        None, description="납기요청일 (YYYY-MM-DD)"
+        None, description="납기요청일 (자연어 날짜)"
     )
     item_purpose: Optional[str] = Field(None, description="사용목적")
     item_supplier: Optional[str] = Field(None, description="거래처")
@@ -201,7 +204,7 @@ class PurchaseApprovalFormSlots(BaseModel):
     title: Optional[str] = Field(default="구매 품의서", description="문서 제목")
     draft_department: Optional[str] = Field(None, description="기안 부서")
     drafter_name: Optional[str] = Field(None, description="기안자 이름")
-    draft_date: Optional[str] = Field(None, description="기안일 (YYYY-MM-DD)")
+    draft_date: Optional[str] = Field(None, description="기안일 (자연어 날짜)")
     items: Optional[List[PurchaseItem]] = Field(
         None, description="품의 요청 항목 리스트"
     )
@@ -217,7 +220,7 @@ class PurchaseApprovalFormSlots(BaseModel):
 
 
 class ExpenseItem(BaseModel):
-    expense_date: Optional[str] = Field(None, description="일자 (YYYY-MM-DD)")
+    expense_date: Optional[str] = Field(None, description="일자 (자연어 날짜)")
     expense_category: Optional[str] = Field(
         None, description="분류 (예: 물품구입비, 유류대, 식비)"
     )
@@ -230,11 +233,11 @@ class PersonalExpenseReportSlots(BaseModel):
     """개인경비 사용내역서 필드"""
 
     title: Optional[str] = Field(default="개인경비 사용내역", description="문서 제목")
-    draft_date: Optional[str] = Field(None, description="기안일 (YYYY-MM-DD)")
+    draft_date: Optional[str] = Field(None, description="기안일 (자연어 날짜)")
     usage_status: Optional[UsageStatusEnum] = Field(
         None, description="사용 현황 (personal_cash 또는 personal_card)"
     )
-    document_date: Optional[str] = Field(None, description="작성일자 (YYYY-MM-DD)")
+    document_date: Optional[str] = Field(None, description="작성일자 (자연어 날짜)")
     department: Optional[str] = Field(None, description="소속 부서")
     drafter_name: Optional[str] = Field(None, description="작성자 이름")
     total_amount_header: Optional[int] = Field(
@@ -250,7 +253,7 @@ class PersonalExpenseReportSlots(BaseModel):
 
 
 class CardUsageItem(BaseModel):
-    usage_date: Optional[str] = Field(None, description="일자 (YYYY-MM-DD)")
+    usage_date: Optional[str] = Field(None, description="일자 (자연어 날짜)")
     usage_category: Optional[str] = Field(
         None, description="분류 (예: 식비, 교통비, 접대비)"
     )
@@ -263,11 +266,11 @@ class CorporateCardStatementSlots(BaseModel):
     """법인카드 지출내역서 필드"""
 
     title: Optional[str] = Field(default="법인카드 지출내역", description="문서 제목")
-    draft_date: Optional[str] = Field(None, description="기안일 (YYYY-MM-DD)")
+    draft_date: Optional[str] = Field(None, description="기안일 (자연어 날짜)")
     card_number: Optional[str] = Field(
         None, description="카드번호 (예: 1234-56**-****-7890)"
     )
-    document_date: Optional[str] = Field(None, description="작성일자 (YYYY-MM-DD)")
+    document_date: Optional[str] = Field(None, description="작성일자 (자연어 날짜)")
     department: Optional[str] = Field(None, description="소속 부서")
     drafter_name: Optional[str] = Field(None, description="작성자 이름")
     total_amount_header: Optional[int] = Field(

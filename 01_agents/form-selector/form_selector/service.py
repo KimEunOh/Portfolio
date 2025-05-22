@@ -13,6 +13,7 @@
 import logging  # 로깅 추가
 from typing import Tuple, Dict, Any  # Tuple, Dict, Any 추가
 import json  # json 모듈 추가
+from datetime import datetime  # datetime 추가
 
 # llm.py에서 체인 생성 함수와 SLOT_EXTRACTOR_CHAINS를 가져옴
 from .llm import get_form_classifier_chain, SLOT_EXTRACTOR_CHAINS
@@ -49,7 +50,7 @@ LEAVE_TYPE_TEXT_TO_VALUE_MAP = {
 
 
 def fill_slots_in_template(
-    template: str, slots_dict: Dict[str, Any]
+    template: str, slots_dict: Dict[str, Any], current_date_iso: str
 ) -> Tuple[str, Dict[str, Any]]:
     """HTML 템플릿 내의 플레이스홀더를 추출된 슬롯 값으로 채웁니다.
 
@@ -82,6 +83,7 @@ def fill_slots_in_template(
     Args:
         template: 플레이스홀더를 포함하는 원본 HTML 템플릿 문자열.
         slots_dict: LLM으로부터 추출된 슬롯 이름과 값으로 구성된 딕셔너리.
+        current_date_iso: 날짜 파싱의 기준이 되는 YYYY-MM-DD 형식의 날짜 문자열.
 
     Returns:
         Tuple[str, Dict[str, Any]]:
@@ -89,6 +91,9 @@ def fill_slots_in_template(
             - Dict[str, Any]: 최종적으로 처리된 슬롯 딕셔너리 (UI 디버그 정보 및 반환용).
     """
     logging.info(f"Initial slots_dict before any processing: {slots_dict}")
+    logging.info(
+        f"Using current_date_iso for parsing: {current_date_iso}"
+    )  # 기준 날짜 로깅
 
     # Pre-process all string values in slots_dict to escape backslashes for re.sub
     # This applies to single string values and strings within lists of dicts (like items)
@@ -146,6 +151,63 @@ def fill_slots_in_template(
     # 모든 변환(날짜 파싱, 키 변경 등)은 active_slots의 복사본인 transformed_slots에 대해 수행됩니다.
     transformed_slots = {**active_slots}
 
+    # --- 날짜/시간 관련 슬롯 우선 처리 ---
+    # 연차 신청서 등의 start_date, end_date를 먼저 YYYY-MM-DD로 변환
+    date_fields_to_parse = [
+        "start_date",
+        "end_date",
+        "application_date",
+        "work_date",
+        "departure_date",
+        "request_date",
+        "draft_date",
+        "document_date",
+        "usage_date",
+    ]  # 추가적인 직접 파싱 대상 필드들
+
+    for field in date_fields_to_parse:
+        if field in transformed_slots and isinstance(transformed_slots[field], str):
+            original_value = transformed_slots[field]
+            parsed_value = parse_relative_date_to_iso(
+                original_value, current_date_iso=current_date_iso
+            )
+            if (
+                parsed_value and parsed_value != original_value
+            ):  # 파싱 성공하고 값이 변경된 경우
+                transformed_slots[field] = parsed_value
+                logging.info(
+                    f"Parsed general date field '{field}': '{original_value}' -> '{parsed_value}'"
+                )
+            elif not parsed_value:  # 파싱 실패
+                logging.warning(
+                    f"Failed to parse general date field '{field}': '{original_value}'. Keeping original."
+                )
+            # else: 파싱 결과가 원본과 같으면 (이미 YYYY-MM-DD 형식이거나, utils가 원본 반환) 로그 불필요
+
+    # 회의 시간 관련 슬롯 (`meeting_datetime`, `meeting_time`, `meeting_time_description`) 처리
+    # 이 슬롯들은 "YYYY-MM-DDTHH:MM" 형식을 기대합니다.
+    datetime_fields_to_parse = [
+        "meeting_datetime",
+        "meeting_time",  # 이 슬롯은 HH:MM 또는 자연어 시간일 수 있음
+        "meeting_time_description",  # 이 슬롯은 자연어 시간 묘사
+        "overtime_time",  # HH:MM 또는 자연어 시간
+    ]
+    for field in datetime_fields_to_parse:
+        if field in transformed_slots and isinstance(transformed_slots[field], str):
+            original_value = transformed_slots[field]
+            parsed_value = parse_datetime_description_to_iso_local(
+                original_value, current_date_iso=current_date_iso
+            )
+            if parsed_value and parsed_value != original_value:
+                transformed_slots[field] = parsed_value
+                logging.info(
+                    f"Parsed datetime field '{field}': '{original_value}' -> '{parsed_value}'"
+                )
+            elif not parsed_value:
+                logging.warning(
+                    f"Failed to parse datetime field '{field}': '{original_value}'. Keeping original."
+                )
+
     # 구매 품의서(`items` 키 사용)의 아이템별 특별 처리:
     # - 납기요청일(`item_delivery_request_date`)을 `item_delivery_date`로 변경 및 파싱.
     # - 사용목적(`item_purpose`)을 `item_notes`로 변경 (기존 `item_notes`가 없는 경우).
@@ -160,7 +222,8 @@ def fill_slots_in_template(
                     processed_item["item_delivery_request_date"], str
                 ):
                     parsed_date = parse_relative_date_to_iso(
-                        processed_item["item_delivery_request_date"]
+                        processed_item["item_delivery_request_date"],
+                        current_date_iso=current_date_iso,
                     )
                     if parsed_date:
                         processed_item["item_delivery_date"] = parsed_date
@@ -231,7 +294,9 @@ def fill_slots_in_template(
                     processed_item["expense_date"], str
                 ):
                     original_date_str = processed_item["expense_date"]
-                    parsed_date = parse_relative_date_to_iso(original_date_str)
+                    parsed_date = parse_relative_date_to_iso(
+                        original_date_str, current_date_iso=current_date_iso
+                    )
                     if parsed_date:
                         processed_item["expense_date"] = parsed_date
                         logging.debug(
@@ -262,7 +327,9 @@ def fill_slots_in_template(
                     processed_item["usage_date"], str
                 ):
                     original_date_str = processed_item["usage_date"]
-                    parsed_date = parse_relative_date_to_iso(original_date_str)
+                    parsed_date = parse_relative_date_to_iso(
+                        original_date_str, current_date_iso=current_date_iso
+                    )
                     if parsed_date:
                         processed_item["usage_date"] = parsed_date
                         logging.debug(
@@ -321,65 +388,51 @@ def fill_slots_in_template(
             f"Slot 'overtime_ampm' preprocessed: '{ampm_value_original}' -> '{transformed_slots['overtime_ampm']}'"
         )
 
-    # 일반적인 슬롯 값들에 대한 변환 (날짜, 시간 등)
+    # 일반적인 날짜 슬롯 처리 (DATE_SLOT_KEY_SUBSTRINGS 기반, 이미 위에서 date_fields_to_parse로 처리된 필드 제외)
+    # 이 로직은 아이템 리스트 내부의 날짜 필드나, date_fields_to_parse에 포함되지 않은 일반 날짜 필드에 유용할 수 있습니다.
+    # 하지만, 대부분의 직접적인 날짜 필드는 date_fields_to_parse에서 이미 처리되었을 가능성이 높습니다.
+    # 여기서는 transformed_slots를 순회하며, 아직 문자열이고 DATE_SLOT_KEY_SUBSTRINGS에 해당하는 키를 가진 슬롯을 다시 한번 파싱 시도합니다.
+    # 이는 중복 처리의 가능성이 있지만, 누락을 방지하는 차원에서 유지할 수 있습니다.
+    # 또는, date_fields_to_parse 목록을 더 포괄적으로 만들고 이 부분을 간소화할 수 있습니다.
+    # 현재는 명시성을 위해 이 로직을 유지하되, 이미 파싱된 필드는 건너뛰도록 합니다.
+
     for key, value in list(
         transformed_slots.items()
-    ):  # list()를 사용하여 반복 중 딕셔너리 변경에 안전하게 처리
-        logging.debug(f"Processing slot - Key: {key}, Value: {value}")
-        if isinstance(value, str):
-            original_value_for_logging = value  # 로깅용 원본 값 저장
-
-            # `leave_type`과 `overtime_ampm`은 위에서 이미 처리되었으므로 건너뜁니다.
-            if key == "overtime_ampm" or key == "leave_type":
+    ):  # list()로 복사본 순회 (딕셔너리 변경 가능성)
+        if isinstance(value, str) and any(
+            substr in key.lower() for substr in DATE_SLOT_KEY_SUBSTRINGS
+        ):
+            # 이미 위에서 date_fields_to_parse 또는 datetime_fields_to_parse를 통해 처리된 필드는 건너뜀
+            if key in date_fields_to_parse or key in datetime_fields_to_parse:
                 continue
 
-            # 회의 시간 관련 슬롯 처리 (`parse_datetime_description_to_iso_local` 사용)
-            # 예: "내일 오후 3시", "다음주 월요일 10:00"
-            if key == "meeting_datetime" or key == "meeting_time":
-                parsed_datetime = parse_datetime_description_to_iso_local(value)
-                if parsed_datetime:
-                    transformed_slots[key] = parsed_datetime
-                    logging.debug(
-                        f"Datetime slot '{key}' processed: '{original_value_for_logging}' -> '{transformed_slots[key]}'"
-                    )
-                # 파싱 실패 시 원본 값 유지 (transformed_slots에는 이미 active_slots의 원본 값이 있음)
-                continue  # 다음 슬롯으로 넘어감
-            elif (
-                key == "meeting_time_description"
-            ):  # LLM이 meeting_datetime 대신 이 키로 줄 수도 있음
-                parsed_datetime = parse_datetime_description_to_iso_local(value)
-                if parsed_datetime:
-                    transformed_slots["meeting_datetime"] = (
-                        parsed_datetime  # meeting_datetime 키로 통일
-                    )
-                    # 원래 meeting_time_description 슬롯은 제거하거나, 필요시 유지할 수 있음
-                    if key in transformed_slots:  # transformed_slots에 아직 있다면 삭제
-                        del transformed_slots[key]
-                    logging.debug(
-                        f"Datetime slot '{key}' (-> meeting_datetime) processed: '{original_value_for_logging}' -> '{transformed_slots['meeting_datetime']}'"
-                    )
+            # 아이템 리스트 내의 필드는 각 아이템 처리 루프에서 개별적으로 처리됨
+            is_item_list_field = False
+            for item_list_key in ["items", "expense_items", "card_usage_items"]:
+                if key.startswith(item_list_key + "[") and key.endswith(
+                    "]"
+                ):  # 예: items[0].some_date_field
+                    is_item_list_field = True
+                    break
+            if (
+                is_item_list_field
+            ):  # TODO: 이 방식으로는 아이템 내부 필드 감지 어려움. 각 아이템 루프에서 처리하는 것이 맞음.
                 continue
 
-            # 일반적인 날짜 슬롯 처리 (키 이름에 "date", "일자", "기간" 포함 시)
-            # `parse_relative_date_to_iso` 사용. 예: "어제", "다음주 금요일"
-            key_lower = key.lower()
-            is_date_slot = any(
-                substring in key_lower for substring in DATE_SLOT_KEY_SUBSTRINGS
+            original_value = value
+            # DATE_SLOT_KEY_SUBSTRINGS에 해당하는 키는 대부분 날짜만 있는 YYYY-MM-DD 형식을 기대.
+            parsed_value = parse_relative_date_to_iso(
+                original_value, current_date_iso=current_date_iso
             )
-            if is_date_slot:
-                # 아이템 리스트 내의 날짜 필드는 위에서 이미 처리되었으므로, 여기서는 중복 처리하지 않도록 주의합니다.
-                # 현재 로직에서는 아이템 리스트 처리가 이 루프보다 먼저 수행되므로 괜찮습니다.
-                parsed_date = parse_relative_date_to_iso(value)
-                if parsed_date is not None:  # 파싱 성공 시에만 업데이트
-                    transformed_slots[key] = parsed_date
-                    logging.debug(
-                        f"Date slot '{key}' processed: '{original_value_for_logging}' -> '{transformed_slots[key]}'"
-                    )
-                else:  # 파싱 실패 시 (None 반환)
-                    logging.warning(
-                        f"Date slot '{key}' parsing failed for value: '{original_value_for_logging}'. Keeping original."
-                    )
-                    # transformed_slots[key]는 이미 active_slots로부터 원본값을 가지고 있음
+            if parsed_value and parsed_value != original_value:
+                transformed_slots[key] = parsed_value
+                logging.info(
+                    f"Parsed date field by substring '{key}': '{original_value}' -> '{parsed_value}'"
+                )
+            elif not parsed_value:
+                logging.warning(
+                    f"Failed to parse date field by substring '{key}': '{original_value}'. Keeping original."
+                )
 
     logging.info(
         f"Final slots prepared for template filling after all transformations: {transformed_slots}"
@@ -446,48 +499,17 @@ def fill_slots_in_template(
 
 
 def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, Any]:
-    """사용자 입력을 기반으로 양식을 분류하고, 슬롯을 추출하여 HTML 템플릿을 채웁니다.
-
-    이 함수는 전체 요청 처리 파이프라인을 담당하며 다음 단계를 포함합니다:
-    1.  **양식 분류**: `get_form_classifier_chain`으로 생성된 LLM 체인을 사용하여 사용자 입력으로부터
-        양식 유형 (`form_type`)과 검색 키워드 (`keywords`)를 추출합니다.
-        -   분류 실패 또는 LLM 출력 파싱 오류(`OutputParserException`) 시, 사용자에게 되묻거나
-            오류를 알리는 응답 (`error: "CLASSIFICATION_FAILED"`)을 반환합니다.
-        -   기타 예상치 못한 오류 발생 시 `error: "CLASSIFICATION_UNEXPECTED_ERROR"`를 반환합니다.
-    2.  **양식 유효성 검사**: 분류된 `form_type`이 `AVAILABLE_FORM_TYPES` (사전에 정의된 지원 양식 목록)에
-        포함되어 있는지 확인합니다. 없는 경우 `error: "UNKNOWN_FORM_TYPE_CLASSIFIED"`를 반환합니다.
-    3.  **HTML 템플릿 검색**: RAG 시스템 (`retrieve_template`)을 사용하여 분류된 `form_type`과 `keywords`에
-        가장 적합한 HTML 템플릿을 검색합니다.
-        -   템플릿 검색 실패 시, `error: "TEMPLATE_NOT_FOUND"`를 반환합니다.
-    4.  **슬롯 추출**: 해당 `form_type`에 맞는 슬롯 추출기 LLM (`SLOT_EXTRACTOR_CHAINS`에서 가져옴)을 호출하여
-        사용자 입력으로부터 상세 슬롯 값들을 추출합니다.
-        -   슬롯 추출 모델은 Pydantic 모델 객체를 반환하며, 이를 `.model_dump()`를 통해 딕셔너리로 변환합니다.
-        -   **회의비 지출결의서 특별 처리**: `venue_fee`(회의실 대관료), `refreshment_fee`(다과비),
-            `llm_expense_details`(기타 상세) 슬롯 값들을 조합하여 `expenses`라는 단일 슬롯으로 만듭니다.
-            만약 이들이 없고 `amount`만 있다면, `amount`를 사용하여 `expenses`를 채웁니다.
-        -   슬롯 추출 중 `OutputParserException` 발생 시 (LLM 출력이 Pydantic 모델로 파싱 실패 등) 로깅만 하고
-            빈 슬롯(`{}`)으로 다음 단계를 진행할 수 있으나, 현재는 특별한 오류 반환 없이 진행됩니다.
-            (필요시 오류 응답 추가 가능)
-    5.  **슬롯 값 채우기**: `fill_slots_in_template` 함수를 호출하여 검색된 HTML 템플릿에 추출 및 처리된
-        슬롯 값들을 채웁니다.
-    6.  **결과 반환**: 최종적으로 API 응답에 필요한 모든 정보 (양식 유형, 키워드, 채워진 슬롯, HTML 템플릿 등)를
-        포함하는 딕셔너리를 반환합니다.
-
-    Args:
-        user_input: 사용자의 원본 입력 문자열을 포함하는 `UserInput` 객체.
-
-    Returns:
-        Dict[str, Any]: API 응답으로 사용될 딕셔너리. 주요 키는 다음과 같습니다:
-            - "form_type": (str) 분류된 양식 종류 (예: "구매 품의서").
-            - "keywords": (List[str]) 추출된 검색 키워드 리스트.
-            - "slots": (Dict[str, Any]) 최종적으로 처리되고 HTML에 채워진 슬롯 값 딕셔너리.
-            - "html_template": (str) 슬롯 값이 모두 채워진 최종 HTML 문자열.
-            - "original_input": (str) 사용자의 원본 입력.
-            - "error": (str, optional) 오류 발생 시 오류 코드 (예: "CLASSIFICATION_FAILED").
-            - "message_to_user": (str, optional) 오류 발생 시 사용자에게 보여줄 메시지.
-            - "available_forms": (List[str], optional) 분류 실패 시 사용 가능한 양식 목록.
+    """사용자 입력을 받아 양식을 분류하고, 해당 양식의 슬롯을 추출한 후,
+    템플릿에 채워넣어 반환합니다.
+    이제 실제 현재 날짜를 current_date_iso로 사용하여 날짜 관련 처리를 수행합니다.
     """
-    # 1단계: 양식 분류 및 키워드 추출
+    logging.info(f"Classifying and extracting slots for input: {user_input.input}")
+
+    # 기준 날짜 설정 (실제 현재 날짜 사용)
+    current_date_iso = datetime.now().date().isoformat()
+    logging.info(f"Using current_date_iso for processing: {current_date_iso}")
+
+    # 1. 양식 분류
     form_classifier_chain = get_form_classifier_chain()
     try:
         classifier_result = form_classifier_chain.invoke({"input": user_input.input})
@@ -568,27 +590,9 @@ def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, 
         slot_chain = SLOT_EXTRACTOR_CHAINS[form_type]
         try:
             # 슬롯 추출 LLM은 Pydantic 모델 객체를 반환합니다.
-            invoke_payload = {"input": user_input.input}
-            # '연차 신청서'의 경우 또는 다른 날짜 컨텍스트가 필요한 양식의 경우
-            # current_date_iso를 전달합니다.
-            # 실제 운영 시에는 datetime.now().date().isoformat() 사용
-            # FORM_CONFIGS에서 '연차 신청서'에 해당하는 실제 키 값을 사용해야 합니다.
-            # 예시로 "연차 신청서" 문자열을 사용하지만, 실제 설정된 키로 대체해야 합니다.
-            # from .form_configs import ANNUAL_LEAVE_FORM_KEY (만약 정의되어 있다면)
-            annual_leave_form_key = "연차 신청서"  # FORM_CONFIGS의 실제 키로 가정
-
-            if (
-                form_type == annual_leave_form_key
-            ):  # 또는 다른 날짜 컨텍스트가 필요한 양식들
-
-                from datetime import datetime
-
-                current_date_for_llm = datetime.now().date().isoformat()
-                invoke_payload["current_date_iso"] = current_date_for_llm
-                logging.info(
-                    f"Invoking slot chain for '{form_type}' with current_date_iso: {current_date_for_llm}"
-                )
-
+            invoke_payload = {
+                "input": user_input.input,
+            }
             extracted_slots_model = slot_chain.invoke(invoke_payload)
             logging.info(
                 f"Extracted slots model for {form_type}: {extracted_slots_model}"
@@ -676,7 +680,7 @@ def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, 
     # fill_slots_in_template 함수는 raw_slots에 있는 값들을 기반으로 날짜 변환, 키 변경 등을 수행하고,
     # 최종적으로 HTML 템플릿에 값들을 채워넣습니다.
     final_html, final_processed_slots = fill_slots_in_template(
-        retrieved_template_html, raw_slots
+        retrieved_template_html, raw_slots, current_date_iso
     )
     logging.info(
         f"Final processed slots after fill_slots_in_template: {final_processed_slots}"
