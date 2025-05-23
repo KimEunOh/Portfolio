@@ -273,7 +273,7 @@
 
             try {
                 const response = await fetch('/form-selector', {
-                    method: 'POST',
+                    method: 'post',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -423,71 +423,280 @@
         }
 
         // --- 신규: 문서 제출 함수 ---
+        // Helper function to get element value or slot value
+        function getElementValueOrSlot(elementId, slotKey, slots) {
+            const element = document.getElementById(elementId);
+            if (element && (element.value !== undefined && element.value.trim() !== "")) {
+                return element.value.trim();
+            }
+            // Ensure slots object exists before trying to access a key
+            return slots && slots[slotKey] ? slots[slotKey] : "";
+        }
+
+        // Form Processors: Object to hold form-specific data extraction logic
+        const formProcessors = {
+            "연차 신청서": function(slots, getElementValueOrSlotFunc) {
+                console.log("[연차 신청서 Processor] 시작", { slots });
+                let docCnValue = getElementValueOrSlotFunc('reason', 'reason', slots);
+                const docCn = docCnValue || '개인 사유'; // HTML 래핑 제거, 순수 텍스트 사용
+
+                let dayList = [];
+                let startDateStr = getElementValueOrSlotFunc('start_date', 'start_date', slots);
+                let endDateStr = getElementValueOrSlotFunc('end_date', 'end_date', slots);
+                let leaveTypeSlotValue = getElementValueOrSlotFunc('leave_type', 'leave_type', slots);
+
+                console.log("[연차 신청서 Processor] 값 가져오기 후:", { startDateStr, endDateStr, leaveTypeSlotValue });
+
+                // 종료일이 없고 시작일만 있는 경우, 당일 휴가로 간주하여 종료일을 시작일과 동일하게 설정
+                if (startDateStr && !endDateStr) {
+                    console.log("[연차 신청서 Processor] 종료일이 없어 시작일을 종료일로 설정.");
+                    endDateStr = startDateStr;
+                }
+
+                let dvTypeForApi = leaveTypeSlotValue;
+                const leaveTypeMapping = {
+                    "annual": "DAY", "day_off": "DAY", "연차": "DAY",
+                    "half_day_morning": "HALF_AM", "오전 반차": "HALF_AM", "오전반차": "HALF_AM",
+                    "half_day_afternoon": "HALF_PM", "오후 반차": "HALF_PM", "오후반차": "HALF_PM",
+                    "quarter_day_morning": "HALF_H_AM", "오전 반반차": "HALF_H_AM",
+                    "quarter_day_afternoon": "HALF_H_PM", "오후 반반차": "HALF_H_PM"
+                };
+
+                // 1. 직접 매핑 시도
+                if (leaveTypeSlotValue && leaveTypeMapping[leaveTypeSlotValue]) {
+                    dvTypeForApi = leaveTypeMapping[leaveTypeSlotValue];
+                // 2. 이미 API dvType 형식인 경우 (대소문자 구분 없이 체크 후 대문자로 통일)
+                } else if (leaveTypeSlotValue && typeof leaveTypeSlotValue === 'string' && 
+                           ["DAY", "HALF_AM", "HALF_PM", "HALF_H_AM", "HALF_H_PM"].includes(leaveTypeSlotValue.toUpperCase())) {
+                    dvTypeForApi = leaveTypeSlotValue.toUpperCase();
+                // 3. 매핑도 안되고, 직접 형식도 아닌 경우 기본값 사용
+                } else {
+                    dvTypeForApi = "DAY"; // 기본값
+                    console.warn(`[연차 신청서 Processor] 알 수 없는 휴가 종류: '${leaveTypeSlotValue}', 기본값 'DAY' 사용.`);
+                }
+                console.log("[연차 신청서 Processor] dvTypeForApi 결정:", dvTypeForApi);
+
+                if (startDateStr && endDateStr && dvTypeForApi) {
+                    console.log("[연차 신청서 Processor] 날짜 범위 계산 시작:", { startDateStr, endDateStr, dvTypeForApi });
+                    try {
+                        let currentDate = new Date(startDateStr);
+                        let finalEndDate = new Date(endDateStr);
+
+                        console.log("[연차 신청서 Processor] Date 객체 생성:", { currentDateValid: !isNaN(currentDate.getTime()), finalEndDateValid: !isNaN(finalEndDate.getTime()) });
+
+                        if (!isNaN(currentDate.getTime()) && !isNaN(finalEndDate.getTime()) && currentDate <= finalEndDate) {
+                            while (currentDate <= finalEndDate) {
+                                const year = currentDate.getFullYear();
+                                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                                const day = String(currentDate.getDate()).padStart(2, '0');
+                                dayList.push({
+                                    reqYmd: `${year}-${month}-${day}`,
+                                    dvType: dvTypeForApi
+                                });
+                                console.log("[연차 신청서 Processor] dayList에 추가:", dayList[dayList.length -1]);
+                                currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                        } else {
+                             console.warn("[연차 신청서 Processor] 유효하지 않은 시작일/종료일 또는 날짜 순서 오류", { startDateStr, endDateStr, currentDateMs: currentDate.getTime(), finalEndDateMs: finalEndDate.getTime() });
+                        }
+                    } catch (e) {
+                        console.error("[연차 신청서 Processor] dayList 생성 중 날짜 파싱 또는 루프 오류:", e, {startDateStr, endDateStr});
+                    }
+                } else {
+                    console.warn("[연차 신청서 Processor] start_date, end_date, 또는 dvTypeForApi 정보 부족. dayList 생성 실패.", { startDateStr, endDateStr, dvTypeForApi });
+                }
+                console.log("[연차 신청서 Processor] 최종 dayList:", dayList);
+                return { docCn, dayList, itemList: [] };
+            },
+            "야근 식대 신청서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('work_details', 'work_details', slots) || getElementValueOrSlotFunc('additional_notes', 'additional_notes', slots);
+                return { docCn, dayList: [], itemList: [] };
+            },
+            "파견 및 출장 보고서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('report_details', 'report_details', slots) || getElementValueOrSlotFunc('notes', 'notes', slots);
+                let dayList = [];
+                const startDateStr = getElementValueOrSlotFunc('start_date', 'start_date', slots);
+                const endDateStr = getElementValueOrSlotFunc('end_date', 'end_date', slots);
+
+                if (startDateStr && endDateStr) {
+                    let currentDate = new Date(startDateStr);
+                    const endDate = new Date(endDateStr);
+                    if (!isNaN(currentDate.getTime()) && !isNaN(endDate.getTime()) && currentDate <= endDate) {
+                        while (currentDate <= endDate) {
+                            const year = currentDate.getFullYear();
+                            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(currentDate.getDate()).padStart(2, '0');
+                            dayList.push({
+                                reqYmd: `${year}-${month}-${day}`,
+                                dvType: "BUSINESSTRIP" // 예시 dvType, 확정 필요
+                            });
+                            currentDate.setDate(currentDate.getDate() + 1);
+                        }
+                    } else {
+                        console.warn("파견 및 출장 보고서: 유효하지 않은 시작일/종료일 또는 날짜 순서 오류");
+                    }
+                }
+                return { docCn, dayList, itemList: [] };
+            },
+            "비품/소모품 구입내역서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('notes', 'notes', slots); // 특이사항
+                let itemList = [];
+                const itemSets = document.querySelectorAll('.item-set');
+                itemSets.forEach((set, index) => {
+                    const item = {};
+                    const fieldMapping = { 
+                        itemName: `name_${index + 1}`, 
+                        quantity: `quantity_${index + 1}`, 
+                        unitPrice: `unit_price_${index + 1}`,
+                        totalPrice: `total_price_${index + 1}`, 
+                        purpose: `purpose_${index + 1}`
+                    };
+                    let baseId = 'item_';
+                    let hasValue = false;
+                    for (const apiKey in fieldMapping) {
+                        const elementId = baseId + fieldMapping[apiKey];
+                        const element = document.getElementById(elementId); 
+                        if (element && element.value !== undefined && element.value.trim() !== "") {
+                            if ((apiKey === 'quantity' || apiKey === 'unitPrice' || apiKey === 'totalPrice') && !isNaN(parseFloat(element.value))) {
+                                item[apiKey] = parseFloat(element.value);
+                            } else {
+                                item[apiKey] = element.value.trim();
+                            }
+                            hasValue = true;
+                        } else if (element && element.tagName === 'SELECT' && element.value.trim() !== "") { 
+                            item[apiKey] = element.value.trim();
+                            hasValue = true;
+                        }
+                    }
+                    if (hasValue) itemList.push(item);
+                });
+                return { docCn, dayList: [], itemList };
+            },
+            "구매 품의서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('special_notes', 'special_notes', slots);
+                let itemList = [];
+                const itemSets = document.querySelectorAll('.item-set');
+                itemSets.forEach((set, index) => {
+                    const item = {};
+                    const fieldMapping = {
+                        itemName: `name_${index + 1}`,
+                        spec: `spec_${index + 1}`,
+                        quantity: `quantity_${index + 1}`,
+                        unitPrice: `unit_price_${index + 1}`,
+                        totalPrice: `total_price_${index + 1}`,
+                        deliveryDate: `delivery_date_${index + 1}`,
+                        supplier: `supplier_${index + 1}`,
+                        notes: `notes_${index + 1}`
+                    };
+                    let baseId = 'item_';
+                    let hasValue = false;
+                    for (const apiKey in fieldMapping) {
+                        const elementId = baseId + fieldMapping[apiKey];
+                        const element = document.getElementById(elementId);
+                        if (element && element.value !== undefined && element.value.trim() !== "") {
+                            if ((apiKey === 'quantity' || apiKey === 'unitPrice' || apiKey === 'totalPrice') && !isNaN(parseFloat(element.value))) {
+                                item[apiKey] = parseFloat(element.value);
+                            } else {
+                                item[apiKey] = element.value.trim();
+                            }
+                            hasValue = true;
+                        } else if (element && element.tagName === 'SELECT' && element.value.trim() !== "") {
+                            item[apiKey] = element.value.trim();
+                            hasValue = true;
+                        }
+                    }
+                    if (hasValue) itemList.push(item);
+                });
+                return { docCn, dayList: [], itemList };
+            },
+            "개인경비 사용내역서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('expense_reason', 'expense_reason', slots);
+                let itemList = [];
+                const itemSets = document.querySelectorAll('.item-set');
+                itemSets.forEach((set, index) => {
+                    const item = {};
+                    const fieldMapping = {
+                        date: `date_${index + 1}`,
+                        category: `category_${index + 1}`,
+                        description: `description_${index + 1}`,
+                        amount: `amount_${index + 1}`,
+                        notes: `notes_${index + 1}`
+                    };
+                    let baseId = 'expense_';
+                    let hasValue = false;
+                    for (const apiKey in fieldMapping) {
+                        const elementId = baseId + fieldMapping[apiKey];
+                        const element = document.getElementById(elementId);
+                        if (element && element.value !== undefined && element.value.trim() !== "") {
+                           if (apiKey === 'amount' && !isNaN(parseFloat(element.value))) {
+                                item[apiKey] = parseFloat(element.value);
+                            } else {
+                                item[apiKey] = element.value.trim();
+                            }
+                            hasValue = true;
+                        } else if (element && element.tagName === 'SELECT' && element.value.trim() !== "") {
+                            item[apiKey] = element.value.trim();
+                            hasValue = true;
+                        }
+                    }
+                    if (hasValue) itemList.push(item);
+                });
+                return { docCn, dayList: [], itemList };
+            },
+            "법인카드 지출내역서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('expense_reason', 'expense_reason', slots); 
+                let itemList = [];
+                const itemSets = document.querySelectorAll('.item-set');
+                itemSets.forEach((set, index) => {
+                    const item = {};
+                    const fieldMapping = { 
+                        date: `date_${index + 1}`,          
+                        category: `category_${index + 1}`,    
+                        merchantName: `merchant_name_${index + 1}`, 
+                        amount: `amount_${index + 1}`,        
+                        notes: `notes_${index + 1}`           
+                    };
+                     let baseId = 'usage_'; 
+                    let hasValue = false;
+                    for (const apiKey in fieldMapping) {
+                        const elementId = baseId + fieldMapping[apiKey];
+                        const element = document.getElementById(elementId);
+                        if (element && element.value !== undefined && element.value.trim() !== "") {
+                            if (apiKey === 'amount' && !isNaN(parseFloat(element.value))) {
+                                item[apiKey] = parseFloat(element.value);
+                            } else {
+                                item[apiKey] = element.value.trim();
+                            }
+                            hasValue = true;
+                        } else if (element && element.tagName === 'SELECT' && element.value.trim() !== "") {
+                            item[apiKey] = element.value.trim();
+                            hasValue = true;
+                        }
+                    }
+                    if (hasValue) itemList.push(item);
+                });
+                return { docCn, dayList: [], itemList };
+            },
+            "교통비 신청서": function(slots, getElementValueOrSlotFunc) {
+                let docCn = getElementValueOrSlotFunc('transport_details', 'transport_details', slots) || getElementValueOrSlotFunc('notes', 'notes', slots);
+                return { docCn, dayList: [], itemList: [] };
+            }
+        };
+
         /**
          * @async
          * @function submitDocument
          * @description 현재 선택/완성된 양식의 데이터를 수집하여 API 서버로 제출합니다.
+         *              양식별 데이터 수집 로직은 `formProcessors` 객체를 통해 처리됩니다.
          * 
-         * 주요 작업 흐름:
-         * 1. 기본 정보 유효성 검사 (currentFormResponse, mstPid, drafterId).
-         * 2. 공통 정보 수집 (mstPid, aprvNm, drafterId, lineList).
-         * 3. 양식 유형(form_type)에 따라 특화 정보(docCn, dayList, itemList) 수집.
-         *    - docCn: 각 양식의 주요 내용/사유 필드에서 값 추출.
-         *    - dayList: 날짜 기간이 있는 양식(예: 연차신청서, 출장보고서)의 경우 날짜 목록 생성.
-         *    - itemList: 테이블 형태의 항목이 있는 양식(예: 품의서, 비용보고서)의 경우 항목 목록 생성.
-         * 4. 수집된 모든 정보로 API 요청 페이로드(payload) 구성.
-         * 5. 구성된 payload를 '/api/v1/epaper/register' 엔드포인트로 POST 전송.
-         * 6. 서버 응답에 따라 성공/실패 처리 및 사용자 알림.
-         *
-         * !! --- 다음 단계 및 주요 고려 사항 --- !!
-         * 
-         * 1.  `itemList` 필드명 및 HTML ID 규칙 확인/조정 (매우 중요):
-         *     -   각 양식("비품/소모품 구입내역서", "구매 품의서", "개인경비 사용내역서", "법인카드 지출내역서" 등)의 
-         *         `itemList` 내 각 항목 객체가 가져야 할 정확한 JSON 키(API 서버가 기대하는 필드명)를 
-         *         API 명세서를 통해 확인해야 합니다. (현재 코드의 `fieldMapping` 내 키는 예시임)
-         *     -   각 양식 템플릿 HTML 내에서 반복되는 항목들의 ID가 실제로 코드에서 가정하는 규칙
-         *         (예: `item_name_1`, `item_quantity_1` 또는 `expense_date_1`, `expense_category_1` 등)을 
-         *         따르는지, 숫자 인덱싱(1부터 시작하는지 0부터 시작하는지 등)이 올바른지 재확인하고, 
-         *         `baseId` 및 `fieldMapping`의 접미사 부분을 정확히 일치시켜야 합니다.
-         *     -   예를 들어, `item_name_1`인지, `itemName_1`인지, 아니면 `item-set` 내부의 순서에 의존하는지 등.
-         *
-         * 2.  `dayList`의 `dvType` 구체화:
-         *     -   "연차 신청서"의 `leave_type`을 `dvType`으로 매핑하는 로직은 현재 예시 수준입니다. 
-         *         (예: 'annual' -> 'DAY'). API가 실제로 어떤 `dvType` 문자열을 기대하는지 확인하고 정확히 매핑해야 합니다.
-         *     -   "파견 및 출장 보고서" 등 `dayList`가 필요한 다른 양식들의 경우, 각 날짜에 대한 `dvType`을 
-         *         무엇으로 설정할지 API 명세 또는 내부 규칙에 따라 정의해야 합니다. (현재 "BUSINESSTRIP"은 예시)
-         *
-         * 3.  `docCn` (문서 내용/사유) 수집 상세화:
-         *     -   각 양식별로 `docCn`으로 사용할 가장 적절한 필드(HTML 요소 ID 또는 슬롯 키)를 다시 한번 검토합니다.
-         *     -   하나의 필드만 사용할지, 여러 필드를 조합할지 등을 결정합니다.
-         * 
-         * 4.  데이터 유효성 검사 강화 (Client-side validation):
-         *     -   현재는 기본적인 값 존재 여부 위주로 데이터를 수집하고 있습니다.
-         *     -   실제 제출 전, 각 필드별로 더 구체적인 유효성 검사 (예: 필수 입력 항목 누락 체크, 
-         *         숫자/날짜 형식 유효성, 특정 범위 유효성, 항목 간 논리적 오류 등)를 클라이언트 사이드에서 
-         *         수행하는 것이 바람직합니다. 이는 사용자 경험을 향상시키고 불필요한 API 요청을 줄입니다.
-         *     -   유효성 검사 실패 시 사용자에게 명확한 피드백을 제공해야 합니다.
-         * 
-         * 5.  API Payload 최종 확정:
-         *     -   `itemList`나 `dayList`가 없는 양식의 경우, 해당 키를 payload에서 제외할지, 
-         *         빈 배열 `[]`로 보낼지 API 명세에 따라 최종 결정합니다. (현재는 빈 배열로 포함)
-         *     -   모든 필드명과 값의 형식이 API 요구사항과 정확히 일치하는지 확인합니다.
-         * 
-         * 6.  테스트 철저:
-         *     -   다양한 양식을 선택하고, 각 필드에 정상적인 데이터와 경계값/오류 데이터를 입력해보면서 
-         *         제출 시 생성되는 payload(브라우저 개발자 도구 콘솔에서 확인)가 정확한지 검증합니다.
-         *     -   실제 API 연동 후에는 서버 응답에 따른 예외 처리도 상세히 테스트합니다.
-         * 
-         * 7.  함수 모듈화 (가독성 및 유지보수성 향상):
-         *     -   현재 `submitDocument` 함수는 여러 양식의 처리 로직을 포함하여 길어질 수 있습니다.
-         *     -   향후 양식이 더 추가되면 가독성과 유지보수성이 저하될 우려가 있습니다.
-         *     -   이를 해결하기 위해 양식 유형(`form_type`)별 데이터 수집 로직(특히 `docCn`, `dayList`, `itemList`)
-         *         을 별도의 함수나 객체로 분리하는 모듈화를 고려해야 합니다. (예: `formProcessors` 객체 활용 또는
-         *         양식별 JS 파일 내 헬퍼 함수 정의 후 동적 호출 - 다음 단계에서 진행 예정)
-         * 
-         * 8.  사용자 경험(UX) 개선:
-         *     -   제출 중 상태 표시 (예: 로딩 스피너), 성공/실패 메시지를 `alert` 대신 더 세련된 UI 요소
-         *         (예: 토스트 알림, 모달)로 변경하는 것을 고려할 수 있습니다.
+         * !! --- 주요 고려 사항 (SUBMIT_LOGIC_GUIDE.md 참조) --- !!
+         * 1. `itemList` 필드명 및 HTML ID 규칙 (각 processor 내부 `fieldMapping` 및 `baseId` 확인)
+         * 2. `dayList`의 `dvType` 구체화 (각 processor 내부 로직 확인)
+         * 3. `docCn` 수집 상세화 (각 processor 내부 로직 확인)
+         * 4. 데이터 유효성 검사 강화 (각 processor 또는 submitDocument 시작 부분)
+         * 5. API Payload 최종 확정 (모든 필드 및 타입)
+         * 6. 테스트 철저 (다양한 양식, 정상/경계/오류 데이터)
+         * 7. 사용자 경험(UX) 개선 (로딩, 알림 방식)
          */
         async function submitDocument() {
             if (!currentFormResponse || currentFormResponse.error) {
@@ -500,60 +709,25 @@
             const formType = currentFormResponse.form_type;
             const slots = currentFormResponse.slots || {};
 
-            let docCn = "";
-            let itemList = [];
-            // dayList는 연차신청서에서 이미 처리하고 있으므로, 필요시 다른 양식에 대한 처리를 아래 추가
-            // let dayList = currentFormResponse.payload?.dayList || []; // 기존 dayList 유지 또는 새로 생성
+            let formSpecificData = { docCn: "", dayList: [], itemList: [] };
 
             try {
-                // 1. mstPid
+                submitBtn.disabled = true;
+                resultArea.innerHTML += '<p>양식 데이터 처리 중...</p>';
+
                 const mstPid = currentFormResponse.mstPid;
                 if (mstPid === null || mstPid === undefined) {
                     alert("양식 ID(mstPid)가 없습니다. 제출할 수 없습니다.");
-                    return;
+                    throw new Error("mstPid is missing");
                 }
 
-                // 2. aprvNm (문서 제목) - form_type 사용
                 const aprvNm = formType;
-
-                // 3. drafterId
                 const drafterId = currentFormResponse.drafterId;
                 if (!drafterId) {
                     alert("기안자 ID(drafterId)가 없습니다. 제출할 수 없습니다.");
-                    return;
+                    throw new Error("drafterId is missing");
                 }
 
-                // 4. docCn (문서 내용/사유) - 양식별 처리
-                // HTML 요소의 값을 우선적으로 사용하고, 없으면 슬롯 값을 사용
-                function getElementValueOrSlot(elementId, slotKey) {
-                    const element = document.getElementById(elementId);
-                    if (element && (element.value !== undefined && element.value.trim() !== "")) {
-                        return element.value.trim();
-                    }
-                    return slots[slotKey] || "";
-                }
-
-                if (formType === "연차 신청서") {
-                    docCn = getElementValueOrSlot('reason', 'reason');
-                } else if (formType === "야근 식대 신청서") {
-                    docCn = getElementValueOrSlot('work_details', 'work_details') || getElementValueOrSlot('additional_notes', 'additional_notes');
-                } else if (formType === "파견 및 출장 보고서") {
-                    docCn = getElementValueOrSlot('report_details', 'report_details') || getElementValueOrSlot('notes', 'notes');
-                } else if (formType === "비품/소모품 구입내역서") {
-                    docCn = getElementValueOrSlot('notes', 'notes'); // 특이사항
-                } else if (formType === "개인경비 사용내역서") {
-                    docCn = getElementValueOrSlot('expense_reason', 'expense_reason');
-                } else if (formType === "구매 품의서") {
-                    docCn = getElementValueOrSlot('special_notes', 'special_notes'); // 특기 사항 (요청 사유 등)
-                } else if (formType === "교통비 신청서") {
-                    docCn = getElementValueOrSlot('transport_details', 'transport_details') || getElementValueOrSlot('notes', 'notes');
-                } else if (formType === "법인카드 지출내역서") { // 법인카드 지출내역서 추가
-                    docCn = getElementValueOrSlot('expense_reason', 'expense_reason'); // 지출 사유
-                }
-                // 기타 양식에 대한 docCn 처리 추가
-
-
-                // 5. lineList (결재선 정보) - 기존 로직 유지
                 const lineList = [];
                 if (currentFormResponse.approver_info && currentFormResponse.approver_info.approvers) {
                     currentFormResponse.approver_info.approvers.forEach(appr => {
@@ -565,166 +739,36 @@
                     });
                 }
 
-                // 6. dayList (날짜 목록) - 연차 신청서 외 다른 양식도 고려
-                let dayList = []; // 초기화
-                if (formType === "연차 신청서" && slots) {
-                    const startDateStr = slots.start_date; 
-                    const endDateStr = slots.end_date;   
-                    const leaveTypeSlotValue = slots.leave_type;
-                    
-                    // dvType 매핑 (기존 로직 활용)
-                    let dvTypeForApi = leaveTypeSlotValue; 
-                    if (leaveTypeSlotValue === 'annual' || leaveTypeSlotValue === 'day_off') {
-                        dvTypeForApi = 'DAY';
-                    } else if (leaveTypeSlotValue === 'half_day_morning') {
-                        dvTypeForApi = 'HALF_AM'; 
-                    } else if (leaveTypeSlotValue === 'half_day_afternoon') {
-                        dvTypeForApi = 'HALF_PM';
+                if (formProcessors[formType] && typeof formProcessors[formType] === 'function') {
+                    console.log(`[submitDocument] Using processor for formType: ${formType}`);
+                    formSpecificData = formProcessors[formType](slots, getElementValueOrSlot);
+                } else {
+                    console.warn(`[submitDocument] No specific processor for ${formType}. Attempting generic docCn.`);
+                    let genericDocCn = "";
+                    const commonReasonFields = ['reason', 'work_details', 'report_details', 'notes', 'expense_reason', 'special_notes', 'transport_details'];
+                    for (const fieldKey of commonReasonFields) {
+                        genericDocCn = getElementValueOrSlot(fieldKey, fieldKey, slots);
+                        if (genericDocCn) break;
                     }
-
-                    if (startDateStr && endDateStr && dvTypeForApi) {
-                        let currentDate = new Date(startDateStr);
-                        const endDate = new Date(endDateStr);
-                        if (!isNaN(currentDate.getTime()) && !isNaN(endDate.getTime()) && currentDate <= endDate) {
-                            while (currentDate <= endDate) {
-                                const year = currentDate.getFullYear();
-                                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                                const day = String(currentDate.getDate()).padStart(2, '0');
-                                dayList.push({
-                                    reqYmd: `${year}-${month}-${day}`,
-                                    dvType: dvTypeForApi
-                                });
-                                currentDate.setDate(currentDate.getDate() + 1);
-                            }
-                        } else {
-                             console.warn("연차 신청서: 유효하지 않은 시작일/종료일 또는 날짜 순서 오류", startDateStr, endDateStr);
-                        }
-                    } else {
-                        console.warn("연차 신청서: start_date, end_date, 또는 leave_type 슬롯 부족. dayList 생성 실패.");
-                    }
-                } else if (formType === "파견 및 출장 보고서" && slots) {
-                    // 예시: 파견 및 출장 보고서도 start_date, end_date가 있다면 dayList 생성 가능
-                    // 이 경우 dvType은 어떻게 할지 정의 필요 (예: "BUSINESSTRIP")
-                    const startDateStr = document.getElementById('start_date')?.value || slots.start_date;
-                    const endDateStr = document.getElementById('end_date')?.value || slots.end_date;
-                    if (startDateStr && endDateStr) {
-                        let currentDate = new Date(startDateStr);
-                        const endDate = new Date(endDateStr);
-                        if (!isNaN(currentDate.getTime()) && !isNaN(endDate.getTime()) && currentDate <= endDate) {
-                            while (currentDate <= endDate) {
-                                const year = currentDate.getFullYear();
-                                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                                const day = String(currentDate.getDate()).padStart(2, '0');
-                                dayList.push({
-                                    reqYmd: `${year}-${month}-${day}`,
-                                    dvType: "BUSINESSTRIP" // 예시 dvType
-                                });
-                                currentDate.setDate(currentDate.getDate() + 1);
-                            }
-                        } else {
-                            console.warn("파견 및 출장 보고서: 유효하지 않은 시작일/종료일 또는 날짜 순서 오류");
-                        }
-                    }
+                    formSpecificData.docCn = genericDocCn;
+                    alert(`'${formType}' 양식의 자동 데이터 수집 규칙이 명확하지 않습니다. ${genericDocCn ? '일부 내용만 포함되거나' : '문서 내용이 비어있을 수 있습니다.'} 확인 후 제출해주세요.`);
                 }
-                // 다른 양식 유형에 대한 dayList 처리...
-
-                // 7. itemList (테이블 항목 목록) - 양식별 처리
-                if (formType === "비품/소모품 구입내역서" || formType === "구매 품의서" || formType === "개인경비 사용내역서" || formType === "법인카드 지출내역서") {
-                    const itemSets = document.querySelectorAll('.item-set');
-                    itemSets.forEach((set, index) => {
-                        const item = {};
-                        // 각 양식의 필드 ID 규칙에 따라 수정 필요
-                        // 예시: 비품/소모품 구입내역서 (item_name_1, item_quantity_1 등)
-                        //       개인경비 (expense_date_1, expense_category_1 등)
-                        //       법인카드 (usage_date_1, usage_category_1 등)
-                        //       구매품의 (item_name_1, item_spec_1 등)
-
-                        let baseId = "";
-                        let fieldMapping = {}; // API 필드명: HTML 필드 접미사
-
-                        if (formType === "비품/소모품 구입내역서") {
-                            baseId = `item_`;
-                            fieldMapping = { 
-                                itemName: `name_${index + 1}`, 
-                                quantity: `quantity_${index + 1}`, 
-                                unitPrice: `unit_price_${index + 1}`,
-                                totalPrice: `total_price_${index + 1}`, // 읽기 전용일 수 있음
-                                purpose: `purpose_${index + 1}`
-                            };
-                        } else if (formType === "구매 품의서") {
-                            baseId = `item_`;
-                             fieldMapping = {
-                                itemName: `name_${index + 1}`,
-                                spec: `spec_${index + 1}`,
-                                quantity: `quantity_${index + 1}`,
-                                unitPrice: `unit_price_${index + 1}`,
-                                totalPrice: `total_price_${index + 1}`, // 읽기 전용일 수 있음
-                                deliveryDate: `delivery_date_${index + 1}`,
-                                supplier: `supplier_${index + 1}`,
-                                notes: `notes_${index + 1}`
-                            };
-                        } else if (formType === "개인경비 사용내역서") {
-                            baseId = `expense_`;
-                            fieldMapping = {
-                                date: `date_${index + 1}`,
-                                category: `category_${index + 1}`,
-                                description: `description_${index + 1}`,
-                                amount: `amount_${index + 1}`,
-                                notes: `notes_${index + 1}`
-                            };
-                        } else if (formType === "법인카드 지출내역서") {
-                            baseId = `usage_`;
-                             fieldMapping = {
-                                date: `date_${index + 1}`,
-                                category: `category_${index + 1}`,
-                                merchantName: `merchant_name_${index + 1}`,
-                                amount: `amount_${index + 1}`,
-                                notes: `notes_${index + 1}`
-                            };
-                        }
-
-                        let hasValue = false;
-                        for (const apiKey in fieldMapping) {
-                            const elementId = baseId + fieldMapping[apiKey];
-                            const element = document.getElementById(elementId);
-                            if (element && element.value !== undefined && element.value.trim() !== "") {
-                                // 숫자 필드의 경우 parseFloat 또는 parseInt 시도
-                                if (element.type === 'number' && element.value.trim() !== "") {
-                                    item[apiKey] = parseFloat(element.value);
-                                } else {
-                                    item[apiKey] = element.value.trim();
-                                }
-                                hasValue = true;
-                            } else if (element && element.tagName === 'SELECT' && element.value.trim() !== "") {
-                                item[apiKey] = element.value.trim();
-                                hasValue = true;
-                            }
-                        }
-                        
-                        // 값이 하나라도 있는 항목만 itemList에 추가
-                        if (hasValue) {
-                            itemList.push(item);
-                        }
-                    });
-                }
-
 
                 const payload = {
                     mstPid: parseInt(mstPid, 10),
-                    aprvNm: aprvNm,
+                    aprvNm: aprvNm, // 순수 텍스트 aprvNm (formType) 사용
                     drafterId: drafterId,
-                    docCn: docCn,
-                    dayList: dayList, 
+                    docCn: formSpecificData.docCn || '내용 없음', // 순수 텍스트 기본값으로 변경
+                    dayList: formSpecificData.dayList || [], 
                     lineList: lineList,
-                    itemList: itemList // itemList 추가
+                    itemList: formSpecificData.itemList || [] 
                 };
 
                 console.log("제출할 데이터:", JSON.stringify(payload, null, 2));
                 resultArea.innerHTML += '<p>문서 제출 중...</p>';
-                submitBtn.disabled = true;
-
+                
                 const submitResponse = await fetch('https://dev-api.ntoday.kr/api/v1/epaper/register', {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -732,8 +776,17 @@
                 });
 
                 if (!submitResponse.ok) {
-                    const errorData = await submitResponse.json().catch(() => ({ message: "제출 API 응답을 JSON으로 파싱하는데 실패했습니다." }));
-                    throw new Error(`제출 실패: ${submitResponse.status} - ${errorData.message || submitResponse.statusText}`);
+                    const responseText = await submitResponse.text(); // 먼저 텍스트로 응답을 받음
+                    let errorMessage = `제출 실패: ${submitResponse.status} - ${submitResponse.statusText}`;
+                    try {
+                        const errorData = JSON.parse(responseText); // 그 다음에 JSON 파싱 시도
+                        errorMessage = `제출 실패: ${submitResponse.status} - ${errorData.message || errorData.msg || responseText}`;
+                    } catch (e) {
+                        // JSON 파싱 실패 시 responseText를 그대로 사용
+                        errorMessage = `제출 실패: ${submitResponse.status} - ${responseText}`;
+                        console.warn("제출 API 응답 JSON 파싱 실패. 원본 응답 텍스트:", responseText);
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const submitResult = await submitResponse.json();

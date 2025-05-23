@@ -728,6 +728,16 @@ def classify_and_extract_slots_for_template(
         "html_template": final_html,  # 슬롯 값이 모두 채워진 HTML 문자열
         "original_input": user_input.input,  # 사용자의 원본 입력
         "approver_info": approver_info_data,  # 결재 정보 추가
+        "mstPid": (
+            mst_pid
+            if "mst_pid" in locals() and mst_pid is not None
+            else FORM_CONFIGS.get(form_type, {}).get("mstPid")
+        ),  # mstPid 추가
+        "drafterId": (
+            drafter_id
+            if "drafter_id" in locals() and drafter_id is not None
+            else "01180001"
+        ),  # drafterId 추가 (실제로는 동적으로 할당 필요)
         # 오류 발생 시에는 "error", "message_to_user" 등이 이전에 반환되었을 것임
     }
 
