@@ -11,6 +11,22 @@
 - 상대적/절대적 날짜 표현 자동 변환 (예: "내일", "다음 주 월요일" -> "YYYY-MM-DD")
 - 다중 항목 입력 지원 (예: 구매 품의서의 여러 품목)
 
+### 예시 화면
+
+다음은 `01_agents/form-selector` 시스템의 주요 기능에 대한 예시 화면입니다.
+
+1.  **양식 선택 및 내용 입력 UI**
+    *   사용자가 자연어로 "다음 주 월요일부터 3일간 연차 쓰고 싶어요. 사유는 가족 여행입니다."와 같이 특정 업무(예: 연차 신청)를 요청하면, 시스템은 해당 요청의 의도를 파악하여 '연차 신청서' 양식을 자동으로 선택합니다. 동시에 대화 내용에서 "다음 주 월요일" (시작일), "3일간" (기간), "가족 여행" (사유) 등의 핵심 정보를 추출하여, 아래 그림과 같이 해당 양식의 각 항목을 자동으로 완성된 형태로 사용자에게 제공합니다.
+    ![양식 선택 및 내용 입력 UI](assets/스크린샷%202025-05-23%20132023.png)
+
+2.  **LLM 기반 양식 추천 및 슬롯 필링 결과**
+    *   사용자의 요청이 특정 양식(예: 연차)에 국한되지 않고, 다양한 업무 관련 요청일 경우에도 LLM은 요청의 맥락(예: "구매")을 이해하고 키워드 기반의 RAG 검색을 통해 가장 적합한 전자결재 양식(예: '비품/소모품 구매 요청서')을 지능적으로 추천합니다. 또한, 입력된 자연어에서 "A4용지 10박스", "네임펜 20개"(구매 품목 및 수량), "연구실 사용"(사용 목적) 등의 필요한 정보를 입력한 경우에도 정확히 추출(Slot Filling)하여 해당 양식의 필드를 자동으로 채워줍니다.
+    ![LLM 기반 양식 추천 및 슬롯 필링 결과](assets/스크린샷%202025-05-23%20132503.png)
+
+3.  **결재자 정보 표시**
+    *   시스템에서 양식이 추천되고 내용이 채워지면, 해당 양식의 종류(예: '연차 신청서', '비품/소모품 구매 요청서')와 내부 식별자(Form ID)를 기반으로, 사전에 정의된 결재 규칙에 따라 기안자 정보(이름, 부서)와 결재 라인(결재자, 결재 구분, 순서)이 자동으로 조회됩니다. 이 정보는 화면 상단에 명확하게 표시되어, 사용자가 해당 문서의 결재 흐름을 한눈에 파악할 수 있도록 지원합니다.
+    ![결재자 정보 표시](assets/스크린샷%202025-05-23%20132035.png)
+
 ## 2. 기술 스택 (Tech Stack)
 
 - **백엔드:**
@@ -28,6 +44,47 @@
 - **벡터 스토어 (RAG):**
     - FAISS: 유사도 검색을 위한 라이브러리
 
+## 2.1. 시스템 아키텍처 (System Architecture)
+
+```mermaid
+graph TD
+    A["사용자 입력 (UI/자연어)"] --> B("FastAPI: /form-selector");
+    B --> C{"양식 분류 및 정보 추출 (service.py)"};
+    C -- "1. 양식 분류 요청" --> D["양식 분류 LLM 체인 (llm.py)"];
+    D -- "FormClassifierOutput" --> C;
+    C -- "2. 템플릿 검색 요청 (form_type, keywords)" --> E["HTML 템플릿 검색 (rag.py + FAISS)"];
+    E -- "HTML 템플릿" --> C;
+    C -- "3. 슬롯 추출 요청 (form_type, 사용자 입력)" --> F["슬롯 추출 LLM 체인 (llm.py + form_configs.py)"];
+    F -- "슬롯 Pydantic 모델 (schema.py)" --> C;
+    C -- "4. 날짜/시간 등 변환" --> G["유틸리티 함수 (utils.py)"];
+    G -- "변환된 슬롯 값" --> C;
+    C -- "5. HTML 템플릿 채우기" --> H["최종 HTML 생성"];
+    H --> B;
+    B --> I["API 응답 (JSON: HTML, 슬롯 정보 등)"];
+    I --> A;
+
+    subgraph "LLM & Prompts"
+        D
+        F
+        J["프롬프트 템플릿 (prompts/)"]
+        K["양식별 설정 (form_configs.py)"]
+    end
+
+    subgraph "Data Schemas & Storage"
+        E
+        L["Pydantic 모델 (schema.py)"]
+        M["HTML 템플릿 (templates/)"]
+        N["FAISS 인덱스 (faiss_index/)"]
+    end
+
+    D -.-> J;
+    F -.-> J;
+    F -.-> K;
+    L -.-> F;
+    E -.-> M;
+    E -.-> N;
+```
+
 ## 3. 디렉토리 구조 (Directory Structure)
 
 \`\`\`
@@ -35,7 +92,6 @@
 ├── .venv/                  # 가상 환경
 ├── form_selector/          # 핵심 백엔드 애플리케이션 패키지
 │   ├── __init__.py
-│   ├── main.py             # FastAPI 앱 정의 및 API 엔드포인트
 │   ├── service.py          # 핵심 서비스 로직 (양식 분류, 슬롯 추출, 템플릿 채우기)
 │   ├── llm.py              # LangChain LLM 체인 구성
 │   ├── schema.py           # Pydantic 모델 (데이터 스키마 정의)
@@ -46,15 +102,17 @@
 │       ├── form_classifier_prompt.txt
 │       └── ... (각 양식별 슬롯 추출 프롬프트)
 ├── static/                 # 정적 파일 (CSS, JavaScript, 메인 HTML)
-│   ├── css/                # (제안) CSS 파일 저장 폴더
+│   ├── css/                # CSS 파일 저장 폴더
 │   │   └── style.css
-│   ├── js/                 # (제안) JavaScript 파일 저장 폴더
+│   ├── js/                 # JavaScript 파일 저장 폴더
 │   │   ├── purchase_approval_scripts.js
 │   │   └── ... (각 양식별 JS 파일)
 │   └── index.html          # 메인 사용자 인터페이스 HTML
 ├── templates/              # 서버에서 처리되어 클라이언트로 전달될 HTML 양식 템플릿
 │   ├── purchase_approval_form.html
 │   └── ... (각 양식별 HTML 템플릿)
+├── faiss_index/            # FAISS 벡터 스토어 인덱스 저장 디렉토리
+├── main.py                 # FastAPI 앱 정의 및 API 엔드포인트 (애플리케이션 진입점)
 ├── .env.example            # 환경 변수 예시 파일
 ├── README.md               # 프로젝트 설명 문서 (현재 파일)
 └── requirements.txt        # Python 라이브러리 의존성 목록
@@ -94,10 +152,10 @@
         \`\`\`
 
 5.  **애플리케이션 실행:**
-    FastAPI 애플리케이션은 `form_selector` 패키지 내의 `main.py` 파일에서 실행합니다.
+    FastAPI 애플리케이션은 프로젝트 루트 디렉토리의 `main.py` 파일에서 실행합니다.
     프로젝트 루트 디렉토리(`01_agents/form-selector/`)에서 다음 명령어를 실행합니다.
     \`\`\`bash
-    uvicorn form_selector.main:app --reload --port 8000
+    uvicorn main:app --reload --port 8000
     \`\`\`
     -   `--reload`: 코드 변경 시 서버 자동 재시작
     -   `--port 8000`: 8000번 포트 사용 (필요시 변경 가능)
@@ -145,6 +203,9 @@
 -   **사용자 인증/인가 기능 추가:** (필요시)
 -   **데이터베이스 연동:** (필요시) 신청 내역 저장 및 관리 기능
 -   **결재 라인 자동 완성 및 선택:** 결재 라인 자동 완성 및 선택 기능 추가
+
+
+
 
 ---
 

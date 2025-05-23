@@ -11,19 +11,19 @@
 
 # LLM 호출 및 템플릿 반환 서비스 함수 정의 예정
 import logging  # 로깅 추가
-from typing import Tuple, Dict, Any  # Tuple, Dict, Any 추가
+from typing import Tuple, Dict, Any, Optional
 import json  # json 모듈 추가
 from datetime import datetime  # datetime 추가
+import httpx  # httpx 임포트
+import os  # 환경 변수 사용을 위해 os 임포트
+from . import schema  # schema import 경로 수정 (service.py 기준)
 
 # llm.py에서 체인 생성 함수와 SLOT_EXTRACTOR_CHAINS를 가져옴
 from .llm import get_form_classifier_chain, SLOT_EXTRACTOR_CHAINS
 
 # form_configs.py에서 사용 가능한 양식 타입 리스트를 가져옴
-from .form_configs import AVAILABLE_FORM_TYPES, TEMPLATE_FILENAME_MAP
+from .form_configs import AVAILABLE_FORM_TYPES, TEMPLATE_FILENAME_MAP, FORM_CONFIGS
 
-from .schema import (
-    UserInput,
-)  # FormClassifierOutput 등은 llm.py에서 처리 후 Python 객체로 넘어오므로 직접 여기서 사용 X
 from .utils import (
     parse_relative_date_to_iso,
     parse_datetime_description_to_iso_local,
@@ -498,7 +498,9 @@ def fill_slots_in_template(
     )
 
 
-def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, Any]:
+def classify_and_extract_slots_for_template(
+    user_input: schema.UserInput,
+) -> Dict[str, Any]:
     """사용자 입력을 받아 양식을 분류하고, 해당 양식의 슬롯을 추출한 후,
     템플릿에 채워넣어 반환합니다.
     이제 실제 현재 날짜를 current_date_iso로 사용하여 날짜 관련 처리를 수행합니다.
@@ -688,12 +690,44 @@ def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, 
     # logging.info(f"Final HTML template (first 500 chars): {final_html[:500]}...") # 너무 길면 일부만 로깅
 
     # 5단계: 최종 결과 반환
+
+    # --- 추가: 결재 정보 조회 로직 --- #
+    approver_info_data: Optional[schema.ApproverInfoData] = None
+    current_form_config = FORM_CONFIGS.get(form_type)
+
+    if current_form_config and hasattr(current_form_config, "mstPid"):
+        mst_pid = current_form_config.mstPid
+        # drafterId는 현재 고정값 사용 (예: "01180001")
+        # 실제 환경에서는 로그인 사용자 정보 등에서 가져와야 함
+        drafter_id = "01180001"
+
+        approval_request = schema.ApproverInfoRequest(
+            mstPid=mst_pid, drafterId=drafter_id
+        )
+        approval_response = get_approval_info(
+            approval_request
+        )  # service 내 다른 함수 호출
+
+        if approval_response.code == 1 and approval_response.data:
+            approver_info_data = approval_response.data
+            logging.info(f"Successfully fetched approver info for mstPid {mst_pid}")
+        else:
+            logging.warning(
+                f"Failed to fetch approver info for mstPid {mst_pid}. Response: {approval_response.message}"
+            )
+    else:
+        logging.warning(
+            f"Could not find mstPid for form_type '{form_type}' in FORM_CONFIGS or mstPid attribute missing."
+        )
+    # --- END 추가: 결재 정보 조회 로직 --- #
+
     return {
         "form_type": form_type,
         "keywords": keywords,
         "slots": final_processed_slots,  # 최종적으로 변환되고 HTML에 채워진 슬롯
         "html_template": final_html,  # 슬롯 값이 모두 채워진 HTML 문자열
         "original_input": user_input.input,  # 사용자의 원본 입력
+        "approver_info": approver_info_data,  # 결재 정보 추가
         # 오류 발생 시에는 "error", "message_to_user" 등이 이전에 반환되었을 것임
     }
 
@@ -701,3 +735,181 @@ def classify_and_extract_slots_for_template(user_input: UserInput) -> Dict[str, 
 # 기존 classify_and_get_template 함수는 classify_and_extract_slots_for_template로 대체되었으므로 주석 처리 또는 삭제 가능.
 # def classify_and_get_template(user_input: UserInput) -> Dict[str, Any]:
 #     ...
+
+
+# --- 결재자 정보 조회 서비스 --- #
+def get_approval_info(
+    request: schema.ApproverInfoRequest,  # schema.ApproverInfoRequest로 수정
+) -> schema.ApproverInfoResponse:
+    """기안자 ID와 양식 ID를 기반으로 결재라인 및 기안자 정보를 조회합니다.
+    실제 외부 API를 호출하여 결재 정보를 가져옵니다.
+    """
+    logging.info(
+        f"결재 정보 조회 요청: mstPid={request.mstPid}, drafterId={request.drafterId}"
+    )
+
+    api_base_url = os.getenv(
+        "APPROVAL_API_BASE_URL", "https://dev-api.ntoday.kr/api/v1/epaper"
+    )
+
+    endpoint = "myLine"  # 제공된 코드 참고, 실제 엔드포인트 확인 필요
+    url = f"{api_base_url}/{endpoint}"
+
+    params = {"mstPid": request.mstPid, "drafterId": request.drafterId}
+    headers = {"Content-Type": "application/json"}
+
+    sample_drafter_name = (
+        "홍길동 (API 호출 전)"  # API가 기안자 정보도 반환하면 이 값은 덮어쓰임
+    )
+    sample_drafter_department = "개발팀 (API 호출 전)"
+    approvers = []
+    api_call_succeeded = False
+    response_message = "API 호출 중 오류 발생"
+    response_code = 0  # API 호출 실패 또는 오류 시 기본 코드
+
+    # API 호출 결과로 채워질 변수들 (기안자 정보)
+    # API가 기안자 정보를 반환하지 않는 경우를 대비해 기본값 설정
+    final_drafter_name = "기안자 정보 없음 (API 미반환)"
+    final_drafter_department = "기안자 부서 없음 (API 미반환)"
+
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            logging.info(f"결재라인 API 호출: POST {url} with params: {params}")
+            response = client.post(url, json=params, headers=headers)
+            response.raise_for_status()  # HTTP 4xx/5xx 오류 발생 시 예외 발생
+
+            api_response_json = response.json()
+            logging.info(f"결재라인 API 응답: {api_response_json}")
+
+            if api_response_json.get("code") == 1 and "data" in api_response_json:
+                api_data = api_response_json["data"]
+
+                # API 응답에서 기안자 이름/부서를 가져올 수 있다면 여기서 처리
+                # 실제 API 응답의 필드명으로 수정해야 합니다.
+                # 예시: final_drafter_name = api_data.get("drafterUserInfo", {}).get("userName", final_drafter_name)
+                #       final_drafter_department = api_data.get("drafterUserInfo", {}).get("departmentName", final_drafter_department)
+                # 현재 API 응답에는 기안자 정보가 없으므로, 요청받은 drafterId로 임시 정보 생성 또는 고정값 사용
+                # 이 부분은 실제 API 명세에 따라 정확히 구현해야 합니다.
+                if request.drafterId == "01180001":
+                    final_drafter_name = "김기안 (API 요청자)"
+                    final_drafter_department = "인사팀 (API 요청자)"
+                else:
+                    final_drafter_name = f"{request.drafterId} (요청자)"
+                    final_drafter_department = "부서 정보 없음"
+
+                # 결재자 목록 파싱 (API 응답 구조에 따라 수정 필요)
+                # 제공된 예시: data가 리스트 형태임 (로그에서 확인된 구조)
+                if isinstance(api_data, list):
+                    for approver_item in api_data:
+                        approvers.append(
+                            schema.ApproverDetail(
+                                aprvPsId=approver_item.get("aprvPsId", "N/A"),
+                                aprvPsNm=approver_item.get("aprvPsNm", "N/A"),
+                                aprvDvTy=approver_item.get("aprvDvTy", "N/A"),
+                                ordr=approver_item.get("ordr", 0),
+                            )
+                        )
+                api_call_succeeded = True
+                response_message = api_response_json.get(
+                    "message", "결재 라인 조회 성공"
+                )
+                response_code = api_response_json.get(
+                    "code", 1
+                )  # API 응답의 코드를 사용
+            else:
+                response_message = api_response_json.get(
+                    "message", "API에서 유효한 데이터를 반환하지 않았습니다."
+                )
+                logging.warning(
+                    f"결재라인 API 응답 코드 또는 데이터 형식 오류: {api_response_json}"
+                )
+
+    except httpx.HTTPStatusError as e:
+        response_message = (
+            f"결재라인 API HTTP 오류: {e.response.status_code} - {e.response.text}"
+        )
+        logging.error(response_message)
+    except httpx.RequestError as e:
+        response_message = f"결재라인 API 요청 오류: {e}"
+        logging.error(response_message)
+    except json.JSONDecodeError as e:
+        response_message = f"결재라인 API 응답 JSON 파싱 오류: {e}"
+        logging.error(response_message)
+    except Exception as e:
+        response_message = f"결재라인 정보 처리 중 예외 발생: {e}"
+        logging.error(response_message, exc_info=True)
+        # api_call_succeeded는 False로 유지, response_code는 0으로 유지
+
+    if api_call_succeeded:
+        # API 호출 성공 시: API에서 받아온 approvers 리스트와 기안자 정보 사용
+        response_data = schema.ApproverInfoData(
+            drafterName=final_drafter_name,  # API 또는 요청 기반으로 설정된 기안자 이름
+            drafterDepartment=final_drafter_department,  # API 또는 요청 기반으로 설정된 기안자 부서
+            approvers=approvers,  # API에서 파싱한 결재자 목록
+        )
+    else:
+        # API 호출 실패 또는 오류 시: 기존 더미 데이터 생성 로직 사용
+        # 이 부분은 fallback으로, 실제 운영에서는 오류 처리를 더 명확히 해야 함
+        logging.warning(
+            f"API 호출 실패 또는 오류로 인해 더미 결재 정보를 반환합니다. 메시지: {response_message}"
+        )
+        # 임시 더미 데이터 생성
+        sample_drafter_name = "홍길동 (더미)"
+        sample_drafter_department = "개발팀 (더미)"
+        sample_approvers = []
+
+        if request.drafterId == "01180001":  # 요청 예시와 동일한 경우
+            sample_drafter_name = "김기안 (더미)"  # API 실패 시 보여줄 더미 기안자
+            sample_drafter_department = "인사팀 (더미)"
+            sample_approvers = [
+                schema.ApproverDetail(
+                    aprvPsId="01160001",
+                    aprvPsNm="최순명 (더미)",
+                    aprvDvTy="AGREEMENT",
+                    ordr=1,
+                ),
+                schema.ApproverDetail(
+                    aprvPsId="01230003",
+                    aprvPsNm="최지열 (더미)",
+                    aprvDvTy="AGREEMENT",
+                    ordr=1,
+                ),
+                schema.ApproverDetail(
+                    aprvPsId="00030005",
+                    aprvPsNm="김철수 (더미)",
+                    aprvDvTy="APPROVAL",
+                    ordr=2,
+                ),
+            ]
+            # mstPid에 따른 분기는 더미 데이터에서 유지할 수 있으나, API 실패 시 일관된 더미를 보여주는 것도 방법
+
+        elif request.drafterId == "dummy_user_002":
+            sample_drafter_name = "테스트사용자2 (더미)"
+            sample_drafter_department = "기획팀 (더미)"
+            sample_approvers = [
+                schema.ApproverDetail(
+                    aprvPsId="01230003",
+                    aprvPsNm="최지열 (더미)",
+                    aprvDvTy="APPROVAL",
+                    ordr=1,
+                )
+            ]
+        else:
+            sample_drafter_name = "알수없음 (더미)"
+            sample_drafter_department = "미지정 (더미)"
+            # sample_approvers는 비어있음
+
+        response_data = schema.ApproverInfoData(
+            drafterName=sample_drafter_name,
+            drafterDepartment=sample_drafter_department,
+            approvers=sample_approvers,
+        )
+        # response_code는 이미 0 또는 다른 오류 코드로 설정되어 있을 것임
+        # response_message도 오류 메시지로 설정되어 있을 것임
+
+    return schema.ApproverInfoResponse(
+        code=response_code, message=response_message, data=response_data
+    )
+
+
+# --- END 결재자 정보 조회 서비스 --- #

@@ -125,6 +125,7 @@
   - Made by Teddynote
   - smithery 에서 가져온 도구들을 바인딩하는 예제 
 
+
 ### 8. 기타 파일
 - `.cursorrules`: cursor 규칙
 - `.gitignore`: git 무시 규칙

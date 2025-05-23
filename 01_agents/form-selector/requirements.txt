@@ -8,3 +8,4 @@ pydantic
 dotenv
 faiss-cpu
 python-dateutil 
+httpx

@@ -281,11 +281,44 @@ class CorporateCardStatementSlots(BaseModel):
         None, description="카드 사용 내역 리스트"
     )
     total_usage_amount: Optional[int] = Field(
-        None, description="총 합계 금액 (하단 표시용, 숫자)"
+        None, description="총 사용 합계 금액 (숫자, 모든 품목 금액의 합 또는 직접 추출)"
     )
+    payment_account: Optional[str] = Field(None, description="지급 계좌 정보")
 
 
 # 슬롯 추출 결과
 class SlotExtractionResult(BaseModel):
     report_details: Optional[str] = Field(None, description="보고 사항")
     other_notes: Optional[str] = Field(None, description="기타 특이사항")
+
+
+# --- 결재자 정보 관련 스키마 --- #
+class ApproverInfoRequest(BaseModel):
+    mstPid: int = Field(description="양식 마스터 ID")
+    drafterId: str = Field(description="기안자 ID")
+
+
+class ApproverDetail(BaseModel):
+    aprvPsId: str = Field(description="결재자 ID")
+    aprvPsNm: str = Field(description="결재자 이름")
+    aprvDvTy: str = Field(description="결재 구분 (예: AGREEMENT, APPROVAL)")
+    ordr: int = Field(description="결재 순서")
+
+
+class ApproverInfoData(BaseModel):
+    drafterName: Optional[str] = Field(default=None, description="기안자 이름")
+    drafterDepartment: Optional[str] = Field(default=None, description="기안자 부서")
+    approvers: List[ApproverDetail] = Field(
+        default_factory=list, description="결재라인 목록"
+    )
+
+
+class ApproverInfoResponse(BaseModel):
+    code: int = Field(description="응답 코드 (예: 1=성공)")
+    message: str = Field(description="응답 메시지")
+    data: Optional[ApproverInfoData] = Field(
+        default=None, description="결재 정보 데이터"
+    )
+
+
+# --- END 결재자 정보 관련 스키마 --- #

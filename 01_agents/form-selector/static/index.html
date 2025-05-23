@@ -79,6 +79,35 @@
 <body>
     <div class="container">
         <h1>📝 전자결재 양식 추천봇</h1>
+
+        <!-- 기안자 및 결재 정보 표시 영역 -->
+        <div class="approval-info-container" style="margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 4px; background-color: #f9f9f9;">
+            <div style="display: flex; justify-content: space-between;">
+                <div class="drafter-info" style="flex-basis: 48%;">
+                    <h3>기안자 정보</h3>
+                    <p><strong>이름:</strong> <span id="drafterName">-</span></p>
+                    <p><strong>부서:</strong> <span id="drafterDepartment">-</span></p>
+                </div>
+                <div class="approver-list" style="flex-basis: 48%;">
+                    <h3>결재 라인</h3>
+                    <table id="approverTable" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">순서</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">결재자</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ID</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">구분</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approverTableBody">
+                            <!-- 결재자 정보가 여기에 동적으로 추가됩니다. -->
+                            <tr><td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: center;">양식 추천 후 표시됩니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- END 기안자 및 결재 정보 표시 영역 -->
         
         <label for="userInput">요청사항을 입력하세요:</label>
         <textarea id="userInput" placeholder="예: 오늘 오후 3시에 마케팅팀 주간 회의가 있었는데, 회의실 대관료 5만원이랑 다과비 2만원 썼어요. 참석자는 김민수, 이영희, 박철수입니다."></textarea>
@@ -89,6 +118,9 @@
         <div id="resultArea">
             <p>여기에 추천된 양식 HTML이 표시됩니다.</p>
         </div>
+        
+        <!-- 제출 버튼 추가 -->
+        <button id="submitDocumentButton" onclick="submitDocument()" style="margin-top: 20px; display: none;">제출하기</button>
 
         <h2>디버그 정보:</h2>
         <div id="debugInfo">
@@ -97,6 +129,8 @@
     </div>
 
     <script>
+        let currentFormResponse = null; // /form-selector 응답 저장용
+
         // Functions from the primary index.html (debugged version)
         function fillFormFields(slots) {
             console.trace("fillFormFields called"); // 호출 스택 추적
@@ -228,9 +262,14 @@
             const userInput = document.getElementById('userInput').value;
             const resultArea = document.getElementById('resultArea');
             const debugInfo = document.getElementById('debugInfo');
+            const submitBtn = document.getElementById('submitDocumentButton');
+
 
             resultArea.innerHTML = '<p>양식을 검색 중입니다...</p>';
             debugInfo.innerHTML = ''; // 이전 디버그 정보 초기화
+            submitBtn.style.display = 'none'; // 제출 버튼 초기 숨김
+            currentFormResponse = null; // 이전 응답 초기화
+
 
             try {
                 const response = await fetch('/form-selector', {
@@ -247,26 +286,71 @@
                 }
 
                 const data = await response.json();
+                currentFormResponse = data; // 응답 데이터 저장
+
+                // --- DEBUGGING: Log currentFormResponse --- 
+                console.log("[submitRequest] currentFormResponse updated:", currentFormResponse);
+                // --- END DEBUGGING ---
+
+                // --- 추가: 결재 정보 UI 초기화/업데이트 함수 ---
+                function updateApproverInfoUI(approverInfo) {
+                    const drafterNameElement = document.getElementById('drafterName');
+                    const drafterDepartmentElement = document.getElementById('drafterDepartment');
+                    const approverTableBody = document.getElementById('approverTableBody');
+
+                    if (!drafterNameElement || !drafterDepartmentElement || !approverTableBody) {
+                        console.warn("[updateApproverInfoUI] Approver info UI elements not found.");
+                        return;
+                    }
+
+                    if (approverInfo && approverInfo.drafterName !== undefined) { // approverInfo 객체가 있고, drafterName이 있는 경우 (null일 수도 있음)
+                        drafterNameElement.textContent = approverInfo.drafterName || '-';
+                        drafterDepartmentElement.textContent = approverInfo.drafterDepartment || '-';
+                        
+                        if (approverInfo.approvers && approverInfo.approvers.length > 0) {
+                            approverTableBody.innerHTML = ''; // 기존 내용 초기화
+                            approverInfo.approvers.forEach(approver => {
+                                const row = approverTableBody.insertRow();
+                                row.insertCell().textContent = approver.ordr;
+                                row.insertCell().textContent = approver.aprvPsNm;
+                                row.insertCell().textContent = approver.aprvPsId;
+                                row.insertCell().textContent = approver.aprvDvTy;
+                                // 스타일링은 CSS 클래스나 인라인 스타일로 추가 가능
+                                Array.from(row.cells).forEach(cell => {
+                                    cell.style.border = '1px solid #ddd';
+                                    cell.style.padding = '8px';
+                                    cell.style.textAlign = 'left';
+                                });
+                            });
+                        } else {
+                            approverTableBody.innerHTML = '<tr><td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: center;">결재 라인 정보가 없습니다.</td></tr>';
+                        }
+                    } else {
+                        // approver_info가 없거나 비정상적인 경우 초기 상태로 돌리거나 메시지 표시
+                        drafterNameElement.textContent = '-';
+                        drafterDepartmentElement.textContent = '-';
+                        approverTableBody.innerHTML = '<tr><td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: center;">결재 정보를 불러오지 못했습니다.</td></tr>';
+                    }
+                }
+                // --- END 추가: 결재 정보 UI 업데이트 함수 ---
 
                 if (data.error) {
                     resultArea.innerHTML = `<p class="error-message">오류: ${data.message_to_user || data.error}</p>`;
                     if (data.available_forms) {
                         resultArea.innerHTML += `<p>사용 가능한 양식: ${data.available_forms.join(', ')}</p>`;
                     }
+                    updateApproverInfoUI(null); 
                 } else {
                     resultArea.innerHTML = data.html_template;
                     console.log("[submitRequest] Received html_template (first 500 chars):", data.html_template.substring(0, 500) + "...");
                     console.log("[submitRequest] Attempting to set resultArea.innerHTML.");
                     console.log("[submitRequest] SUCCESSFULLY SET resultArea.innerHTML.");
 
-
-                    // 이전에 로드된 양식별 스크립트가 있다면 제거 (중복 실행 방지)
                     const existingScript = document.getElementById('dynamic-form-script');
                     if (existingScript) {
                         existingScript.remove();
                     }
 
-                    // 새 양식에 맞는 스크립트 경로 결정
                     let scriptSrc = '';
                     const formType = data.form_type;
 
@@ -279,7 +363,16 @@
                     } else if (formType === '법인카드 지출내역서') {
                         scriptSrc = 'js/corporate_card_scripts.js';
                     }
-                    // 다른 양식에 대한  else if  조건들을 여기에 추가
+                    
+                    const processCommonFunctions = () => {
+                        requestAnimationFrame(() => {
+                            console.log("[submitRequest] rAF callback triggered. Processing order: populateTimeOptions -> fillFormFields -> setTodayToDraftDate");
+                            if (typeof populateTimeOptions === "function") populateTimeOptions();
+                            if (typeof fillFormFields === "function") fillFormFields(data.slots);
+                            if (typeof setTodayToDraftDate === "function") setTodayToDraftDate();
+                            console.log("[submitRequest] All common functions in rAF callback finished.");
+                        });
+                    };
 
                     if (scriptSrc) {
                         const scriptElement = document.createElement('script');
@@ -290,56 +383,31 @@
 
                         scriptElement.onload = () => {
                             console.log(`[submitRequest] Successfully loaded and executed: ${scriptSrc}`);
-                            // DOMContentLoaded는 이미 발생했을 수 있으므로, 각 스크립트가 자체적으로 초기화하는지 확인.
-                            // 필요시 여기서 명시적 초기화 함수 호출.
-                            // 예: if (formType === '비품/소모품 구입내역서' && typeof initializeInventoryForm === 'function') initializeInventoryForm();
-
-                            // 스크립트 로드 후 rAF 콜백 실행
-                            requestAnimationFrame(() => {
-                                console.log("[submitRequest] rAF callback triggered AFTER SCRIPT LOAD. Processing order: populateTimeOptions -> fillFormFields -> setTodayToDraftDate");
-                                console.log("[submitRequest] Inside rAF, Before populateTimeOptions - #overtime_hour:", resultArea.querySelector('#overtime_hour'), "#overtime_minute:", resultArea.querySelector('#overtime_minute'));
-                                if (typeof populateTimeOptions === "function") {
-                                    populateTimeOptions();
-                                }
-                                console.log("[submitRequest] Inside rAF, After populateTimeOptions - #overtime_hour.innerHTML:", resultArea.querySelector('#overtime_hour') ? resultArea.querySelector('#overtime_hour').innerHTML.substring(0,100) : "not found", "#overtime_minute.innerHTML:", resultArea.querySelector('#overtime_minute') ? resultArea.querySelector('#overtime_minute').innerHTML.substring(0,100) : "not found");
-
-                                console.log("[submitRequest] Calling fillFormFields with slots:", data.slots);
-                                if (typeof fillFormFields === "function") {
-                                    fillFormFields(data.slots);
-                                }
-
-                                if (typeof setTodayToDraftDate === "function") {
-                                    setTodayToDraftDate();
-                                }
-                                console.log("[submitRequest] All functions in rAF callback finished.");
-                            });
+                            processCommonFunctions();
                         };
                         scriptElement.onerror = () => {
                             console.error(`[submitRequest] ERROR loading script: ${scriptSrc}`);
+                            processCommonFunctions(); // 스크립트 로드 실패해도 공통 함수는 시도
                         };
                         document.body.appendChild(scriptElement);
                         console.log(`[submitRequest] Attempting to load script: ${scriptSrc}`);
                     } else {
                         console.log(`[submitRequest] No specific script to load for form_type: ${formType}`);
-                        // 스크립트 로드 없이 rAF 콜백 실행 (스크립트가 없는 양식의 경우)
-                        requestAnimationFrame(() => {
-                            console.log("[submitRequest] rAF callback triggered (NO SCRIPT LOAD). Processing order: populateTimeOptions -> fillFormFields -> setTodayToDraftDate");
-                            if (typeof populateTimeOptions === "function") populateTimeOptions();
-                            if (typeof fillFormFields === "function") fillFormFields(data.slots);
-                            if (typeof setTodayToDraftDate === "function") setTodayToDraftDate();
-                            console.log("[submitRequest] All functions in rAF callback finished (NO SCRIPT LOAD).");
-                        });
+                        processCommonFunctions();
                     }
-                    // 중요: requestAnimationFrame 호출을 scriptElement.onload 콜백 내부 또는 scriptSrc가 없는 경우의 else 블록으로 이동시킴.
-                    // 이렇게 함으로써 fillFormFields 등이 새 DOM 및 로드된 스크립트 환경에서 실행되도록 보장.
+                    
+                    updateApproverInfoUI(data.approver_info);
+                    submitBtn.style.display = 'block'; // 성공 시 제출 버튼 표시
                 }
                 
-                // 디버그 정보 업데이트
                 const debugOutput = {
                     form_type: data.form_type,
                     keywords: data.keywords,
                     slots: data.slots,
                     original_input: data.original_input,
+                    mstPid: data.mstPid, // mstPid 추가
+                    drafterId: data.drafterId, // drafterId 추가
+                    approver_info: data.approver_info, // approver_info 추가
                     error: data.error,
                     message_to_user: data.message_to_user
                 };
@@ -349,6 +417,339 @@
                 console.error('Error in submitRequest:', error);
                 resultArea.innerHTML = `<p class="error-message">요청 처리 중 오류가 발생했습니다: ${error.message}</p>`;
                 debugInfo.innerHTML = `<pre>${error.stack}</pre>`;
+                submitBtn.style.display = 'none';
+                currentFormResponse = null;
+            }
+        }
+
+        // --- 신규: 문서 제출 함수 ---
+        /**
+         * @async
+         * @function submitDocument
+         * @description 현재 선택/완성된 양식의 데이터를 수집하여 API 서버로 제출합니다.
+         * 
+         * 주요 작업 흐름:
+         * 1. 기본 정보 유효성 검사 (currentFormResponse, mstPid, drafterId).
+         * 2. 공통 정보 수집 (mstPid, aprvNm, drafterId, lineList).
+         * 3. 양식 유형(form_type)에 따라 특화 정보(docCn, dayList, itemList) 수집.
+         *    - docCn: 각 양식의 주요 내용/사유 필드에서 값 추출.
+         *    - dayList: 날짜 기간이 있는 양식(예: 연차신청서, 출장보고서)의 경우 날짜 목록 생성.
+         *    - itemList: 테이블 형태의 항목이 있는 양식(예: 품의서, 비용보고서)의 경우 항목 목록 생성.
+         * 4. 수집된 모든 정보로 API 요청 페이로드(payload) 구성.
+         * 5. 구성된 payload를 '/api/v1/epaper/register' 엔드포인트로 POST 전송.
+         * 6. 서버 응답에 따라 성공/실패 처리 및 사용자 알림.
+         *
+         * !! --- 다음 단계 및 주요 고려 사항 --- !!
+         * 
+         * 1.  `itemList` 필드명 및 HTML ID 규칙 확인/조정 (매우 중요):
+         *     -   각 양식("비품/소모품 구입내역서", "구매 품의서", "개인경비 사용내역서", "법인카드 지출내역서" 등)의 
+         *         `itemList` 내 각 항목 객체가 가져야 할 정확한 JSON 키(API 서버가 기대하는 필드명)를 
+         *         API 명세서를 통해 확인해야 합니다. (현재 코드의 `fieldMapping` 내 키는 예시임)
+         *     -   각 양식 템플릿 HTML 내에서 반복되는 항목들의 ID가 실제로 코드에서 가정하는 규칙
+         *         (예: `item_name_1`, `item_quantity_1` 또는 `expense_date_1`, `expense_category_1` 등)을 
+         *         따르는지, 숫자 인덱싱(1부터 시작하는지 0부터 시작하는지 등)이 올바른지 재확인하고, 
+         *         `baseId` 및 `fieldMapping`의 접미사 부분을 정확히 일치시켜야 합니다.
+         *     -   예를 들어, `item_name_1`인지, `itemName_1`인지, 아니면 `item-set` 내부의 순서에 의존하는지 등.
+         *
+         * 2.  `dayList`의 `dvType` 구체화:
+         *     -   "연차 신청서"의 `leave_type`을 `dvType`으로 매핑하는 로직은 현재 예시 수준입니다. 
+         *         (예: 'annual' -> 'DAY'). API가 실제로 어떤 `dvType` 문자열을 기대하는지 확인하고 정확히 매핑해야 합니다.
+         *     -   "파견 및 출장 보고서" 등 `dayList`가 필요한 다른 양식들의 경우, 각 날짜에 대한 `dvType`을 
+         *         무엇으로 설정할지 API 명세 또는 내부 규칙에 따라 정의해야 합니다. (현재 "BUSINESSTRIP"은 예시)
+         *
+         * 3.  `docCn` (문서 내용/사유) 수집 상세화:
+         *     -   각 양식별로 `docCn`으로 사용할 가장 적절한 필드(HTML 요소 ID 또는 슬롯 키)를 다시 한번 검토합니다.
+         *     -   하나의 필드만 사용할지, 여러 필드를 조합할지 등을 결정합니다.
+         * 
+         * 4.  데이터 유효성 검사 강화 (Client-side validation):
+         *     -   현재는 기본적인 값 존재 여부 위주로 데이터를 수집하고 있습니다.
+         *     -   실제 제출 전, 각 필드별로 더 구체적인 유효성 검사 (예: 필수 입력 항목 누락 체크, 
+         *         숫자/날짜 형식 유효성, 특정 범위 유효성, 항목 간 논리적 오류 등)를 클라이언트 사이드에서 
+         *         수행하는 것이 바람직합니다. 이는 사용자 경험을 향상시키고 불필요한 API 요청을 줄입니다.
+         *     -   유효성 검사 실패 시 사용자에게 명확한 피드백을 제공해야 합니다.
+         * 
+         * 5.  API Payload 최종 확정:
+         *     -   `itemList`나 `dayList`가 없는 양식의 경우, 해당 키를 payload에서 제외할지, 
+         *         빈 배열 `[]`로 보낼지 API 명세에 따라 최종 결정합니다. (현재는 빈 배열로 포함)
+         *     -   모든 필드명과 값의 형식이 API 요구사항과 정확히 일치하는지 확인합니다.
+         * 
+         * 6.  테스트 철저:
+         *     -   다양한 양식을 선택하고, 각 필드에 정상적인 데이터와 경계값/오류 데이터를 입력해보면서 
+         *         제출 시 생성되는 payload(브라우저 개발자 도구 콘솔에서 확인)가 정확한지 검증합니다.
+         *     -   실제 API 연동 후에는 서버 응답에 따른 예외 처리도 상세히 테스트합니다.
+         * 
+         * 7.  함수 모듈화 (가독성 및 유지보수성 향상):
+         *     -   현재 `submitDocument` 함수는 여러 양식의 처리 로직을 포함하여 길어질 수 있습니다.
+         *     -   향후 양식이 더 추가되면 가독성과 유지보수성이 저하될 우려가 있습니다.
+         *     -   이를 해결하기 위해 양식 유형(`form_type`)별 데이터 수집 로직(특히 `docCn`, `dayList`, `itemList`)
+         *         을 별도의 함수나 객체로 분리하는 모듈화를 고려해야 합니다. (예: `formProcessors` 객체 활용 또는
+         *         양식별 JS 파일 내 헬퍼 함수 정의 후 동적 호출 - 다음 단계에서 진행 예정)
+         * 
+         * 8.  사용자 경험(UX) 개선:
+         *     -   제출 중 상태 표시 (예: 로딩 스피너), 성공/실패 메시지를 `alert` 대신 더 세련된 UI 요소
+         *         (예: 토스트 알림, 모달)로 변경하는 것을 고려할 수 있습니다.
+         */
+        async function submitDocument() {
+            if (!currentFormResponse || currentFormResponse.error) {
+                alert("제출할 양식 정보가 없습니다. 먼저 양식을 추천받으세요.");
+                return;
+            }
+
+            const resultArea = document.getElementById('resultArea'); 
+            const submitBtn = document.getElementById('submitDocumentButton');
+            const formType = currentFormResponse.form_type;
+            const slots = currentFormResponse.slots || {};
+
+            let docCn = "";
+            let itemList = [];
+            // dayList는 연차신청서에서 이미 처리하고 있으므로, 필요시 다른 양식에 대한 처리를 아래 추가
+            // let dayList = currentFormResponse.payload?.dayList || []; // 기존 dayList 유지 또는 새로 생성
+
+            try {
+                // 1. mstPid
+                const mstPid = currentFormResponse.mstPid;
+                if (mstPid === null || mstPid === undefined) {
+                    alert("양식 ID(mstPid)가 없습니다. 제출할 수 없습니다.");
+                    return;
+                }
+
+                // 2. aprvNm (문서 제목) - form_type 사용
+                const aprvNm = formType;
+
+                // 3. drafterId
+                const drafterId = currentFormResponse.drafterId;
+                if (!drafterId) {
+                    alert("기안자 ID(drafterId)가 없습니다. 제출할 수 없습니다.");
+                    return;
+                }
+
+                // 4. docCn (문서 내용/사유) - 양식별 처리
+                // HTML 요소의 값을 우선적으로 사용하고, 없으면 슬롯 값을 사용
+                function getElementValueOrSlot(elementId, slotKey) {
+                    const element = document.getElementById(elementId);
+                    if (element && (element.value !== undefined && element.value.trim() !== "")) {
+                        return element.value.trim();
+                    }
+                    return slots[slotKey] || "";
+                }
+
+                if (formType === "연차 신청서") {
+                    docCn = getElementValueOrSlot('reason', 'reason');
+                } else if (formType === "야근 식대 신청서") {
+                    docCn = getElementValueOrSlot('work_details', 'work_details') || getElementValueOrSlot('additional_notes', 'additional_notes');
+                } else if (formType === "파견 및 출장 보고서") {
+                    docCn = getElementValueOrSlot('report_details', 'report_details') || getElementValueOrSlot('notes', 'notes');
+                } else if (formType === "비품/소모품 구입내역서") {
+                    docCn = getElementValueOrSlot('notes', 'notes'); // 특이사항
+                } else if (formType === "개인경비 사용내역서") {
+                    docCn = getElementValueOrSlot('expense_reason', 'expense_reason');
+                } else if (formType === "구매 품의서") {
+                    docCn = getElementValueOrSlot('special_notes', 'special_notes'); // 특기 사항 (요청 사유 등)
+                } else if (formType === "교통비 신청서") {
+                    docCn = getElementValueOrSlot('transport_details', 'transport_details') || getElementValueOrSlot('notes', 'notes');
+                } else if (formType === "법인카드 지출내역서") { // 법인카드 지출내역서 추가
+                    docCn = getElementValueOrSlot('expense_reason', 'expense_reason'); // 지출 사유
+                }
+                // 기타 양식에 대한 docCn 처리 추가
+
+
+                // 5. lineList (결재선 정보) - 기존 로직 유지
+                const lineList = [];
+                if (currentFormResponse.approver_info && currentFormResponse.approver_info.approvers) {
+                    currentFormResponse.approver_info.approvers.forEach(appr => {
+                        lineList.push({
+                            aprvPsId: appr.aprvPsId,
+                            aprvDvTy: appr.aprvDvTy,
+                            ordr: appr.ordr
+                        });
+                    });
+                }
+
+                // 6. dayList (날짜 목록) - 연차 신청서 외 다른 양식도 고려
+                let dayList = []; // 초기화
+                if (formType === "연차 신청서" && slots) {
+                    const startDateStr = slots.start_date; 
+                    const endDateStr = slots.end_date;   
+                    const leaveTypeSlotValue = slots.leave_type;
+                    
+                    // dvType 매핑 (기존 로직 활용)
+                    let dvTypeForApi = leaveTypeSlotValue; 
+                    if (leaveTypeSlotValue === 'annual' || leaveTypeSlotValue === 'day_off') {
+                        dvTypeForApi = 'DAY';
+                    } else if (leaveTypeSlotValue === 'half_day_morning') {
+                        dvTypeForApi = 'HALF_AM'; 
+                    } else if (leaveTypeSlotValue === 'half_day_afternoon') {
+                        dvTypeForApi = 'HALF_PM';
+                    }
+
+                    if (startDateStr && endDateStr && dvTypeForApi) {
+                        let currentDate = new Date(startDateStr);
+                        const endDate = new Date(endDateStr);
+                        if (!isNaN(currentDate.getTime()) && !isNaN(endDate.getTime()) && currentDate <= endDate) {
+                            while (currentDate <= endDate) {
+                                const year = currentDate.getFullYear();
+                                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                                const day = String(currentDate.getDate()).padStart(2, '0');
+                                dayList.push({
+                                    reqYmd: `${year}-${month}-${day}`,
+                                    dvType: dvTypeForApi
+                                });
+                                currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                        } else {
+                             console.warn("연차 신청서: 유효하지 않은 시작일/종료일 또는 날짜 순서 오류", startDateStr, endDateStr);
+                        }
+                    } else {
+                        console.warn("연차 신청서: start_date, end_date, 또는 leave_type 슬롯 부족. dayList 생성 실패.");
+                    }
+                } else if (formType === "파견 및 출장 보고서" && slots) {
+                    // 예시: 파견 및 출장 보고서도 start_date, end_date가 있다면 dayList 생성 가능
+                    // 이 경우 dvType은 어떻게 할지 정의 필요 (예: "BUSINESSTRIP")
+                    const startDateStr = document.getElementById('start_date')?.value || slots.start_date;
+                    const endDateStr = document.getElementById('end_date')?.value || slots.end_date;
+                    if (startDateStr && endDateStr) {
+                        let currentDate = new Date(startDateStr);
+                        const endDate = new Date(endDateStr);
+                        if (!isNaN(currentDate.getTime()) && !isNaN(endDate.getTime()) && currentDate <= endDate) {
+                            while (currentDate <= endDate) {
+                                const year = currentDate.getFullYear();
+                                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                                const day = String(currentDate.getDate()).padStart(2, '0');
+                                dayList.push({
+                                    reqYmd: `${year}-${month}-${day}`,
+                                    dvType: "BUSINESSTRIP" // 예시 dvType
+                                });
+                                currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                        } else {
+                            console.warn("파견 및 출장 보고서: 유효하지 않은 시작일/종료일 또는 날짜 순서 오류");
+                        }
+                    }
+                }
+                // 다른 양식 유형에 대한 dayList 처리...
+
+                // 7. itemList (테이블 항목 목록) - 양식별 처리
+                if (formType === "비품/소모품 구입내역서" || formType === "구매 품의서" || formType === "개인경비 사용내역서" || formType === "법인카드 지출내역서") {
+                    const itemSets = document.querySelectorAll('.item-set');
+                    itemSets.forEach((set, index) => {
+                        const item = {};
+                        // 각 양식의 필드 ID 규칙에 따라 수정 필요
+                        // 예시: 비품/소모품 구입내역서 (item_name_1, item_quantity_1 등)
+                        //       개인경비 (expense_date_1, expense_category_1 등)
+                        //       법인카드 (usage_date_1, usage_category_1 등)
+                        //       구매품의 (item_name_1, item_spec_1 등)
+
+                        let baseId = "";
+                        let fieldMapping = {}; // API 필드명: HTML 필드 접미사
+
+                        if (formType === "비품/소모품 구입내역서") {
+                            baseId = `item_`;
+                            fieldMapping = { 
+                                itemName: `name_${index + 1}`, 
+                                quantity: `quantity_${index + 1}`, 
+                                unitPrice: `unit_price_${index + 1}`,
+                                totalPrice: `total_price_${index + 1}`, // 읽기 전용일 수 있음
+                                purpose: `purpose_${index + 1}`
+                            };
+                        } else if (formType === "구매 품의서") {
+                            baseId = `item_`;
+                             fieldMapping = {
+                                itemName: `name_${index + 1}`,
+                                spec: `spec_${index + 1}`,
+                                quantity: `quantity_${index + 1}`,
+                                unitPrice: `unit_price_${index + 1}`,
+                                totalPrice: `total_price_${index + 1}`, // 읽기 전용일 수 있음
+                                deliveryDate: `delivery_date_${index + 1}`,
+                                supplier: `supplier_${index + 1}`,
+                                notes: `notes_${index + 1}`
+                            };
+                        } else if (formType === "개인경비 사용내역서") {
+                            baseId = `expense_`;
+                            fieldMapping = {
+                                date: `date_${index + 1}`,
+                                category: `category_${index + 1}`,
+                                description: `description_${index + 1}`,
+                                amount: `amount_${index + 1}`,
+                                notes: `notes_${index + 1}`
+                            };
+                        } else if (formType === "법인카드 지출내역서") {
+                            baseId = `usage_`;
+                             fieldMapping = {
+                                date: `date_${index + 1}`,
+                                category: `category_${index + 1}`,
+                                merchantName: `merchant_name_${index + 1}`,
+                                amount: `amount_${index + 1}`,
+                                notes: `notes_${index + 1}`
+                            };
+                        }
+
+                        let hasValue = false;
+                        for (const apiKey in fieldMapping) {
+                            const elementId = baseId + fieldMapping[apiKey];
+                            const element = document.getElementById(elementId);
+                            if (element && element.value !== undefined && element.value.trim() !== "") {
+                                // 숫자 필드의 경우 parseFloat 또는 parseInt 시도
+                                if (element.type === 'number' && element.value.trim() !== "") {
+                                    item[apiKey] = parseFloat(element.value);
+                                } else {
+                                    item[apiKey] = element.value.trim();
+                                }
+                                hasValue = true;
+                            } else if (element && element.tagName === 'SELECT' && element.value.trim() !== "") {
+                                item[apiKey] = element.value.trim();
+                                hasValue = true;
+                            }
+                        }
+                        
+                        // 값이 하나라도 있는 항목만 itemList에 추가
+                        if (hasValue) {
+                            itemList.push(item);
+                        }
+                    });
+                }
+
+
+                const payload = {
+                    mstPid: parseInt(mstPid, 10),
+                    aprvNm: aprvNm,
+                    drafterId: drafterId,
+                    docCn: docCn,
+                    dayList: dayList, 
+                    lineList: lineList,
+                    itemList: itemList // itemList 추가
+                };
+
+                console.log("제출할 데이터:", JSON.stringify(payload, null, 2));
+                resultArea.innerHTML += '<p>문서 제출 중...</p>';
+                submitBtn.disabled = true;
+
+                const submitResponse = await fetch('https://dev-api.ntoday.kr/api/v1/epaper/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!submitResponse.ok) {
+                    const errorData = await submitResponse.json().catch(() => ({ message: "제출 API 응답을 JSON으로 파싱하는데 실패했습니다." }));
+                    throw new Error(`제출 실패: ${submitResponse.status} - ${errorData.message || submitResponse.statusText}`);
+                }
+
+                const submitResult = await submitResponse.json();
+                console.log("제출 결과:", submitResult);
+                
+                const successMessage = submitResult.message || submitResult.msg || "문서가 성공적으로 제출되었습니다.";
+                alert(successMessage);
+                resultArea.innerHTML += `<p>문서 제출 성공: ${successMessage}</p>`;
+                submitBtn.style.display = 'none'; 
+
+            } catch (error) {
+                console.error('Error in submitDocument:', error);
+                alert(`문서 제출 중 오류 발생: ${error.message}`);
+                resultArea.innerHTML += `<p class="error-message">제출 오류: ${error.message}</p>`;
+            } finally {
+                submitBtn.disabled = false; 
             }
         }
     </script>
