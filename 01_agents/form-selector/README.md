@@ -87,7 +87,7 @@ graph TD
 
 ## 3. 디렉토리 구조 (Directory Structure)
 
-\`\`\`
+```
 01_agents/form-selector/
 ├── .venv/                  # 가상 환경
 ├── form_selector/          # 핵심 백엔드 애플리케이션 패키지
@@ -116,47 +116,47 @@ graph TD
 ├── .env.example            # 환경 변수 예시 파일
 ├── README.md               # 프로젝트 설명 문서 (현재 파일)
 └── requirements.txt        # Python 라이브러리 의존성 목록
-\`\`\`
+```
 
 ## 4. 설치 및 실행 방법 (Setup and Run)
 
 1.  **저장소 복제 (Clone Repository):**
-    \`\`\`bash
+    ```bash
     git clone <repository_url>
     cd 01_agents/form-selector
-    \`\`\`
+    ```
 
 2.  **가상 환경 생성 및 활성화:**
-    \`\`\`bash
+    ```bash
     python -m venv .venv
     # Windows
     .venv\\Scripts\\activate
     # macOS/Linux
     source .venv/bin/activate
-    \`\`\`
+    ```
 
 3.  **필수 라이브러리 설치:**
-    \`\`\`bash
+    ```bash
     pip install -r requirements.txt
-    \`\`\`
+    ```
 
 4.  **환경 변수 설정:**
     -   `.env.example` 파일을 복사하여 `.env` 파일을 생성합니다.
-        \`\`\`bash
+        ```bash
         cp .env.example .env
-        \`\`\`
+        ```
     -   `.env` 파일을 열어 실제 OpenAI API 키 등 필요한 환경 변수를 설정합니다.
-        \`\`\`
+        ```
         OPENAI_API_KEY="sk-your_openai_api_key_here"
         # 기타 필요한 환경 변수들...
-        \`\`\`
+        ```
 
 5.  **애플리케이션 실행:**
     FastAPI 애플리케이션은 프로젝트 루트 디렉토리의 `main.py` 파일에서 실행합니다.
     프로젝트 루트 디렉토리(`01_agents/form-selector/`)에서 다음 명령어를 실행합니다.
-    \`\`\`bash
+    ```bash
     uvicorn main:app --reload --port 8000
-    \`\`\`
+    ```
     -   `--reload`: 코드 변경 시 서버 자동 재시작
     -   `--port 8000`: 8000번 포트 사용 (필요시 변경 가능)
 
