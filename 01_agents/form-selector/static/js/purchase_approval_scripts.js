@@ -59,8 +59,12 @@ if (itemsDataScript && itemsDataScript.textContent.trim() !== '' && itemsDataScr
 
         if (Array.isArray(parsedData)) {
             itemsToLoad = parsedData;
-        } else if (parsedData && typeof parsedData === 'object' && Array.isArray(parsedData.items)) {
-            itemsToLoad = parsedData.items;
+        } else if (parsedData && typeof parsedData === 'object') {
+            if (Array.isArray(parsedData.items)) {
+                itemsToLoad = parsedData.items;
+            } else if (parsedData.slots && Array.isArray(parsedData.slots.items)) {
+                itemsToLoad = parsedData.slots.items;
+            }
         }
         console.log('[purchase_approval_scripts.js] itemsToLoad:', itemsToLoad);
 
@@ -115,4 +119,4 @@ if (itemsDataScript && itemsDataScript.textContent.trim() !== '' && itemsDataScr
     calculateOverallTotal();
 }
 
-console.log('[purchase_approval_scripts.js] Script file parsing finished.'); 
+console.log('[purchase_approval_scripts.js] Script file parsing finished.');

@@ -10,6 +10,7 @@
 - 추출된 정보의 동적 HTML 양식 자동 완성
 - 상대적/절대적 날짜 표현 자동 변환 (예: "내일", "다음 주 월요일" -> "YYYY-MM-DD")
 - 다중 항목 입력 지원 (예: 구매 품의서의 여러 품목)
+- 양식 기반 결재자 정보 자동 조회 및 표시
 
 ### 예시 화면
 
@@ -24,7 +25,7 @@
     ![LLM 기반 양식 추천 및 슬롯 필링 결과](assets/스크린샷%202025-05-23%20132503.png)
 
 3.  **결재자 정보 표시**
-    *   시스템에서 양식이 추천되고 내용이 채워지면, 해당 양식의 종류(예: '연차 신청서', '비품/소모품 구매 요청서')와 내부 식별자(Form ID)를 기반으로, 사전에 정의된 결재 규칙에 따라 기안자 정보(이름, 부서)와 결재 라인(결재자, 결재 구분, 순서)이 자동으로 조회됩니다. 이 정보는 화면 상단에 명확하게 표시되어, 사용자가 해당 문서의 결재 흐름을 한눈에 파악할 수 있도록 지원합니다.
+    *   시스템에서 양식이 추천되고 내용이 채워지면, 해당 양식의 종류(예: '연차 신청서', '비품/소모품 구매 요청서')와 내부 식별자(Form ID), 그리고 기안자 정보를 기반으로, 사전에 정의된 결재 규칙 또는 외부 API 연동을 통해 결재 라인(기안자 정보, 결재자 목록, 결재 구분, 순서)이 자동으로 조회됩니다. 이 정보는 화면 상단에 명확하게 표시되어, 사용자가 해당 문서의 결재 흐름을 한눈에 파악할 수 있도록 지원합니다.
     ![결재자 정보 표시](assets/스크린샷%202025-05-23%20132035.png)
 
 ## 2. 기술 스택 (Tech Stack)
@@ -49,41 +50,70 @@
 ```mermaid
 graph TD
     A["사용자 입력 (UI/자연어)"] --> B("FastAPI: /form-selector");
-    B --> C{"양식 분류 및 정보 추출 (service.py)"};
-    C -- "1. 양식 분류 요청" --> D["양식 분류 LLM 체인 (llm.py)"];
-    D -- "FormClassifierOutput" --> C;
-    C -- "2. 템플릿 검색 요청 (form_type, keywords)" --> E["HTML 템플릿 검색 (rag.py + FAISS)"];
-    E -- "HTML 템플릿" --> C;
-    C -- "3. 슬롯 추출 요청 (form_type, 사용자 입력)" --> F["슬롯 추출 LLM 체인 (llm.py + form_configs.py)"];
-    F -- "슬롯 Pydantic 모델 (schema.py)" --> C;
-    C -- "4. 날짜/시간 등 변환" --> G["유틸리티 함수 (utils.py)"];
-    G -- "변환된 슬롯 값" --> C;
-    C -- "5. HTML 템플릿 채우기" --> H["최종 HTML 생성"];
-    H --> B;
-    B --> I["API 응답 (JSON: HTML, 슬롯 정보 등)"];
-    I --> A;
+    B --> C{"양식 결정, 정보 추출 및 결재 정보 통합 (service.py)"};
+    
+    C -- "1a. LLM 기반 양식 분류 및 키워드 추출" --> D["양식 분류 LLM (llm.py)"];
+    D -- "분류 결과, 키워드" --> C;
+    
+    C -- "1b. 키워드 기반 템플릿 검색 (RAG)" --> E["HTML 템플릿 유사도 검색 (rag.py + FAISS)"];
+    E -- "유사 템플릿 후보" --> C; 
+    %% C에서 D와 E의 결과를 종합하여 최종 양식(템플릿) 결정
 
-    subgraph "LLM & Prompts"
-        D
-        F
+    C -- "2. (결정된 양식 기반) 슬롯 추출 요청" --> F["슬롯 추출 LLM 체인 (llm.py)"];
+    F -- "슬롯 Pydantic 모델" --> C;
+    
+    C -- "3. 날짜/시간 등 변환" --> G["유틸리티 함수 (utils.py)"];
+    G -- "변환된 슬롯 값" --> C;
+    
+    C -- "4. 결재 정보 조회" --> C_approver{"결재 정보 조회 로직"};
+    C_approver -- "내부 로직/서비스 호출" --> S_approver["service.py 내 get_approval_info (호출)"];
+    S_approver --> C_approver;
+    C_approver -- "외부 API 직접 호출 (필요시)" --> ExtAPI["외부 결재 API"];
+    ExtAPI -- "결재 정보" --> C_approver;
+    C_approver -- "조회된 결재 정보" --> C;
+    
+    C -- "5. HTML 템플릿 채우기 및 최종 응답 생성" --> H["최종 HTML 및 데이터 통합"];
+    H --> B;
+    
+    B --> I["API 응답 (JSON: HTML, 슬롯 정보, 결재 정보 등)"];
+    I --> A;
+    
+    subgraph "리소스: LLM 설정 및 프롬프트"
         J["프롬프트 템플릿 (prompts/)"]
         K["양식별 설정 (form_configs.py)"]
+        LLM_Core["LLM 실행환경/공유객체 (llm.py)"]
     end
 
-    subgraph "Data Schemas & Storage"
-        E
+    subgraph "리소스: 데이터 저장소 및 스키마"
         L["Pydantic 모델 (schema.py)"]
         M["HTML 템플릿 (templates/)"]
         N["FAISS 인덱스 (faiss_index/)"]
     end
 
+    %% Connections to Resources
     D -.-> J;
+    D -.-> LLM_Core;
+
     F -.-> J;
     F -.-> K;
-    L -.-> F;
-    E -.-> M;
+    F -.-> L; 
+    F -.-> LLM_Core;
+    
+    E -.-> M; 
     E -.-> N;
+    
+    G -.-> LLM_Core; 
+
+    C -.-> L; 
+    S_approver -.-> L; 
+    C_approver -.-> L; 
 ```
+
+**결재자 정보 조회 흐름:**
+
+- 사용자가 UI에서 특정 양식에 대한 결재 정보 조회를 요청하면 (일반적으로 양식 로드 후), UI는 기안자 ID와 양식 ID를 FastAPI 백엔드의 `/approver-info` 또는 `/myLine` 엔드포인트로 전송합니다.
+- `/approver-info`는 내부 로직이나 `service.py`의 `get_approval_info` 함수를 통해, `/myLine`은 외부 결재 시스템 API를 직접 호출하여 결재 라인 정보를 가져옵니다.
+- 조회된 결재 정보(기안자, 결재자 목록 등)는 UI로 반환되어 화면에 표시됩니다.
 
 ## 3. 디렉토리 구조 (Directory Structure)
 
@@ -96,7 +126,6 @@ graph TD
 │   ├── llm.py              # LangChain LLM 체인 구성
 │   ├── schema.py           # Pydantic 모델 (데이터 스키마 정의)
 │   ├── rag.py              # RAG 로직 (FAISS 기반 HTML 템플릿 검색)
-│   ├── form_configs.py     # 양식별 설정 (모델, 프롬프트 경로, HTML 경로 등)
 │   ├── utils.py            # 유틸리티 함수 (날짜 파싱 등)
 │   └── prompts/            # LLM 프롬프트 템플릿 저장 디렉토리
 │       ├── form_classifier_prompt.txt
@@ -113,6 +142,7 @@ graph TD
 │   └── ... (각 양식별 HTML 템플릿)
 ├── faiss_index/            # FAISS 벡터 스토어 인덱스 저장 디렉토리
 ├── main.py                 # FastAPI 앱 정의 및 API 엔드포인트 (애플리케이션 진입점)
+├── form_configs.py     # 양식별 설정 (모델, 프롬프트 경로, HTML 경로 등)
 ├── .env.example            # 환경 변수 예시 파일
 ├── README.md               # 프로젝트 설명 문서 (현재 파일)
 └── requirements.txt        # Python 라이브러리 의존성 목록
@@ -173,10 +203,23 @@ graph TD
 -   **정보 자동 채우기 (Slot Auto-filling):**
     1.  분류된 양식 종류에 해당하는 슬롯 추출 LLM 체인(`llm.py`의 `SLOT_EXTRACTOR_CHAINS`)이 사용자 입력으로부터 필요한 정보들(예: 휴가 시작일, 기간, 사유)을 추출합니다.
     2.  `service.py`의 `fill_slots_in_template` 함수는 추출된 슬롯 값들을 처리합니다:
-        -   `utils.py`의 `parse_relative_date_to_iso` 등을 사용하여 "내일", "다음 주 월요일" 같은 날짜 표현을 "YYYY-MM-DD" 형식으로 변환합니다.
-        -   구매 품의서의 경우, `item_delivery_request_date`를 `item_delivery_date`로, `item_purpose`를 `item_notes`로 내부적으로 키 이름을 변경하여 처리합니다.
+        -   **날짜/시간 변환**: LLM이 추출한 자연어 날짜/시간 표현을 표준 형식으로 변환하기 위해 `form_selector/utils.py`의 파싱 함수들을 사용합니다. 주요 파싱 로직은 다음과 같습니다:
+            -   `parse_relative_date_to_iso` (주로 "YYYY-MM-DD" 형식 반환):
+                1.  **규칙 기반 1차 변환**: "오늘", "내일", "다음 주 월요일", "2023년 12월 25일" 등 비교적 명확한 날짜 표현을 `dateutil` 라이브러리 및 내부 규칙을 통해 우선적으로 파싱합니다.
+                2.  **LLM 기반 2차 변환**: 1차 규칙 기반 파싱으로 변환되지 못한 복잡하거나 모호한 표현에 대해, 해당 날짜 문자열과 현재 날짜 정보를 `_call_llm_for_datetime_parsing` 함수를 통해 LLM에 전달하여 "YYYY-MM-DD" 형식으로 변환을 시도합니다. LLM은 제공된 오늘 날짜를 기준으로 상대적인 날짜를 계산합니다.
+            -   `parse_datetime_description_to_iso_local` (주로 "YYYY-MM-DDTHH:MM" 형식 반환):
+        -   구매 품의서의 경우, 아이템 리스트 내 각 아이템의 `item_delivery_request_date` 키를 `item_delivery_date`로, `item_purpose` 키를 `item_notes`로 내부적으로 키 이름을 변경하여 처리합니다. (날짜 파싱은 키 변경 후 이루어짐)
+        -   휴가 신청서의 `leave_type` (예: "오전 반차")과 같이 LLM이 자연어로 추출한 특정 슬롯 값을 HTML `<select>` 태그의 `value` (예: "half_day_morning")에 맞게 내부적으로 매핑(`LEAVE_TYPE_TEXT_TO_VALUE_MAP` 사용)합니다.
+        -   야근 신청서의 `overtime_ampm` 값을 "AM" 또는 "PM"으로 표준화합니다.
+        -   HTML 템플릿에 값을 채울 때 `re.sub`의 백슬래시 문제를 방지하기 위해 슬롯 값 내 백슬래시를 이스케이프 처리합니다.
         -   JavaScript로 전달될 다중 항목 데이터(예: 구매 품의서의 품목 리스트)는 JSON 문자열로 변환됩니다.
     3.  처리된 슬롯 값들은 검색된 HTML 템플릿 내의 해당 위치(플레이스홀더)에 삽입됩니다.
+
+-   **결재자 정보 조회 (Approver Information Retrieval):**
+    1.  양식 추천 및 슬롯 채우기가 완료된 후, 클라이언트(UI)는 해당 양식의 식별자(`mstPid`)와 기안자 ID(`drafterId`)를 `/approver-info` 또는 `/myLine` API 엔드포인트로 전송합니다.
+    2.  `/approver-info` 엔드포인트는 내부 로직 또는 서비스(`service.py`의 `get_approval_info`)를 통해 결재자 정보를 조회합니다.
+    3.  `/myLine` 엔드포인트는 환경 변수(`APPROVAL_API_BASE_URL`)에 설정된 외부 결재 API를 직접 호출하여 실시간으로 결재 라인 정보를 가져옵니다.
+    4.  조회된 기안자 정보(이름, 부서) 및 결재자 목록(결재자 ID, 이름, 결재 구분, 순서)은 JSON 형식으로 클라이언트에 반환되어 화면에 표시됩니다.
 
 -   **지원 양식 목록:**
     (현재 `form_configs.py`의 `AVAILABLE_FORM_TYPES` 리스트를 참고하여 작성 필요. 예시:)
@@ -204,8 +247,9 @@ graph TD
 -   **데이터베이스 연동:** (필요시) 신청 내역 저장 및 관리 기능
 -   **결재 라인 자동 완성 및 선택:** 결재 라인 자동 완성 및 선택 기능 추가
 
+## 7. 새로운 양식 추가 방법 (Adding New Forms)
 
-
+새로운 전자결재 양식을 시스템에 통합하는 방법에 대한 자세한 안내는 `NEW_FORM_INTEGRATION_MANUAL.md` 파일을 참고하십시오. 이 문서는 HTML 템플릿 준비, Pydantic 모델 정의, 슬롯 추출 프롬프트 생성, 양식 설정 파일 업데이트, RAG 인덱스 업데이트 및 테스트 등 새로운 양식을 추가하는 데 필요한 단계별 지침을 제공합니다.
 
 ---
 
