@@ -52,6 +52,16 @@
 ### LLaVA 모델 활용
 - **이미지 내용 자연어 설명 생성**: 시각 정보의 언어적 해석
 - **커스텀 데이터셋 기반 파인튜닝**: 도메인 특화 학습을 통한 정확도 향상
+  - **데이터 준비**: 프로젝트 내 `output_data.jsonl` 파인튜닝에 적합한 대화 형식(human/gpt 응답 쌍)으로 변환하여 사용. (`LLaVA_tuning.ipynb` 참고)
+  - **학습 환경**: 공식 LLaVA GitHub 리포지토리를 기반으로 구축.
+  - **주요 기술 및 라이브러리**:
+    - `transformers`: LLaVA 모델 로딩 및 기본 구성 활용.
+    - `PEFT (Parameter-Efficient Fine-Tuning)`: 전체 모델 파라미터를 재학습하는 대신, 일부 추가된 파라미터만 학습하여 파인튜닝 효율 증대.
+    - `bitsandbytes`: 모델 파라미터 양자화(Quantization) 등을 통해 학습 시 메모리 사용량 감소.
+    - `DeepSpeed` 및 `Flash Attention`: 대규모 언어 모델(LLM) 학습 시 분산 학습, 메모리 최적화, 학습 속도 향상을 위한 도구.
+  - **파인튜닝 실행 방식**:
+    - 로컬 환경에서 LLaVA 학습 스크립트를 직접 실행하여 모델을 파인튜닝. (`LLaVA_tuning.ipynb`, `finetuning_model.ipynb` 참고)
+    - (실험적) Together AI 플랫폼의 파인튜닝 API를 활용하려는 시도도 있었음. 이 경우, 준비된 데이터셋을 플랫폼에 업로드하고 CLI를 통해 파인튜닝 작업을 제출하는 방식. (`fine.ipynb` 참고)
 - **설명 생성 결과의 신뢰도 평가**: 생성된 설명의 품질 및 일관성 측정
 
 ### RAG 파이프라인
