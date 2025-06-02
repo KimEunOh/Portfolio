@@ -1,40 +1,73 @@
 :root {
-  /* Color Palette */
-  --color-primary: #007bff; /* 더 선명한 파란색 */
-  --color-primary-dark: #0056b3;
-  --color-secondary: #6c757d;
-  --color-success: #28a745;
-  --color-danger: #dc3545;
-  --color-warning: #ffc107;
-  --color-info: #17a2b8;
-  --color-light: #f8f9fa;
-  --color-dark: #343a40;
-  --color-white: #ffffff;
-  --color-gray-100: #f8f9fa;
-  --color-gray-200: #e9ecef;
-  --color-gray-300: #dee2e6;
-  --color-gray-400: #ced4da;
-  --color-gray-500: #adb5bd;
-  --color-gray-600: #6c757d; /* Secondary와 동일하게 사용 가능 */
-  --color-gray-700: #495057;
-  --color-gray-800: #343a40; /* Dark와 동일하게 사용 가능 */
-  --color-gray-900: #212529;
-  --text-color: var(--color-gray-800);
-  --link-color: var(--color-primary);
-  --border-color: var(--color-gray-300);
+  /* Color Palette - Using the new palette from index.html's example */
+  --background: rgba(250, 250, 250, 1);
+  --body-text: rgba(128, 128, 128, 1);
+  --cancel: rgba(252, 99, 99, 1);
+  --process: rgba(255, 181, 70, 1);
+  --stroke: rgba(238, 238, 238, 1);
+  --success: rgba(6, 198, 152, 1);
+  --title-color: rgba(17, 17, 17, 1); /* Renamed from --title */
+  --white: rgba(255, 255, 255, 1);
+  --primaryhigh: rgba(139, 147, 115, 1);
+  --primarylight: rgba(228, 230, 222, 1);
+  --primarymedium: rgba(195, 199, 183, 1);
+  --secondaryhigh: rgba(244, 167, 84, 1);
+  --secondarylight: rgba(253, 243, 231, 1);
+  --secondarymedium: rgba(249, 206, 159, 1);
 
-  /* Typography */
-  --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-size-base: 1rem; /* 16px */
-  --font-size-lg: 1.25rem;
-  --font-size-sm: .875rem;
-  --font-weight-light: 300;
-  --font-weight-normal: 400;
-  --font-weight-bold: 700;
-  --line-height-base: 1.6;
-
-  /* Spacing */
+  /* Typography - Using Space Grotesk from index.html's example */
+  --caption-4-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --caption-4-font-weight: 400;
+  --caption-4-font-size: 12px;
+  --caption-4-letter-spacing: 0px;
+  --caption-4-line-height: 16px;
+  --caption-3-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --caption-3-font-weight: 700;
+  --caption-3-font-size: 12px;
+  --caption-3-letter-spacing: 0px;
+  --caption-3-line-height: 16px;
+  --caption-2-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --caption-2-font-weight: 400;
+  --caption-2-font-size: 14px;
+  --caption-2-letter-spacing: 0px;
+  --caption-2-line-height: 16px;
+  --caption-1-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --caption-1-font-weight: 700;
+  --caption-1-font-size: 14px;
+  --caption-1-letter-spacing: 0px;
+  --caption-1-line-height: 22px;
+  --body-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --body-font-weight: 400;
+  --body-font-size: 16px;
+  --body-letter-spacing: 0px;
+  --body-line-height: 23px;
+  --headline-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --headline-font-weight: 700;
+  --headline-font-size: 16px;
+  --headline-letter-spacing: 0px;
+  --headline-line-height: 23px;
+  --title-4-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --title-4-font-weight: 400;
+  --title-4-font-size: 18px;
+  --title-4-letter-spacing: 0px;
+  --title-4-line-height: 26px;
+  --title-3-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --title-3-font-weight: 700;
+  --title-3-font-size: 18px;
+  --title-3-letter-spacing: 0px;
+  --title-3-line-height: 26px;
+  --title-2-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --title-2-font-weight: 700;
+  --title-2-font-size: 20px;
+  --title-2-letter-spacing: 0px;
+  --title-2-line-height: 34px;
+  --title-1-font-family: "Space Grotesk", Helvetica, sans-serif;
+  --title-1-font-weight: 700;
+  --title-1-font-size: 24px;
+  --title-1-letter-spacing: 0px;
+  --title-1-line-height: 38px;
+  
+  /* Spacing (using consistent naming) */
   --spacing-xs: 0.25rem; /* 4px */
   --spacing-sm: 0.5rem;  /* 8px */
   --spacing-md: 1rem;    /* 16px */
@@ -45,62 +78,84 @@
   /* Borders */
   --border-width: 1px;
   --border-radius-sm: .2rem;
-  --border-radius: .25rem;
+  --border-radius: .25rem; /* Consistent with index.html's new theme: 6px or 0.3rem */
   --border-radius-lg: .3rem;
-  --border-radius-pill: 50rem;
 
   /* Box Shadow */
   --box-shadow-sm: 0 .125rem .25rem rgba(0, 0, 0, .075);
-  --box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+  --box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15); /* More subtle shadow */
   --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, .175);
+  
+  --input-focus-shadow: 0 0 0 0.2rem rgba(139, 147, 115, 0.25); /* Using primaryhigh for focus */
 }
 
-/* Minimal Reset & Global Box Sizing */
+/* Minimal Reset & Global Box Sizing - Assuming Meyer Reset is imported in HTML or here if needed */
+/* @import url("https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css"); */
+/* If not in HTML, uncomment above. For now, assuming it's in index.html's <style> */
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased; /* Moved from index.html */
 }
 
 html {
-  font-family: var(--font-family-sans-serif);
-  line-height: var(--line-height-base);
+  font-family: var(--body-font-family);
+  line-height: var(--body-line-height);
   -webkit-text-size-adjust: 100%;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0); /* iOS tap highlight color */
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  height: 100%; /* Added from index.html */
+  margin: 0; /* Added from index.html */
 }
 
 body {
-  font-family: var(--font-family-sans-serif);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-normal);
-  line-height: var(--line-height-base);
-  color: var(--text-color);
-  background-color: var(--color-gray-100); /* 배경색 변경 */
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size);
+  font-weight: var(--body-font-weight);
+  line-height: var(--body-line-height);
+  color: var(--body-text);
+  background-color: var(--background);
   margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: var(--spacing-md);
+  height: 100%; /* Added from index.html */
 }
 
-.container {
-  width: 90%; /* 너비 조정 */
-  max-width: 1200px; /* 최대 너비 조정 */
+.container { /* Matches styling from index.html more closely */
+  width: 90%; 
+  max-width: 900px; /* Consistent with index.html */
   margin: var(--spacing-md) auto;
-  background-color: var(--color-white);
+  background-color: var(--white);
   padding: var(--spacing-lg);
-  border-radius: var(--border-radius-lg); /* 좀 더 큰 테두리 반경 */
+  border-radius: var(--border-radius-lg);
   box-shadow: var(--box-shadow);
 }
 
-h1 {
-  color: var(--color-dark);
+h1 { /* Using title-1 style from the new theme for consistency */
+  font-family: var(--title-1-font-family);
+  font-weight: var(--title-1-font-weight);
+  font-size: var(--title-1-font-size);
+  line-height: var(--title-1-line-height);
+  color: var(--primaryhigh);
   text-align: center;
   margin-bottom: var(--spacing-lg);
-  font-weight: var(--font-weight-bold);
-  font-size: calc(var(--font-size-base) * 2); /* 예: 32px */
 }
 
+/* General Label Styling - from index.html for consistency */
+label {
+    font-family: var(--headline-font-family);
+    font-weight: var(--headline-font-weight);
+    font-size: var(--headline-font-size);
+    line-height: var(--headline-line-height);
+    color: var(--title-color);
+    display: block;
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Form container - can be removed if not used, or adapted */
 .form-container {
   display: flex;
   gap: var(--spacing-lg);
@@ -108,373 +163,333 @@ h1 {
 }
 
 .input-area,
-.result-area-container {
+.result-area-container { /* These might need to be adapted or removed if structure changes */
   flex: 1;
   padding: var(--spacing-lg);
-  background-color: var(--color-white); /* 컨테이너 내부이므로 흰색 배경 */
-  border: var(--border-width) solid var(--border-color);
+  background-color: var(--white);
+  border: var(--border-width) solid var(--stroke);
   border-radius: var(--border-radius-lg);
 }
 
-textarea#user_input {
-  width: 100%; /* flex item 내부이므로 calc 불필요 */
-  min-height: 150px;
-  padding: var(--spacing-sm);
-  border-radius: var(--border-radius);
-  border: var(--border-width) solid var(--border-color);
-  margin-bottom: var(--spacing-md);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-  font-family: var(--font-family-sans-serif);
+/* Generic input, textarea, select styling - from index.html */
+textarea,
+input[type="text"],
+input[type="date"],
+input[type="number"],
+input[type="email"], /* Added email for completeness */
+select {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--border-radius-lg); /* Slightly larger radius for inputs */
+    border: var(--border-width) solid var(--stroke);
+    box-sizing: border-box;
+    font-family: var(--body-font-family);
+    font-size: var(--body-font-size);
+    color: var(--body-text);
+    background-color: var(--white);
 }
-textarea#user_input:focus {
-  border-color: var(--color-primary);
-  outline: 0;
-  box-shadow: 0 0 0 0.2rem rgba(var(--color-primary), .25);
+textarea:focus,
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+select:focus {
+    border-color: var(--primaryhigh);
+    box-shadow: var(--input-focus-shadow);
+    outline: none;
 }
 
-/* 버튼 공통 스타일 */
+textarea#user_input { /* Specific to the main textarea in index.html if it exists */
+  min-height: 150px;
+  /* Other styles inherited or use the generic textarea style above */
+}
+
+
+/* 버튼 공통 스타일 - adapting .btn from provided style.css */
 .btn {
   display: inline-block;
-  font-weight: var(--font-weight-normal);
-  color: var(--text-color);
+  font-family: var(--headline-font-family);
+  font-weight: var(--headline-font-weight);
+  font-size: var(--headline-font-size);
+  color: var(--white);
   text-align: center;
   vertical-align: middle;
   cursor: pointer;
   user-select: none;
-  background-color: transparent;
-  border: var(--border-width) solid transparent;
-  padding: var(--spacing-sm) var(--spacing-md); /* 기본 패딩 조정 */
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-  border-radius: var(--border-radius);
-  transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+  background-color: var(--primaryhigh);
+  border: var(--border-width) solid var(--primaryhigh);
+  padding: 10px 18px;
+  line-height: var(--headline-line-height);
+  border-radius: var(--border-radius-lg);
+  transition: background-color .2s ease-in-out, border-color .2s ease-in-out, box-shadow .2s ease-in-out;
 }
 
-.btn-primary {
-  color: var(--color-white);
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+.btn:hover {
+  background-color: rgba(120, 128, 100, 1); /* Darker primaryhigh */
+  border-color: rgba(120, 128, 100, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.btn-primary:hover {
-  color: var(--color-white);
-  background-color: var(--color-primary-dark);
-  border-color: var(--color-primary-dark);
+.btn-primary { /* Assuming this is the default button style */
+  /* .btn already covers much of this, primaryhigh is the base */
 }
 
-.btn-primary:focus, .btn-primary.focus {
-  color: var(--color-white);
-  background-color: var(--color-primary-dark);
-  border-color: var(--color-primary-dark);
-  box-shadow: 0 0 0 0.2rem rgba(var(--color-primary), .5); /* 포커스 시 그림자 */
+.btn-success {
+  background-color: var(--success);
+  border-color: var(--success);
 }
 
-/* 기존 버튼에 새로운 버튼 스타일 적용 */
-button#submit_button {
-  /* 기존 스타일 대부분 제거하고 .btn, .btn-primary 클래스로 대체 */
-  /* 필요한 경우 최소한의 추가 스타일만 남김 */
+.btn-success:hover {
+  background-color: rgba(5, 170, 130, 1); /* Darker success */
+  border-color: rgba(5, 170, 130, 1);
 }
 
-.result-area-container h3 {
-  margin-top: 0;
-  margin-bottom: var(--spacing-md);
-  color: var(--color-primary);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+.btn:focus, .btn.focus {
+  /* Generic focus from index.html handles outline, specific shadow for buttons if needed */
+  box-shadow: var(--input-focus-shadow); 
+  outline: none; /* Ensure default outline is removed if custom shadow is applied */
 }
 
-#result_area {
+
+/* 결과 영역 (result_area in index.html) */
+#result_area { /* Style for the div where HTML templates are injected */
   margin-top: var(--spacing-md);
   padding: var(--spacing-md);
-  background-color: var(--color-gray-100); /* 약간 다른 배경색으로 구분 */
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--border-radius);
+  background-color: var(--background); /* Use main background for this area */
+  border: var(--border-width) solid var(--stroke);
+  border-radius: var(--border-radius-lg);
   min-height: 200px;
-  overflow-x: auto; /* 가로 스크롤 유지 */
+  overflow-x: auto;
 }
 
+/* Card style for injected forms (if they use a .card structure) */
 #result_area .card {
-  border: var(--border-width) solid var(--border-color);
+  border: var(--border-width) solid var(--stroke);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
   border-radius: var(--border-radius-lg);
-  background-color: var(--color-white); /* 카드 배경은 흰색으로 */
+  background-color: var(--white);
   box-shadow: var(--box-shadow-sm);
 }
 
-#result_area .card h2 {
+#result_area .card h2 { /* Headers inside the injected form cards */
+  font-family: var(--title-2-font-family);
+  font-weight: var(--title-2-font-weight);
+  font-size: var(--title-2-font-size);
+  color: var(--title-color);
   margin-top: 0;
   margin-bottom: var(--spacing-md);
-  color: var(--color-dark);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  border-bottom: 1px solid var(--stroke);
+  padding-bottom: var(--spacing-sm);
 }
 
-#result_area .card label {
-  display: block;
+#result_area .card label { /* Labels inside injected form cards */
+  font-family: var(--caption-1-font-family);
+  font-weight: var(--caption-1-font-weight);
+  font-size: var(--caption-1-font-size);
+  color: var(--title-color);
   margin-top: var(--spacing-md);
   margin-bottom: var(--spacing-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-color);
-  font-size: var(--font-size-base);
 }
 
-/* 공통 입력 필드 스타일 (카드 내부 및 일반) */
-.form-control {
-  display: block; /* select 요소 등 너비 100% 적용을 위해 */
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-normal);
-  line-height: var(--line-height-base);
-  color: var(--text-color);
-  background-color: var(--color-white);
-  background-clip: padding-box;
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--border-radius);
-  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-  margin-bottom: var(--spacing-md); /* 기본 마진 추가 */
-}
-
-.form-control:focus {
-  border-color: var(--color-primary);
-  outline: 0;
-  box-shadow: 0 0 0 0.2rem rgba(var(--color-primary), .25);
-}
-
-.form-control::placeholder {
-  color: var(--color-gray-500);
-  opacity: 1;
-}
-
-/* 기존 카드 내부 입력 필드들을 .form-control 클래스로 대체 (HTML 수정 필요) */
+/* Form controls inside result_area cards - using more specific typography */
 #result_area .card input[type="text"],
 #result_area .card input[type="date"],
 #result_area .card input[type="number"],
 #result_area .card input[type="email"],
 #result_area .card textarea,
 #result_area .card select {
-  /* 이 스타일들은 .form-control로 통합될 예정 */
-  /* width: calc(100% - 22px); */ /* .form-control 에서 width: 100% 로 처리 */
-  /* padding: 10px; */
-  /* margin-bottom: 10px; */
-  /* border: 1px solid #ccc; */
-  /* border-radius: 4px; */
-  /* box-sizing: border-box; */
-  /* 위의 속성들은 .form-control 로 이전됨 */
-  /* 아래는 개별 요소 타입에 따른 최소한의 추가 스타일 */
+  font-family: var(--caption-2-font-family);
+  font-size: var(--caption-2-font-size);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--background); /* Slightly different bg for these inputs */
+  /* Inherits other styles from generic input, textarea, select */
 }
 
-#result_area .card textarea.form-control { /* .form-control 클래스가 적용되었다고 가정 */
+#result_area .card textarea { 
   min-height: 80px;
   resize: vertical;
 }
 
-/* 카드 내부 제출 버튼 (만약 있다면 .btn, .btn-success 등으로 대체) */
-#result_area .card button[type="submit"] {
-  /* background-color: #2ecc71; */
-  /* color: white; */
-  /* padding: 10px 15px; */
-  /* border: none; */
-  /* border-radius: 4px; */
-  /* cursor: pointer; */
-  /* font-size: 1em; */
-  /* margin-top: 10px; */
-  /* 위의 스타일은 .btn, .btn-success 등으로 대체 예정 */
-}
-
-.btn-success {
-  color: var(--color-white);
-  background-color: var(--color-success);
-  border-color: var(--color-success);
-}
-
-.btn-success:hover {
-  color: var(--color-white);
-  background-color: darken(var(--color-success), 10%); /* darken 함수는 SCSS 기능, 순수 CSS로는 직접 색상 지정 */
-  border-color: darken(var(--color-success), 10%);
-  /* 순수 CSS 대체 */
-  /* background-color: #1e7e34; */ 
-  /* border-color: #1c7430; */
-}
-
-/* 품목 세트 스타일 */
-#result_area .item-set {
-  border: var(--border-width) dashed var(--color-gray-400); /* 점선 및 색상 변경 */
+/* Item sets (e.g., for purchase items) */
+#result_area .item-set, 
+#result_area .expense-item-set, 
+#result_area .card-usage-item-set {
+  border: var(--border-width) dashed var(--primarymedium);
   padding: var(--spacing-lg);
   margin-top: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
-  border-radius: var(--border-radius);
-  background-color: var(--color-gray-100); /* 약간 다른 배경으로 구분 */
+  border-radius: var(--border-radius-lg);
+  background-color: var(--primarylight);
 }
 
-#result_area .item-set h4 {
-  margin-top: 0;
-  margin-bottom: var(--spacing-md);
-  color: var(--color-secondary);
-  font-size: calc(var(--font-size-base) * 1.1);
-  border-bottom: var(--border-width) solid var(--color-gray-200);
-  padding-bottom: var(--spacing-sm);
+#result_area .item-set legend, /* Using legend for item set titles */
+#result_area .expense-item-set legend,
+#result_area .card-usage-item-set legend {
+  font-family: var(--caption-1-font-family);
+  font-weight: var(--caption-1-font-weight);
+  font-size: var(--caption-1-font-size);
+  color: var(--primaryhigh);
+  padding: 0 var(--spacing-xs);
+  margin-left: var(--spacing-sm);
 }
+
 
 .error-message {
-  color: var(--color-danger);
-  font-weight: var(--font-weight-bold);
+  color: var(--cancel);
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size);
+  font-weight: var(--body-font-weight);
   margin-top: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: rgba(var(--color-danger), .1);
-  border: var(--border-width) solid rgba(var(--color-danger), .2);
-  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  background-color: rgba(252, 99, 99, 0.1); /* Light cancel */
+  border: var(--border-width) solid var(--cancel);
+  border-radius: var(--border-radius-lg);
 }
 
-/* 디버그 정보 스타일 */
-#debug_info {
+/* 디버그 정보 스타일 - consistent with index.html's new theme */
+#debug_info, /* Assuming #debugInfo from index.html might be #debug_info here */
+#debugInfo { /* Covering both possibilities */
   margin-top: var(--spacing-lg);
   padding: var(--spacing-md);
-  background-color: var(--color-dark);
-  color: var(--color-light);
-  border: var(--border-width) solid var(--color-gray-700);
-  border-radius: var(--border-radius);
+  background-color: var(--primarylight);
+  color: var(--body-text);
+  border: var(--border-width) solid var(--stroke);
+  border-radius: var(--border-radius-lg);
   max-height: 300px;
   overflow-y: auto;
 }
 
-#debug_info h3 {
+#debug_info h3,
+#debugInfo h3 { /* Headers for debug info */
+  font-family: var(--title-3-font-family);
+  font-weight: var(--title-3-font-weight);
+  font-size: var(--title-3-font-size);
+  color: var(--secondaryhigh);
   margin-top: 0;
   margin-bottom: var(--spacing-sm);
-  color: var(--color-info); /* 디버그 헤더 색상 변경 */
-  font-size: var(--font-size-lg);
 }
 
-#debug_info pre {
+#debug_info pre,
+#debugInfo pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: var(--font-family-monospace);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-base);
+  font-family: var(--caption-4-font-family);
+  font-size: var(--caption-4-font-size);
+  line-height: var(--caption-4-line-height);
 }
 
-/* 전자결재 양식 자체 스타일 (일반 테이블 등) */
+/* Tables injected into result_area */
 #result_area table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: var(--spacing-lg);
-  font-size: var(--font-size-sm); /* 테이블 내 폰트 크기 약간 작게 */
-  background-color: var(--color-white); /* 테이블 배경 흰색 */
+  font-family: var(--caption-2-font-family);
+  font-size: var(--caption-2-font-size);
+  background-color: var(--white);
 }
 
 #result_area th,
 #result_area td {
-  border: var(--border-width) solid var(--border-color);
-  padding: var(--spacing-sm);
+  border: var(--border-width) solid var(--primarymedium);
+  padding: var(--spacing-sm) var(--spacing-md);
   text-align: left;
   vertical-align: middle;
 }
 
 #result_area th {
-  background-color: var(--color-gray-100); /* 헤더 배경색 변경 */
-  font-weight: var(--font-weight-bold);
-  text-align: center;
-  color: var(--color-gray-700);
+  background-color: var(--primarylight);
+  color: var(--primaryhigh);
+  font-weight: var(--caption-1-font-weight);
+  text-align: center; 
 }
 
-/* 테이블 내 입력 필드들은 .form-control 클래스를 사용하도록 HTML 변경 예정 */
+/* Inputs within tables in result_area */
 #result_area table input[type="text"],
 #result_area table input[type="date"],
 #result_area table input[type="number"],
 #result_area table select,
 #result_area table textarea {
-  /* 이 스타일들은 .form-control로 통합될 예정 */
-  /* width: 95%; */
-  /* padding: 5px; */
-  /* margin: 0; */
-  /* border: 1px solid #ccc; */
-  /* border-radius: 3px; */
-  /* box-sizing: border-box; */
-  /* .form-control 클래스를 사용하면서, 필요한 경우 margin-bottom만 조정 */
-  margin-bottom: 0; /* 테이블 셀 내에서는 마진 제거 */
+  margin-bottom: 0; /* Remove margin for inputs in table cells */
+  font-family: var(--caption-4-font-family); /* Smaller font for table inputs */
+  font-size: var(--caption-4-font-size);
+  padding: var(--spacing-xs) var(--spacing-sm); /* Smaller padding */
+  background-color: var(--white); /* Ensure inputs are distinct from cell bg if cell has color */
 }
 
-/* 양식 제목 */
+/* Form Title inside result_area */
 #result_area .form-title {
-  font-size: calc(var(--font-size-base) * 1.75); /* 예: 28px */
-  font-weight: var(--font-weight-bold);
+  font-family: var(--title-1-font-family);
+  font-weight: var(--title-1-font-weight);
+  font-size: var(--title-1-font-size);
   text-align: center;
   margin-bottom: var(--spacing-lg);
-  color: var(--color-dark);
+  color: var(--title-color);
 }
 
-/* 야근 식대 신청서 테이블 헤더 */
-#result_area .dinner-expense-header {
-  font-size: calc(var(--font-size-base) * 1.5); /* 예: 24px */
-  font-weight: var(--font-weight-bold);
+/* Specific form headers like .dinner-expense-header */
+#result_area .dinner-expense-header { /* Example specific header */
+  font-family: var(--title-2-font-family);
+  font-weight: var(--title-2-font-weight);
   text-align: center;
   vertical-align: middle;
-  padding: var(--spacing-md); /* 패딩 조정 */
-  /* height: 90px !important; */ /* !important 제거, 패딩 등으로 조절 */
-  background-color: var(--color-gray-200);
-  color: var(--color-dark);
+  padding: var(--spacing-md);
+  background-color: var(--primarylight);
+  color: var(--primaryhigh);
+  border-bottom: 1px solid var(--primarymedium);
 }
 
-/* 결재란 스타일 (기본 구조 유지, CSS 변수 적용) */
+/* Approval signature styles - .sign_type1_inline */
 #result_area .sign_type1_inline {
-  border: var(--border-width) solid var(--color-dark);
+  border: var(--border-width) solid var(--primarymedium);
   display: inline-block;
   margin-left: var(--spacing-xs);
-  background-color: var(--color-white);
+  background-color: var(--white);
+  /* Add padding and other styles if needed for content within */
 }
 
-/* comp_item 클래스 (플레이스홀더 텍스트) */
+/* Placeholder text for empty fields - .comp_item */
 #result_area .comp_item {
-  color: #777; /* 플레이스홀더 텍스트 색상 */
+  color: var(--body-text); /* Use standard body text color, maybe with opacity */
+  opacity: 0.7;
   font-style: italic;
+  font-family: var(--caption-2-font-family);
 }
 
-/* ipt_editor 등 특정 클래스에 대한 너비 조정 */
+/* Specific width adjustments for .ipt_editor, .txta_editor */
 #result_area input.ipt_editor,
 #result_area textarea.txta_editor {
-  width: calc(100% - 12px); /* 패딩 고려 */
+  /* width: calc(100% - 12px); Assuming this was for specific padding. Generic input style should handle it. */
+  /* If still needed, review why 100% from generic input is not enough */
 }
 
-/* Form Group Styling */
+/* Form Group Styling - consistent with index.html if it had .form-group */
 .form-group {
   margin-bottom: var(--spacing-md);
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: var(--spacing-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-color);
-  font-size: var(--font-size-base);
-}
-
-/* #result_area .card label 스타일과 중복될 수 있으므로, 
-   HTML 구조 변경 후 .form-group label로 통일하거나, 
-   #result_area .card 내부의 .form-group label에만 특정 스타일을 주도록 조정할 수 있음.
-   일단은 .form-group label을 기본으로 사용.
-*/
+/* .form-group label already styled by general label selector */
 
 /* Form Section Title (e.g., for item list headers) */
 .form-section-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-dark);
+  font-family: var(--title-2-font-family); /* Using title-2 for section titles */
+  font-weight: var(--title-2-font-weight);
+  font-size: var(--title-2-font-size);
+  color: var(--title-color);
   margin-top: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-sm);
-  border-bottom: var(--border-width) solid var(--border-color);
+  border-bottom: var(--border-width) solid var(--stroke);
 }
 
 /* Grid layout for item fields within an item-set */
 .item-fields-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid columns */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Adjusted minmax for potentially smaller items */
   gap: var(--spacing-md);
 }
 
-/* Adjust .form-group margin when inside .item-fields-grid if necessary */
 .item-fields-grid .form-group {
-  margin-bottom: 0; /* Grid gap will handle spacing conflictos con el margin-bottom del .form-group */
+  margin-bottom: 0; /* Grid gap handles spacing */
 } 

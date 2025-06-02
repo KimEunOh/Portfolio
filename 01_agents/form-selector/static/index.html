@@ -6,74 +6,379 @@
     <title>전자결재 양식 추천봇</title>
     <link rel="stylesheet" href="/ui/style.css">
     <style>
+        @import url("https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css");
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap');
+
+        * {
+            -webkit-font-smoothing: antialiased;
+            box-sizing: border-box;
+        }
+
+        html,
         body {
-            font-family: sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
+            margin: 0px;
+            height: 100%;
         }
-        .container {
-            max-width: 800px;
-            margin: auto;
-            background: white;
+
+        button:focus-visible {
+            outline: 2px solid #4a90e2 !important;
+            outline: -webkit-focus-ring-color auto 5px !important;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        :root {
+            --background: rgba(250, 250, 250, 1);
+            --body-text: rgba(128, 128, 128, 1);
+            --cancel: rgba(252, 99, 99, 1);
+            --process: rgba(255, 181, 70, 1);
+            --stroke: rgba(238, 238, 238, 1);
+            --success: rgba(6, 198, 152, 1);
+            --title-color: rgba(50, 50, 23, 0.624); /* Renamed from --title to avoid conflict */
+            --white: rgba(255, 255, 255, 1);
+            --primaryhigh: rgba(139, 147, 115, 1);
+            --primarylight: rgba(228, 230, 222, 1);
+            --primarymedium: rgba(195, 199, 183, 1);
+            --secondaryhigh: rgba(244, 167, 84, 1);
+            --secondarylight: rgba(253, 243, 231, 1);
+            --secondarymedium: rgba(249, 206, 159, 1);
+            
+            /* Typography variables */
+            --caption-4-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --caption-4-font-weight: 400;
+            --caption-4-font-size: 12px;
+            --caption-4-letter-spacing: 0px;
+            --caption-4-line-height: 16px;
+            --caption-3-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --caption-3-font-weight: 700;
+            --caption-3-font-size: 12px;
+            --caption-3-letter-spacing: 0px;
+            --caption-3-line-height: 16px;
+            --caption-2-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --caption-2-font-weight: 400;
+            --caption-2-font-size: 14px;
+            --caption-2-letter-spacing: 0px;
+            --caption-2-line-height: 16px;
+            --caption-1-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --caption-1-font-weight: 700;
+            --caption-1-font-size: 14px;
+            --caption-1-letter-spacing: 0px;
+            --caption-1-line-height: 22px;
+            --body-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --body-font-weight: 400;
+            --body-font-size: 16px;
+            --body-letter-spacing: 0px;
+            --body-line-height: 23px;
+            --headline-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --headline-font-weight: 700;
+            --headline-font-size: 16px;
+            --headline-letter-spacing: 0px;
+            --headline-line-height: 23px;
+            --title-4-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --title-4-font-weight: 400;
+            --title-4-font-size: 18px;
+            --title-4-letter-spacing: 0px;
+            --title-4-line-height: 26px;
+            --title-3-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --title-3-font-weight: 700;
+            --title-3-font-size: 18px;
+            --title-3-letter-spacing: 0px;
+            --title-3-line-height: 26px;
+            --title-2-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --title-2-font-weight: 700;
+            --title-2-font-size: 20px;
+            --title-2-letter-spacing: 0px;
+            --title-2-line-height: 34px;
+            --title-1-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --title-1-font-weight: 700;
+            --title-1-font-size: 24px;
+            --title-1-letter-spacing: 0px;
+            --title-1-line-height: 38px;
+            --h1-title-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --h1-title-font-weight: 700;
+            --h1-title-font-size: 42px;
+            --h1-title-letter-spacing: 0px;
+            --h1-title-line-height: 110%; /* Adjusted from original */
+            --h2-title-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --h2-title-font-weight: 700;
+            --h2-title-font-size: 36px;
+            --h2-title-letter-spacing: 0px;
+            --h2-title-line-height: 110%; /* Adjusted from original */
+            --h3-title-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --h3-title-font-weight: 700;
+            --h3-title-font-size: 32px;
+            --h3-title-letter-spacing: 0px;
+            --h3-title-line-height: 110%; /* Adjusted from original */
+
+            --border-radius: 6px; /* A slightly more modern radius */
+            --input-focus-shadow: 0 0 0 0.2rem rgba(139, 147, 115, 0.25); /* Using primaryhigh for focus */
+            --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: var(--body-font-family);
+            font-weight: var(--body-font-weight);
+            font-size: var(--body-font-size);
+            line-height: var(--body-line-height);
+            letter-spacing: var(--body-letter-spacing);
+            background-color: var(--background);
+            color: var(--body-text);
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: var(--white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
         h1 {
-            color: #5a5a5a;
+            font-family: var(--h2-title-font-family); /* Using H2 for page title */
+            font-weight: var(--h2-title-font-weight);
+            font-size: var(--h2-title-font-size);
+            line-height: var(--h2-title-line-height);
+            color: var(--primaryhigh);
             text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-family: var(--title-1-font-family);
+            font-weight: var(--title-1-font-weight);
+            font-size: var(--title-1-font-size);
+            line-height: var(--title-1-line-height);
+            color: var(--title-color);
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--stroke);
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            font-family: var(--title-2-font-family);
+            font-weight: var(--title-2-font-weight);
+            font-size: var(--title-2-font-size);
+            line-height: var(--title-2-line-height);
+            color: var(--primarymedium);
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        label { /* General label styling */
+            font-family: var(--headline-font-family);
+            font-weight: var(--headline-font-weight);
+            font-size: var(--headline-font-size);
+            line-height: var(--headline-line-height);
+            color: var(--title-color);
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        textarea,
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--stroke);
+            box-sizing: border-box;
+            font-family: var(--body-font-family);
+            font-size: var(--body-font-size);
+            color: var(--body-text);
+            background-color: var(--white);
+        }
+        textarea:focus,
+        input[type="text"]:focus,
+        input[type="date"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            border-color: var(--primaryhigh);
+            box-shadow: var(--input-focus-shadow);
+            outline: none;
         }
         textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-            min-height: 80px;
+             min-height: 100px;
         }
+
         button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 15px;
+            background-color: var(--primaryhigh);
+            color: var(--white);
+            padding: 10px 18px;
             border: none;
-            border-radius: 4px;
+            border-radius: var(--border-radius);
             cursor: pointer;
-            font-size: 16px;
+            font-family: var(--headline-font-family);
+            font-weight: var(--headline-font-weight);
+            font-size: var(--headline-font-size);
+            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: rgba(120, 128, 100, 1); /* Darker primaryhigh */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+        button:disabled {
+            background-color: var(--primarymedium);
+            color: rgba(255,255,255,0.7);
+            cursor: not-allowed;
+        }
+
+        #submitDocumentButton {
+            background-color: var(--primaryhigh); /* 기존 버튼과 동일한 색상으로 변경 */
+        }
+        #submitDocumentButton:hover {
+            background-color: rgba(120, 128, 100, 1); /* Darker primaryhigh, 기존 버튼과 동일 */
+        }
+
         #resultArea, #debugInfo {
             margin-top: 20px;
+            padding: 20px;
+            border: 1px solid var(--stroke);
+            border-radius: var(--border-radius);
+            background-color: var(--white);
+        }
+        
+        /* Form elements inside resultArea */
+        #resultArea form label {
+            font-family: var(--caption-1-font-family);
+            font-weight: var(--caption-1-font-weight);
+            font-size: var(--caption-1-font-size);
+            color: var(--title-color);
+            margin-bottom: 5px;
+        }
+        #resultArea form input[type="text"],
+        #resultArea form input[type="date"],
+        #resultArea form input[type="number"],
+        #resultArea form select,
+        #resultArea form textarea {
+            font-family: var(--caption-2-font-family);
+            font-size: var(--caption-2-font-size);
+            background-color: var(--background); /* Slightly different bg for inputs in form */
+        }
+        
+        /* Item-set styling */
+        #resultArea .item-set, 
+        #resultArea .expense-item-set, 
+        #resultArea .card-usage-item-set {
+            border: 1px dashed var(--primarymedium);
             padding: 15px;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            background-color: #f9f9f9;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+            background-color: var(--primarylight);
         }
-        #resultArea .card {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            background-color: #fff;
+        #resultArea .item-set legend, 
+        #resultArea .expense-item-set legend, 
+        #resultArea .card-usage-item-set legend {
+            font-family: var(--caption-1-font-family);
+            font-weight: var(--caption-1-font-weight);
+            color: var(--primaryhigh);
+            padding: 0 5px;
+            margin-left: 10px;
         }
-        #resultArea .card h2 {
-            margin-top: 0;
-            color: #007bff;
-        }
+
+
         #debugInfo pre {
             white-space: pre-wrap;
             word-wrap: break-word;
-            background-color: #e9ecef;
-            padding: 10px;
-            border-radius: 4px;
+            background-color: var(--primarylight);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            font-family: var(--caption-4-font-family);
+            font-size: var(--caption-4-font-size);
+            line-height: var(--caption-4-line-height);
+            color: var(--body-text);
+            border: 1px solid var(--stroke);
         }
+
         .error-message {
-            color: red;
-            font-weight: bold;
+            color: var(--cancel);
+            background-color: rgba(252, 99, 99, 0.1); /* Light cancel */
+            border: 1px solid var(--cancel);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            font-family: var(--body-font-family);
+            font-size: var(--body-font-size);
+            margin-bottom: 15px;
         }
+
+        /* Approval Info Section */
+        .approval-info-container {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--stroke);
+            border-radius: var(--border-radius);
+            background-color: var(--white);
+            box-shadow: var(--box-shadow);
+        }
+        .approval-info-container > div { /* flex container */
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .drafter-info, .approver-list {
+            flex-basis: 48%;
+            padding: 15px;
+            background-color: var(--background); 
+            border-radius: var(--border-radius);
+            border: 1px solid var(--stroke);
+        }
+        .drafter-info p, .approver-list p { /* General text in these boxes */
+            font-family: var(--caption-2-font-family);
+            font-size: var(--caption-2-font-size);
+            line-height: var(--caption-2-line-height);
+            color: var(--title-color); /* This was already set, should be dark */
+            margin-bottom: 8px;
+        }
+        .drafter-info p strong {
+            font-weight: var(--caption-1-font-weight); /* Using caption-1 for strong */
+            color: var(--title-color); /* Changed from --primaryhigh to --title-color for better readability */
+        }
+        
+        /* Approval Table */
+        #approverTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        #approverTable th, #approverTable td {
+            border: 1px solid var(--primarymedium); /* Table borders with primary medium */
+            padding: 10px;
+            text-align: left;
+            font-family: var(--caption-2-font-family);
+            font-size: var(--caption-2-font-size);
+            color: var(--title-color); /* This was already set for td, th will be overridden below if needed */
+        }
+        #approverTable th {
+            background-color: var(--primarylight);
+            color: var(--title-color); /* Changed from --primaryhigh to --title-color for table headers */
+            font-weight: var(--caption-1-font-weight); /* Bold captions for TH */
+        }
+        #approverTable tbody tr:nth-child(odd) {
+            background-color: var(--white);
+        }
+        #approverTable tbody tr:nth-child(even) {
+            background-color: var(--background); 
+        }
+        #approverTable tbody td[colspan="4"] { 
+            text-align: center;
+            color: var(--body-text); /* 기존 body-text 유지 또는 필요시 var(--title-color)로 변경 */
+            font-style: italic;
+            font-family: var(--caption-4-font-family);
+        }
+
+        /* More specific rule for h3 inside approval info boxes */
+        .approval-info-container .drafter-info h3,
+        .approval-info-container .approver-list h3 {
+            color: var(--title-color); /* Ensure these headers are dark */
+        }
+
     </style>
 </head>
 <body>
