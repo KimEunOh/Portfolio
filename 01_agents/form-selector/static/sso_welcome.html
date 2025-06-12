@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSO 인증 상태</title>
+    <style>
+        :root {
+            --background: rgba(250, 250, 250, 1);
+            --body-text: rgba(128, 128, 128, 1);
+            --stroke: rgba(238, 238, 238, 1);
+            --title-color: rgba(50, 50, 23, 0.624);
+            --white: rgba(255, 255, 255, 1);
+            --primaryhigh: rgba(139, 147, 115, 1);
+            --primarylight: rgba(228, 230, 222, 1);
+            --danger-color: rgba(220, 53, 69, 1); /* Red for errors */
+            
+            --body-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --body-font-weight: 400;
+            --body-font-size: 16px;
+            --body-line-height: 23px;
+            --headline-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --headline-font-weight: 700;
+            --headline-font-size: 16px;
+            --h1-title-font-family: "Space Grotesk", Helvetica, sans-serif;
+            --h1-title-font-weight: 700;
+            --h1-title-font-size: 32px; /* Adjusted for status page */
+            --h1-title-line-height: 110%;
+
+            --border-radius: 6px;
+            --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: var(--body-font-family, sans-serif);
+            font-weight: var(--body-font-weight);
+            font-size: var(--body-font-size);
+            line-height: var(--body-line-height);
+            background-color: var(--background);
+            color: var(--body-text);
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--white);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+
+        h1 {
+            font-family: var(--h1-title-font-family, sans-serif);
+            font-weight: var(--h1-title-font-weight);
+            font-size: var(--h1-title-font-size);
+            line-height: var(--h1-title-line-height);
+            color: var(--primaryhigh);
+            margin-bottom: 15px;
+        }
+        h1.error-title {
+            color: var(--danger-color);
+        }
+        
+        #loadingIndicator {
+            padding: 20px 0;
+            font-size: 18px;
+            color: var(--title-color);
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--primaryhigh);
+            margin: 15px auto;
+            animation: spin 1s ease infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .user-info, #authFailedSection {
+            background-color: var(--primarylight);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-top: 20px;
+            margin-bottom: 30px;
+            border: 1px solid var(--stroke);
+            text-align: left;
+        }
+        #authFailedSection {
+            background-color: rgba(253, 231, 233, 1); /* Lighter red for error background */
+            border-color: var(--danger-color);
+        }
+        #authFailedSection p {
+            color: var(--danger-color);
+            font-weight: var(--headline-font-weight);
+        }
+        #authFailedSection .error-details {
+            font-size: 14px;
+            color: var(--body-text);
+            margin-top: 10px;
+            word-break: break-all;
+        }
+
+        .user-info p {
+            font-family: var(--body-font-family, sans-serif);
+            font-size: var(--body-font-size);
+            color: var(--title-color);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .user-info p strong {
+            font-weight: var(--headline-font-weight);
+            color: var(--primaryhigh);
+            margin-right: 8px;
+        }
+        .user-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-text {
+            margin-top: 30px;
+            font-size: 14px;
+            color: var(--body-text);
+            font-style: italic;
+        }
+        
+        .button-container {
+            margin-top: 30px;
+        }
+
+        button {
+            background-color: var(--primaryhigh);
+            color: var(--white);
+            padding: 12px 25px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-family: var(--headline-font-family, sans-serif);
+            font-weight: var(--headline-font-weight);
+            font-size: var(--headline-font-size);
+            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            margin-right: 10px; /* Add some margin if multiple buttons */
+        }
+        button:last-child {
+            margin-right: 0;
+        }
+        button:hover {
+            background-color: rgba(120, 128, 100, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        button.retry-button {
+            background-color: var(--primarymedium);
+        }
+        button.retry-button:hover {
+            background-color: var(--primaryhigh);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="mainTitle">SSO 인증</h1> 
+        <p id="statusMessage">Teams 연동 SSO 인증을 처리 중입니다...</p>
+        
+        <div id="loadingIndicator" style="display: none;">
+            <p>Teams 사용자 정보를 불러오는 중입니다...</p>
+            <div class="spinner"></div>
+        </div>
+
+        <div id="authFailedSection" style="display: none;">
+            <p>SSO 인증에 실패했습니다.</p>
+            <div id="errorMessage" class="error-details"></div>
+        </div>
+        
+        <div class="user-info" id="userInfoSection" style="display: none;">
+            <p><strong>이름:</strong> <span id="userName"></span></p>
+            <p><strong>이메일:</strong> <span id="userEmail"></span></p>
+            <p><strong>부서:</strong> <span id="userDepartment"></span></p>
+            <p><strong>Teams 사용자 ID:</strong> <span id="teamsUserId"></span></p>
+        </div>
+        
+        <div class="button-container" id="buttonContainerSection" style="display: none;">
+             <button onclick="goToMainApp()">메인 애플리케이션으로 이동</button>
+             <button onclick="retryAuth()" class="retry-button" id="retryButton" style="display: none;">다시 시도</button>
+        </div>
+
+        <p class="info-text">이 페이지는 SSO 연동 상태를 보여주는 데모입니다.</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mainTitle = document.getElementById('mainTitle');
+            const statusMessage = document.getElementById('statusMessage');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const userInfoSection = document.getElementById('userInfoSection');
+            const authFailedSection = document.getElementById('authFailedSection');
+            const errorMessageElement = document.getElementById('errorMessage');
+            const buttonContainerSection = document.getElementById('buttonContainerSection');
+            const retryButton = document.getElementById('retryButton');
+            const goToMainAppButton = buttonContainerSection.querySelector('button:not(#retryButton)');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const authStatus = urlParams.get('auth_status');
+            const errMessage = urlParams.get('error_message');
+
+            // Hide all dynamic sections initially
+            loadingIndicator.style.display = 'none';
+            userInfoSection.style.display = 'none';
+            authFailedSection.style.display = 'none';
+            buttonContainerSection.style.display = 'block'; // Show button container by default, specific buttons will be managed
+            goToMainAppButton.style.display = 'none';
+            retryButton.style.display = 'none';
+
+            if (authStatus === 'failed') {
+                mainTitle.textContent = '⚠ SSO 인증 실패';
+                mainTitle.classList.add('error-title');
+                statusMessage.textContent = 'Teams 연동 SSO 인증에 실패하였습니다.';
+                authFailedSection.style.display = 'block';
+                errorMessageElement.textContent = errMessage ? decodeURIComponent(errMessage) : '알 수 없는 오류가 발생했습니다.';
+                retryButton.style.display = 'inline-block';
+            } else {
+                // Assume success or pending if no 'failed' status
+                mainTitle.textContent = 'SSO 인증'; // 중립적인 초기 제목
+                mainTitle.classList.remove('error-title');
+                statusMessage.textContent = 'Teams 연동 SSO 인증 중...'; // Initial message before loading simulation
+                loadingIndicator.style.display = 'block';
+
+                setTimeout(function() {
+                    loadingIndicator.style.display = 'none';
+                    
+                    // Populate user data (virtual for now)
+                    document.getElementById('userName').textContent = '김팀즈 (가상)';
+                    document.getElementById('userEmail').textContent = 'teams.user@example.com (가상)';
+                    document.getElementById('userDepartment').textContent = 'IT 개발팀 (가상)';
+                    document.getElementById('teamsUserId').textContent = 'S-1-2-34-567890 (가상)';
+                    
+                    // Update titles and show content after successful loading/data retrieval
+                    mainTitle.textContent = '🎉 SSO 인증 성공! 🎉'; 
+                    statusMessage.textContent = 'Teams 연동 SSO를 통해 성공적으로 로그인되었습니다.';
+                    userInfoSection.style.display = 'block';
+                    goToMainAppButton.style.display = 'inline-block';
+                    // infoText.innerHTML = '표시된 사용자 정보는 Teams에서 전달받은 가상의 정보입니다.';
+                }, 1500); // Simulate 1.5 seconds loading time for success
+            }
+        });
+
+        function goToMainApp() {
+            window.location.href = "/ui/index.html"; 
+            // alert("메인 애플리케이션으로 이동합니다. (데모)"); // Alert can be removed for smoother flow
+        }
+
+        function retryAuth() {
+            // For demo, redirect to the same page without error params, simulating a retry.
+            // In a real scenario, this might redirect to the SSO initiation URL.
+            window.location.href = window.location.pathname;
+        }
+    </script>
+</body>
+</html> 

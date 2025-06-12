@@ -7,7 +7,7 @@ from form_selector.schema import UserInput
 from form_selector.service import classify_and_extract_slots_for_template
 import os
 from dotenv import load_dotenv
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 import logging
 import httpx
 import json
@@ -35,7 +35,7 @@ app.mount(
 
 @app.get("/")
 async def read_root():
-    return {"message": "Form Selector API. UI는 /ui 로 접속하세요."}
+    return RedirectResponse(url="/ui/sso_welcome.html")
 
 
 @app.post("/form-selector")
@@ -119,8 +119,6 @@ async def fetch_my_line_endpoint(request: form_schema.ApproverInfoRequest):
         "APPROVAL_API_BASE_URL",
         "https://dev-api.ntoday.kr/api/v1/epaper",  # 기본 URL은 예시
     )
-    # 실제 myLine API의 엔드포인트 경로를 사용해야 합니다.
-    # 여기서는 사용자 입력에 따라 'myLine'으로 가정합니다.
     endpoint = "myLine"
     url = f"{api_base_url}/{endpoint}"
 
@@ -204,22 +202,6 @@ async def fetch_my_line_endpoint(request: form_schema.ApproverInfoRequest):
 
 
 # --- END 외부 myLine API 직접 호출 엔드포인트 --- #
-
-
-# 루트 경로 ("/") 접근 시 UI 페이지로 리디렉션 또는 기본 페이지 안내 (선택적)
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    return """
-    <html>
-        <head>
-            <title>Form Selector API</title>
-        </head>
-        <body>
-            <h1>Form Selector API</h1>
-            <p>Test UI is available at <a href="/ui/index.html">/ui/index.html</a>.</p>
-        </body>
-    </html>
-    """
 
 
 # FastAPI 엔트리포인트 및 라우터 정의 예정

@@ -46,6 +46,8 @@ LEAVE_TYPE_TEXT_TO_VALUE_MAP = {
     "오후 반반차": "quarter_day_afternoon",
     "오전반차": "half_day_morning",  # 공백 없는 경우도 고려
     "오후반차": "half_day_afternoon",  # 공백 없는 경우도 고려
+    "오전반반차": "quarter_day_morning",  # 공백 없는 경우도 고려
+    "오후반반차": "quarter_day_afternoon",  # 공백 없는 경우도 고려
 }
 
 
@@ -95,10 +97,6 @@ def fill_slots_in_template(
         f"Using current_date_iso for parsing: {current_date_iso}"
     )  # 기준 날짜 로깅
 
-    # Pre-process all string values in slots_dict to escape backslashes for re.sub
-    # This applies to single string values and strings within lists of dicts (like items)
-    # re.sub의 replacer 함수에 전달될 문자열 값들은 백슬래시가 이스케이프 되어야 합니다.
-    # 그렇지 않으면, 예를 들어 슬롯 값에 "C:\Users" 와 같은 경로가 있을 경우, re.sub는 이를 "C:(tab)Users"로 해석할 수 있습니다.
     if slots_dict:
         processed_slots_for_re = {}
         for k, v in slots_dict.items():
@@ -125,9 +123,6 @@ def fill_slots_in_template(
                 processed_slots_for_re[k] = new_list
             else:
                 processed_slots_for_re[k] = v
-        # logging.info(
-        #     f"Slots after pre-processing backslashes for re.sub: {processed_slots_for_re}"
-        # ) # 로깅이 너무 길어질 수 있어 주석 처리
     else:
         processed_slots_for_re = {}
 
@@ -139,14 +134,6 @@ def fill_slots_in_template(
 
     # None 값을 가진 슬롯은 템플릿 채우기에서 제외 (활성 슬롯만 사용)
     active_slots = {k: v for k, v in slots_dict.items() if v is not None}
-
-    # `slots_for_replacer`는 `re.sub`의 `replacer` 함수 및 `items_json_str` 생성에 사용될,
-    # 백슬래시가 이스케이프된 슬롯 값들을 담는 딕셔너리입니다.
-    # 날짜 파싱 등의 변환은 이스케이프 전의 원본 데이터(active_slots)에 대해 수행하고,
-    # 그 결과를 다시 이스케이프하여 `slots_for_replacer`에 저장합니다.
-    # 하지만 현재 로직에서는 processed_slots_for_re를 사용하고, 이후 transformed_slots를 만듭니다.
-    # transformed_slots가 최종적으로 re.sub에 사용되므로, 해당 값들이 이스케이프 되어야 합니다.
-    # 아래에서는 transformed_slots를 기준으로 처리하고, re.sub 전달 직전에 문자열 값들을 이스케이프 합니다.
 
     # 모든 변환(날짜 파싱, 키 변경 등)은 active_slots의 복사본인 transformed_slots에 대해 수행됩니다.
     transformed_slots = {**active_slots}
@@ -181,31 +168,6 @@ def fill_slots_in_template(
             elif not parsed_value:  # 파싱 실패
                 logging.warning(
                     f"Failed to parse general date field '{field}': '{original_value}'. Keeping original."
-                )
-            # else: 파싱 결과가 원본과 같으면 (이미 YYYY-MM-DD 형식이거나, utils가 원본 반환) 로그 불필요
-
-    # 회의 시간 관련 슬롯 (`meeting_datetime`, `meeting_time`, `meeting_time_description`) 처리
-    # 이 슬롯들은 "YYYY-MM-DDTHH:MM" 형식을 기대합니다.
-    datetime_fields_to_parse = [
-        "meeting_datetime",
-        "meeting_time",  # 이 슬롯은 HH:MM 또는 자연어 시간일 수 있음
-        "meeting_time_description",  # 이 슬롯은 자연어 시간 묘사
-        "overtime_time",  # HH:MM 또는 자연어 시간
-    ]
-    for field in datetime_fields_to_parse:
-        if field in transformed_slots and isinstance(transformed_slots[field], str):
-            original_value = transformed_slots[field]
-            parsed_value = parse_datetime_description_to_iso_local(
-                original_value, current_date_iso=current_date_iso
-            )
-            if parsed_value and parsed_value != original_value:
-                transformed_slots[field] = parsed_value
-                logging.info(
-                    f"Parsed datetime field '{field}': '{original_value}' -> '{parsed_value}'"
-                )
-            elif not parsed_value:
-                logging.warning(
-                    f"Failed to parse datetime field '{field}': '{original_value}'. Keeping original."
                 )
 
     # 구매 품의서(`items` 키 사용)의 아이템별 특별 처리:
@@ -388,22 +350,15 @@ def fill_slots_in_template(
             f"Slot 'overtime_ampm' preprocessed: '{ampm_value_original}' -> '{transformed_slots['overtime_ampm']}'"
         )
 
-    # 일반적인 날짜 슬롯 처리 (DATE_SLOT_KEY_SUBSTRINGS 기반, 이미 위에서 date_fields_to_parse로 처리된 필드 제외)
-    # 이 로직은 아이템 리스트 내부의 날짜 필드나, date_fields_to_parse에 포함되지 않은 일반 날짜 필드에 유용할 수 있습니다.
-    # 하지만, 대부분의 직접적인 날짜 필드는 date_fields_to_parse에서 이미 처리되었을 가능성이 높습니다.
-    # 여기서는 transformed_slots를 순회하며, 아직 문자열이고 DATE_SLOT_KEY_SUBSTRINGS에 해당하는 키를 가진 슬롯을 다시 한번 파싱 시도합니다.
-    # 이는 중복 처리의 가능성이 있지만, 누락을 방지하는 차원에서 유지할 수 있습니다.
-    # 또는, date_fields_to_parse 목록을 더 포괄적으로 만들고 이 부분을 간소화할 수 있습니다.
-    # 현재는 명시성을 위해 이 로직을 유지하되, 이미 파싱된 필드는 건너뛰도록 합니다.
-
+    # 일반적인 날짜 슬롯 처리
     for key, value in list(
         transformed_slots.items()
     ):  # list()로 복사본 순회 (딕셔너리 변경 가능성)
         if isinstance(value, str) and any(
             substr in key.lower() for substr in DATE_SLOT_KEY_SUBSTRINGS
         ):
-            # 이미 위에서 date_fields_to_parse 또는 datetime_fields_to_parse를 통해 처리된 필드는 건너뜀
-            if key in date_fields_to_parse or key in datetime_fields_to_parse:
+            # 이미 위에서 date_fields_to_parse를 통해 처리된 필드는 건너뜀
+            if key in date_fields_to_parse:
                 continue
 
             # 아이템 리스트 내의 필드는 각 아이템 처리 루프에서 개별적으로 처리됨
