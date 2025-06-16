@@ -433,6 +433,61 @@
         </div>
     </div>
 
+    <script src="/ui/js/drafter_list.js"></script>
+    <script>
+    // DRAFTER_LIST를 외부 파일에서 로드하고, sessionStorage를 활용하여 로그인 상태를 유지합니다.
+    let selectedDrafter = null;
+
+    function initializeDrafter() {
+        const storedDrafterJSON = sessionStorage.getItem('selectedDrafter');
+        if (storedDrafterJSON) {
+            try {
+                selectedDrafter = JSON.parse(storedDrafterJSON);
+                console.log("Loaded drafter from sessionStorage:", selectedDrafter);
+            } catch (e) {
+                console.error("Failed to parse drafter from sessionStorage, picking random.", e);
+                pickRandomDrafter();
+            }
+        } else {
+            console.log("No drafter in sessionStorage, picking random.");
+            pickRandomDrafter();
+        }
+    }
+
+    function pickRandomDrafter() {
+        if (window.DRAFTER_LIST && window.DRAFTER_LIST.length > 0) {
+            const idx = Math.floor(Math.random() * window.DRAFTER_LIST.length);
+            selectedDrafter = window.DRAFTER_LIST[idx];
+        } else {
+            selectedDrafter = { name: "알수없음", id: "00000000" };
+        }
+        console.log("Picked random drafter:", selectedDrafter);
+        // Store the newly picked random drafter for the session
+        sessionStorage.setItem('selectedDrafter', JSON.stringify(selectedDrafter));
+    }
+    
+    // 페이지 로드 시 기안자 정보 초기화
+    initializeDrafter();
+
+    // 기안자 정보 영역에 표시
+    window.addEventListener('DOMContentLoaded', function() {
+        if (selectedDrafter) {
+            const drafterNameElement = document.getElementById('drafterName');
+            const drafterDepartmentElement = document.getElementById('drafterDepartment');
+            if (drafterNameElement) {
+                drafterNameElement.textContent = `${selectedDrafter.name} (${selectedDrafter.id})`;
+            }
+            if (drafterDepartmentElement) {
+                drafterDepartmentElement.textContent = 'IT 개발팀 (가상)'; // Or get from drafter object if available
+            }
+        }
+    });
+
+    // 기존의 나머지 스크립트 코드는 여기에 위치합니다.
+    // 예를 들어, submitRequest, displayResults 등
+    // ...
+    </script>
+
     <script>
         let currentFormResponse = null; // /form-selector 응답 저장용
 
@@ -569,12 +624,10 @@
             const debugInfo = document.getElementById('debugInfo');
             const submitBtn = document.getElementById('submitDocumentButton');
 
-
             resultArea.innerHTML = '<p>양식을 검색 중입니다...</p>';
             debugInfo.innerHTML = ''; // 이전 디버그 정보 초기화
             submitBtn.style.display = 'none'; // 제출 버튼 초기 숨김
             currentFormResponse = null; // 이전 응답 초기화
-
 
             try {
                 const response = await fetch('/form-selector', {
@@ -582,7 +635,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ input: userInput })
+                    body: JSON.stringify({ input: userInput, drafterId: selectedDrafter ? selectedDrafter.id : undefined })
                 });
 
                 if (!response.ok) {

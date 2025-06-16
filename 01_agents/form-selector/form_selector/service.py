@@ -650,19 +650,18 @@ def classify_and_extract_slots_for_template(
     approver_info_data: Optional[schema.ApproverInfoData] = None
     current_form_config = FORM_CONFIGS.get(form_type)
 
+    # drafterId 동적 할당
+    drafter_id = (
+        getattr(user_input, "drafterId", None) or "01180001"
+    )  # 전달받은 값이 있으면 사용, 없으면 기본값
     if current_form_config and hasattr(current_form_config, "mstPid"):
         mst_pid = current_form_config.mstPid
-        # drafterId는 현재 고정값 사용 (예: "01180001")
-        # 실제 환경에서는 로그인 사용자 정보 등에서 가져와야 함
-        drafter_id = "01180001"
-
         approval_request = schema.ApproverInfoRequest(
             mstPid=mst_pid, drafterId=drafter_id
         )
         approval_response = get_approval_info(
             approval_request
         )  # service 내 다른 함수 호출
-
         if approval_response.code == 1 and approval_response.data:
             approver_info_data = approval_response.data
             logging.info(f"Successfully fetched approver info for mstPid {mst_pid}")
@@ -688,12 +687,7 @@ def classify_and_extract_slots_for_template(
             if "mst_pid" in locals() and mst_pid is not None
             else FORM_CONFIGS.get(form_type, {}).get("mstPid")
         ),  # mstPid 추가
-        "drafterId": (
-            drafter_id
-            if "drafter_id" in locals() and drafter_id is not None
-            else "01180001"
-        ),  # drafterId 추가 (실제로는 동적으로 할당 필요)
-        # 오류 발생 시에는 "error", "message_to_user" 등이 이전에 반환되었을 것임
+        "drafterId": drafter_id,  # drafterId 추가 (실제로는 동적으로 할당)
     }
 
 

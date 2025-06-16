@@ -5,6 +5,7 @@ from typing import List, Dict, Optional, Any
 
 class UserInput(BaseModel):
     input: str
+    drafterId: Optional[str] = None  # drafterId 필드 추가
     # user_id: Optional[str] = None # 사용자 식별자, 필요시 추가
     # session_id: Optional[str] = None # 세션 식별자, 필요시 추가
 

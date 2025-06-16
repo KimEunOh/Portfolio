@@ -200,7 +200,11 @@
         <p class="info-text">이 페이지는 SSO 연동 상태를 보여주는 데모입니다.</p>
     </div>
 
+    <script src="/ui/js/drafter_list.js"></script>
     <script>
+        // DRAFTER_LIST를 외부 파일에서 로드합니다.
+
+        console.log("DRAFTER_LIST from window:", window.DRAFTER_LIST);
         document.addEventListener('DOMContentLoaded', function() {
             const mainTitle = document.getElementById('mainTitle');
             const statusMessage = document.getElementById('statusMessage');
@@ -224,6 +228,19 @@
             goToMainAppButton.style.display = 'none';
             retryButton.style.display = 'none';
 
+            // 랜덤 기안자 선택 (drafter_list.js 활용)
+            let selectedDrafter = null;
+            if (window.DRAFTER_LIST && window.DRAFTER_LIST.length > 0) { 
+                const idx = Math.floor(Math.random() * window.DRAFTER_LIST.length);
+                selectedDrafter = window.DRAFTER_LIST[idx];
+                console.log("선택된 drafter:", selectedDrafter);
+            } else {
+                selectedDrafter = { name: "알수없음", id: "00000000" };
+                console.log("fallback drafter:", selectedDrafter);
+            }
+            // Store the selected drafter in sessionStorage to persist it across pages
+            sessionStorage.setItem('selectedDrafter', JSON.stringify(selectedDrafter));
+
             if (authStatus === 'failed') {
                 mainTitle.textContent = '⚠ SSO 인증 실패';
                 mainTitle.classList.add('error-title');
@@ -240,19 +257,20 @@
 
                 setTimeout(function() {
                     loadingIndicator.style.display = 'none';
-                    
-                    // Populate user data (virtual for now)
-                    document.getElementById('userName').textContent = '김팀즈 (가상)';
-                    document.getElementById('userEmail').textContent = 'teams.user@example.com (가상)';
-                    document.getElementById('userDepartment').textContent = 'IT 개발팀 (가상)';
-                    document.getElementById('teamsUserId').textContent = 'S-1-2-34-567890 (가상)';
-                    
+                    console.log("setTimeout 내부 selectedDrafter:", selectedDrafter);
+                    // 동적으로 선택된 drafter 정보 표시
+                    if (selectedDrafter && selectedDrafter.name) {
+                        document.getElementById('userName').textContent = `${selectedDrafter.name} (${selectedDrafter.id})`;
+                        document.getElementById('userEmail').textContent = `${selectedDrafter.id}@example.com (가상)`;
+                        document.getElementById('userDepartment').textContent = 'IT 개발팀 (가상)';
+                        document.getElementById('teamsUserId').textContent = `S-${selectedDrafter.id}`;
+                    }
+
                     // Update titles and show content after successful loading/data retrieval
                     mainTitle.textContent = '🎉 SSO 인증 성공! 🎉'; 
                     statusMessage.textContent = 'Teams 연동 SSO를 통해 성공적으로 로그인되었습니다.';
                     userInfoSection.style.display = 'block';
                     goToMainAppButton.style.display = 'inline-block';
-                    // infoText.innerHTML = '표시된 사용자 정보는 Teams에서 전달받은 가상의 정보입니다.';
                 }, 1500); // Simulate 1.5 seconds loading time for success
             }
         });
