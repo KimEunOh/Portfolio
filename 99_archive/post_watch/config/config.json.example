@@ -1,0 +1,9 @@
+{
+  "target_url": "https://example.com/blog",
+  "crawl_interval_seconds": 60,
+  "db_path": "posts.db",
+  "openai_api_key": "YOUR_OPENAI_API_KEY",
+  "kakao": {
+    "rest_api_key": "YOUR_KAKAO_REST_API_KEY"
+  }
+} 
