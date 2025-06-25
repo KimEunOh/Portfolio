@@ -148,7 +148,7 @@ def fill_slots_in_template(
         "departure_date",
         "request_date",
         "draft_date",
-        "document_date",
+        "statement_date",
         "usage_date",
     ]  # 추가적인 직접 파싱 대상 필드들
 

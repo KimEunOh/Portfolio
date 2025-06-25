@@ -716,7 +716,7 @@
                         scriptSrc = 'js/inventory_scripts.js';
                     } else if (formType === '구매 품의서') {
                         scriptSrc = 'js/purchase_approval_scripts.js';
-                    } else if (formType === '개인 경비 사용 내역서') {
+                    } else if (formType === '개인 경비 사용 내역서') { // '개인경비 사용내역서' -> '개인 경비 사용 내역서' (띄어쓰기 원복)
                         scriptSrc = 'js/personal_expense_scripts.js';
                     } else if (formType === '법인카드 지출내역서') {
                         scriptSrc = 'js/corporate_card_scripts.js';
@@ -1089,54 +1089,44 @@
                     itemList 
                 };
             },
-            "개인경비 사용내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
+            "개인 경비 사용 내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // "개인경비 사용내역서" -> "개인 경비 사용 내역서" (띄어쓰기 추가)
                 console.log("%c[개인경비 사용내역서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
 
-                let docCn = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots);
-                let draftDate = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
+                let docCnValue = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots);
+                let draftDateValue = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
 
-                if (!draftDate) {
+                if (!draftDateValue) {
                     return { error: true, message: "필수 항목을 입력해주세요: 기안일" };
                 }
 
                 let itemList = [];
                 const itemSets = activeForm.querySelectorAll('.item-set');
                 itemSets.forEach((set, index) => {
-                    const item = {};
-                    const fieldMapping = {
-                        date: `expense_date_${index + 1}`,
-                        category: `expense_category_${index + 1}`,
-                        description: `expense_description_${index + 1}`,
-                        amount: `expense_amount_${index + 1}`,
-                        notes: `expense_notes_${index + 1}`
+                    const itemData = {
+                        reqYmd: getElementValueOrSlotFunc(activeForm, `expense_date_${index + 1}`, `date_${index+1}`, slots),
+                        acntCd: getElementValueOrSlotFunc(activeForm, `expense_category_${index + 1}`, `category_${index+1}`, slots),
+                        briefs: getElementValueOrSlotFunc(activeForm, `expense_description_${index + 1}`, `description_${index+1}`, slots),
+                        reqAmt: getElementValueOrSlotFunc(activeForm, `expense_amount_${index + 1}`, `amount_${index+1}`, slots),
+                        docCn: getElementValueOrSlotFunc(activeForm, `expense_notes_${index + 1}`, `notes_${index+1}`, slots)
                     };
-                    let hasValue = false;
-                    for (const apiKey in fieldMapping) {
-                        const elementId = fieldMapping[apiKey];
-                        const valueFromForm = getElementValueOrSlotFunc(activeForm, elementId, `${apiKey}_${index+1}`, slots);
-                        if (valueFromForm !== undefined && valueFromForm.trim() !== "") {
-                           if (apiKey === 'amount' && !isNaN(parseFloat(valueFromForm))) {
-                                item[apiKey] = parseFloat(valueFromForm);
-                            } else {
-                                item[apiKey] = valueFromForm.trim();
-                            }
-                            hasValue = true;
-                        } else if (elementId.includes('category') && valueFromForm === "") {
-                            // 카테고리 선택이 없는 경우 기본값 또는 빈 값으로 처리 가능
-                            // 여기서는 빈 값으로 두어 hasValue에 영향을 주지 않도록 함
-                        }
+
+                    // 사용일자와 금액이 있는 경우에만 유효한 항목으로 간주
+                    if (itemData.reqYmd && itemData.reqAmt) {
+                        itemData.reqAmt = parseFloat(itemData.reqAmt) || 0;
+                        itemList.push(itemData);
                     }
-                    if (hasValue) itemList.push(item);
                 });
                 
                 if (itemList.length === 0) {
-                    return { error: true, message: "하나 이상의 경비 항목을 입력해야 합니다." };
+                    // 사용자가 항목을 추가했지만 값을 입력하지 않은 경우를 고려하여 alert 대신 console에만 기록
+                    console.warn("[개인경비 사용내역서 Processor] 유효한 경비 항목이 없습니다. (사용일자, 금액 필수)");
+                    // return { error: true, message: "하나 이상의 유효한 경비 항목(사용일자, 금액 포함)을 입력해야 합니다." };
                 }
 
                 return { 
-                    docCn, 
-                    dayList: draftDate ? [{ reqYmd: draftDate, dvType: "PERSONAL_EXPENSE" }] : [], // dvType은 API 명세에 따라 수정
-                    itemList 
+                    docCn: docCnValue || "개인경비 사용내역서 제출", 
+                    dayList: draftDateValue ? [{ reqYmd: draftDateValue }] : [], // dvType 없이 reqYmd만 포함
+                    itemList: itemList 
                 };
             },
             "법인카드 지출내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
@@ -1272,7 +1262,7 @@
                 activeFormElement = resultArea.querySelector('form#inventory_purchase_form');
             } else if (formType === "구매 품의서") {
                 activeFormElement = resultArea.querySelector('form#purchase_approval_form');
-            } else if (formType === "개인경비 사용내역서") {
+            } else if (formType === "개인 경비 사용 내역서") { // "개인경비 사용내역서" -> "개인 경비 사용 내역서"
                 activeFormElement = resultArea.querySelector('form#personal_expense_form');
             } else if (formType === "법인카드 지출내역서") {
                 activeFormElement = resultArea.querySelector('form#corporate_card_form');

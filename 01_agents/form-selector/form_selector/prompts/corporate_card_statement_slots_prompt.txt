@@ -11,18 +11,14 @@ SYSTEM:
 추출할 슬롯 정보:
 - title: 문서 제목 (예: "법인카드 지출내역", "10월 법인카드 사용 보고")
 - draft_date: 기안일 (예: "오늘", "내일", "2023년 10월 26일")
-- card_number: 카드번호 (예: "1234-56**-****-7890", "하나카드 5570")
-- document_date: 작성일자 (예: "오늘", "어제", "2023년 10월 25일") - 기안일과 다를 수 있습니다.
+- card_number: 카드번호 (예: "1234-5678-1234-5678")
+- card_user_name: 카드 사용자 성명
+- statement_date: 명세서 기준일 또는 대표 사용일자 (예: "오늘", "어제", "2023년 10월 25일") - 기안일과 다를 수 있습니다.
 - department: 소속 부서 (예: "개발팀", "인사팀")
 - drafter_name: 작성자 이름 (예: "홍길동", "김철수")
 - total_amount_header: 문서 상단에 표시될 수 있는 총 금액 (숫자, 예: 250000). 명시적 언급이 없으면 null.
-- expense_reason: 지출 사유 (간략히, 예: "팀 회식비", "거래처 접대비", "프로젝트 관련 비품 구입")
-- card_usage_items: 카드 사용 내역 리스트. 각 항목은 다음 정보를 포함합니다:
-    - usage_date: 사용 일자 (예: "어제", "10월 25일")
-    - usage_category: 분류 (예: "식비", "교통비", "접대비", "물품구입", "기타")
-    - usage_amount: 금액 (숫자, 예: 75000)
-    - usage_description: 사용 내역 (가맹점명 또는 상세 내용, 예: "OO식당 (팀 회식)", "XX문구 (사무용품)")
-    - usage_notes: 비고 (선택 사항, 예: "내부 사용 목적: 팀 빌딩", "영수증 별도 첨부")
+- expense_reason: 전체 지출에 대한 주된 사유 또는 설명
+- card_usage_items: 법인카드 사용 내역 목록 (아래 상세 내용 참조)
 - total_usage_amount: 문서 하단에 표시될 수 있는 총 합계 금액 (숫자, 예: 250000). 명시적 언급이 없으면 null.
 
 # 지침:
@@ -39,7 +35,8 @@ SYSTEM:
   "title": "법인카드 지출내역",
   "draft_date": "오늘",
   "card_number": "신한 1234",
-  "document_date": "오늘", // 기안일과 동일하게 가정
+  "card_user_name": "박은지",
+  "statement_date": "오늘",
   "department": "인사팀",
   "drafter_name": "박은지",
   "total_amount_header": 180000,
@@ -70,12 +67,13 @@ SYSTEM:
 ```json
 {
   "title": "법인카드 지출내역",
-  "draft_date": "내일", // 작성일과 동일하게 가정
+  "draft_date": "내일",
   "card_number": "5678-xxxx-xxxx-1234",
-  "document_date": "내일",
+  "card_user_name": "김영희",
+  "statement_date": "내일",
   "department": null,
   "drafter_name": "김영희",
-  "total_amount_header": 250000, // 총액 직접 언급으로 간주 가능
+  "total_amount_header": 250000,
   "expense_reason": "거래처 접대비",
   "card_usage_items": [
     {
@@ -86,7 +84,80 @@ SYSTEM:
       "usage_notes": null
     }
   ],
-  "total_usage_amount": 250000 // 총액 직접 언급으로 간주 가능
+  "total_usage_amount": 250000
+}
+```
+
+# 예시 3
+입력: "워크샵 비품 구매",
+추출된 슬롯:
+```json
+{
+  "title": "법인카드 지출내역",
+  "draft_date": "오늘",
+  "card_number": "1234-5678-1234-5678",
+  "card_user_name": "홍길동",
+  "statement_date": "오늘",
+  "department": null,
+  "drafter_name": null,
+  "total_amount_header": null,
+  "expense_reason": "워크샵 비품 구매",
+  "card_usage_items": [
+    {
+      "usage_date": "오늘",
+      "usage_category": null,
+      "usage_amount": null,
+      "usage_description": null,
+      "usage_notes": null
+    }
+  ],
+  "total_usage_amount": null
+}
+```
+
+# 예시 4
+입력: "팀 회식",
+추출된 슬롯:
+```json
+{
+  "title": "법인카드 지출내역",
+  "draft_date": "오늘",
+  "card_number": "9876-5432-1098-7654",
+  "card_user_name": "김영희",
+  "statement_date": "내일",
+  "department": null,
+  "drafter_name": null,
+  "total_amount_header": null,
+  "expense_reason": "팀 회식",
+  "card_usage_items": [
+    {
+      "usage_date": "내일 저녁",
+      "usage_category": null,
+      "usage_amount": null,
+      "usage_description": null,
+      "usage_notes": null
+    }
+  ],
+  "total_usage_amount": null
+}
+```
+
+# 예시 5
+입력: "알 수 없음",
+추출된 슬롯:
+```json
+{
+  "title": "법인카드 지출내역",
+  "draft_date": null,
+  "card_number": null,
+  "card_user_name": "정보 없음",
+  "statement_date": null,
+  "department": null,
+  "drafter_name": null,
+  "total_amount_header": null,
+  "expense_reason": "알 수 없음",
+  "card_usage_items": [],
+  "total_usage_amount": null
 }
 ```
 

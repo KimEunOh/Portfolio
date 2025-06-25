@@ -238,7 +238,9 @@ class PersonalExpenseReportSlots(BaseModel):
     usage_status: Optional[UsageStatusEnum] = Field(
         None, description="사용 현황 (personal_cash 또는 personal_card)"
     )
-    document_date: Optional[str] = Field(None, description="작성일자 (자연어 날짜)")
+    statement_date: Optional[str] = Field(
+        None, description="대표 사용일 또는 정산 기준일 (자연어 날짜)"
+    )
     department: Optional[str] = Field(None, description="소속 부서")
     drafter_name: Optional[str] = Field(None, description="작성자 이름")
     total_amount_header: Optional[int] = Field(
@@ -271,13 +273,12 @@ class CorporateCardStatementSlots(BaseModel):
     card_number: Optional[str] = Field(
         None, description="카드번호 (예: 1234-56**-****-7890)"
     )
-    document_date: Optional[str] = Field(None, description="작성일자 (자연어 날짜)")
-    department: Optional[str] = Field(None, description="소속 부서")
-    drafter_name: Optional[str] = Field(None, description="작성자 이름")
-    total_amount_header: Optional[int] = Field(
-        None, description="총 금액 (상단 표시용, 숫자)"
+
+    card_user_name: Optional[str] = Field(None, description="카드 사용자 성명")
+    expense_reason: Optional[str] = Field(None, description="지출 사유")
+    statement_date: Optional[str] = Field(
+        None, description="명세서 기준일 (자연어 날짜)"
     )
-    expense_reason: Optional[str] = Field(None, description="지출 사유 (간략히)")
     card_usage_items: Optional[List[CardUsageItem]] = Field(
         None, description="카드 사용 내역 리스트"
     )
