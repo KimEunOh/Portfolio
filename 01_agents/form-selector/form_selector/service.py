@@ -447,6 +447,27 @@ def fill_slots_in_template(
         f"Template after re.sub (first 300 chars of filled_template): {filled_template[:300]}"
     )
 
+    # 특정 필드가 실제로 채워졌는지 확인
+    if "work_date" in transformed_slots:
+        if "{work_date}" in template:
+            logging.info(f"[DEBUG] work_date placeholder found in template")
+        if f'value="{transformed_slots["work_date"]}"' in filled_template:
+            logging.info(
+                f"[DEBUG] work_date successfully filled: {transformed_slots['work_date']}"
+            )
+        else:
+            logging.warning(f"[DEBUG] work_date NOT filled in template")
+
+    if "dinner_expense_amount" in transformed_slots:
+        if "{dinner_expense_amount}" in template:
+            logging.info(f"[DEBUG] dinner_expense_amount placeholder found in template")
+        if f'value="{transformed_slots["dinner_expense_amount"]}"' in filled_template:
+            logging.info(
+                f"[DEBUG] dinner_expense_amount successfully filled: {transformed_slots['dinner_expense_amount']}"
+            )
+        else:
+            logging.warning(f"[DEBUG] dinner_expense_amount NOT filled in template")
+
     return (
         filled_template,
         transformed_slots,  # 최종적으로 UI 등에 전달될, 모든 변환이 완료된 슬롯
@@ -872,3 +893,566 @@ def get_approval_info(
 
 
 # --- END 결재자 정보 조회 서비스 --- #
+
+
+# --- 2단계: HTML 폼 데이터 → 최종 API Payload 변환 로직 --- #
+
+
+def convert_form_data_to_api_payload(
+    form_type: str, form_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """HTML 폼에서 받은 데이터를 최종 API Payload 형식으로 변환합니다.
+
+    Args:
+        form_type: 양식 타입 (예: "annual_leave", "dinner_expense" 또는 한국어 양식명)
+        form_data: HTML 폼에서 받은 데이터 딕셔너리
+
+    Returns:
+        Dict[str, Any]: 최종 API로 전송할 Payload
+    """
+    logging.info(f"Converting form data to API payload for form_type: {form_type}")
+    logging.info(f"Input form_data: {form_data}")
+
+    # form_configs의 자동 매핑 함수를 사용하여 한국어 → 영어 변환
+    from .form_configs import get_english_form_type
+
+    try:
+        original_form_type = form_type
+        form_type = get_english_form_type(form_type)
+        if original_form_type != form_type:
+            logging.info(
+                f"Converted Korean form type '{original_form_type}' to English '{form_type}'"
+            )
+    except ValueError:
+        # 지원하지 않는 양식 타입인 경우 원래 에러 메시지 유지
+        pass
+
+    # 양식 타입별 변환 로직
+    if form_type == "annual_leave":
+        return _convert_annual_leave_to_payload(form_data)
+    elif form_type == "dinner_expense":
+        return _convert_dinner_expense_to_payload(form_data)
+    elif form_type == "transportation_expense":
+        return _convert_transportation_expense_to_payload(form_data)
+    elif form_type == "dispatch_businesstrip_report":
+        return _convert_dispatch_report_to_payload(form_data)
+    elif form_type == "inventory_purchase_report":
+        return _convert_inventory_report_to_payload(form_data)
+    elif form_type == "purchase_approval_form":
+        return _convert_purchase_approval_to_payload(form_data)
+    elif form_type == "personal_expense_report":
+        return _convert_personal_expense_to_payload(form_data)
+    elif form_type == "corporate_card_statement":
+        return _convert_corporate_card_to_payload(form_data)
+    else:
+        raise ValueError(f"Unsupported form type: {form_type}")
+
+
+def _convert_annual_leave_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """연차 신청서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 1,  # form_configs.py의 annual_leave mstPid
+        "aprvNm": form_data.get("title", "연차 사용 신청"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("reason", "개인 사유"),
+        "apdInfo": json.dumps(
+            {
+                "leave_type": _convert_leave_type_to_korean(
+                    form_data.get("leave_type", "연차")
+                ),
+                "start_date": form_data.get("start_date", ""),
+                "end_date": form_data.get("end_date", ""),
+                "duration": form_data.get("duration", ""),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # dayList 구성 (연차 날짜 정보)
+    start_date = form_data.get("start_date", "")
+    leave_type = form_data.get("leave_type", "annual")
+
+    if start_date:
+        # 휴가 종류를 API dvType으로 변환
+        dv_type_map = {
+            "annual": "DAY",
+            "half_day_morning": "HALF_AM",
+            "half_day_afternoon": "HALF_PM",
+            "quarter_day_morning": "QUARTER_AM",
+            "quarter_day_afternoon": "QUARTER_PM",
+        }
+
+        payload["dayList"].append(
+            {"reqYmd": start_date, "dvType": dv_type_map.get(leave_type, "DAY")}
+        )
+
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),  # aprvPslId로 수정
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_dinner_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """야근 식대 신청서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 3,  # form_configs.py의 dinner_expense mstPid
+        "aprvNm": form_data.get("title", "야근 식대 신청"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get(
+            "work_details", form_data.get("notes", "야근 식대 신청")
+        ),
+        "apdInfo": json.dumps(
+            {
+                "work_location": form_data.get("work_location", ""),
+                "overtime_time": form_data.get("overtime_time", ""),
+                "bank_account_for_deposit": form_data.get(
+                    "bank_account_for_deposit", ""
+                ),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # amountList 구성 (비용 정산 정보)
+    work_date = form_data.get("work_date", "")
+    dinner_amount = form_data.get("dinner_expense_amount", 0)
+    work_details = form_data.get("work_details", form_data.get("notes", ""))
+
+    if work_date and dinner_amount:
+        payload["amountList"].append(
+            {
+                "useYmd": work_date,
+                "dvNm": "식대",
+                "useRsn": work_details,
+                "amount": int(dinner_amount) if dinner_amount else 0,
+            }
+        )
+
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),  # aprvPslId로 수정
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_transportation_expense_to_payload(
+    form_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """교통비 신청서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 4,  # form_configs.py의 transportation_expense mstPid
+        "aprvNm": form_data.get("title", "교통비 신청"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("purpose", "교통비 신청"),
+        "apdInfo": json.dumps(
+            {
+                "origin": form_data.get("origin", ""),
+                "destination": form_data.get("destination", ""),
+                "transport_details": form_data.get("transport_details", ""),
+                "notes": form_data.get("notes", ""),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # amountList 구성 (교통비 정산 정보)
+    departure_date = form_data.get("departure_date", "")
+    total_amount = form_data.get("total_amount", 0)
+    transport_details = form_data.get("transport_details", "")
+
+    if departure_date and total_amount:
+        payload["amountList"].append(
+            {
+                "useYmd": departure_date,
+                "dvNm": "교통비",
+                "useRsn": transport_details,
+                "amount": int(total_amount) if total_amount else 0,
+            }
+        )
+
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),  # aprvPslId로 수정
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_dispatch_report_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """파견 및 출장 보고서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 5,  # form_configs.py의 dispatch_businesstrip_report mstPid
+        "aprvNm": form_data.get("title", "파견 및 출장 보고서"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("purpose", "파견 및 출장 보고"),
+        "apdInfo": json.dumps(
+            {
+                "origin": form_data.get("origin", ""),
+                "destination": form_data.get("destination", ""),
+                "duration_days": form_data.get("duration_days", ""),
+                "report_details": form_data.get("report_details", ""),
+                "notes": form_data.get("notes", ""),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # dayList 구성 (파견/출장 날짜 정보) - utils.py의 견고한 날짜 처리 활용
+    start_date = form_data.get("start_date", "")
+    end_date = form_data.get("end_date", "")
+
+    if start_date and end_date:
+        try:
+            from datetime import datetime, timedelta
+            import logging
+
+            # 날짜 문자열을 datetime 객체로 변환
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+            logging.info(
+                f"[파견 및 출장 보고서] dayList 생성 시작: {start_date} ~ {end_date}"
+            )
+
+            if start_dt <= end_dt:
+                current_date = start_dt
+                while current_date <= end_dt:
+                    payload["dayList"].append(
+                        {
+                            "reqYmd": current_date.isoformat(),  # YYYY-MM-DD 형식
+                            "dvType": "DAY",  # 파견 및 출장 보고서는 DAY로 고정
+                        }
+                    )
+                    current_date += timedelta(days=1)
+
+                logging.info(
+                    f"[파견 및 출장 보고서] dayList 생성 완료: {len(payload['dayList'])}개 날짜"
+                )
+            else:
+                logging.warning(
+                    f"[파견 및 출장 보고서] 잘못된 날짜 순서: start_date({start_date}) > end_date({end_date})"
+                )
+
+        except ValueError as e:
+            import logging
+
+            logging.error(
+                f"[파견 및 출장 보고서] 날짜 파싱 오류: {e}, start_date={start_date}, end_date={end_date}"
+            )
+        except Exception as e:
+            import logging
+
+            logging.error(f"[파견 및 출장 보고서] dayList 생성 중 예외 발생: {e}")
+    else:
+        import logging
+
+        logging.warning(
+            f"[파견 및 출장 보고서] 시작일 또는 종료일 누락: start_date={start_date}, end_date={end_date}"
+        )
+
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """비품/소모품 구입내역서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 6,  # form_configs.py의 inventory_purchase_report mstPid
+        "aprvNm": form_data.get("title", "비품/소모품 구입내역서"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("notes", "비품/소모품 구입"),
+        "apdInfo": json.dumps(
+            {
+                "request_date": form_data.get("request_date", ""),
+                "payment_method": form_data.get("payment_method", ""),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # amountList 구성 (구매 항목 정보)
+    if "itemList" in form_data and form_data["itemList"]:
+        for item in form_data["itemList"]:
+            payload["amountList"].append(
+                {
+                    "useYmd": form_data.get("request_date", ""),
+                    "dvNm": item.get("item_name", ""),
+                    "useRsn": item.get("item_purpose", ""),
+                    "amount": (
+                        int(item.get("item_total_price", 0))
+                        if item.get("item_total_price")
+                        else 0
+                    ),
+                    "unit": "개",  # 기본 단위
+                    "quantity": (
+                        int(item.get("item_quantity", 0))
+                        if item.get("item_quantity")
+                        else 0
+                    ),
+                    "unitPrice": (
+                        int(item.get("item_unit_price", 0))
+                        if item.get("item_unit_price")
+                        else 0
+                    ),
+                }
+            )
+
+    # 결재라인 정보 추가
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """구매 품의서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 7,  # form_configs.py의 purchase_approval_form mstPid
+        "aprvNm": form_data.get("title", "구매 품의서"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("special_notes", "구매 품의 요청"),
+        "apdInfo": json.dumps(
+            {
+                "draft_department": form_data.get("draft_department", ""),
+                "drafter_name": form_data.get("drafter_name", ""),
+                "draft_date": form_data.get("draft_date", ""),
+                "payment_terms": form_data.get("payment_terms", ""),
+                "delivery_location": form_data.get("delivery_location", ""),
+                "attached_files_description": form_data.get(
+                    "attached_files_description", ""
+                ),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # amountList 구성 (구매 품목 정보)
+    if "itemList" in form_data and form_data["itemList"]:
+        for item in form_data["itemList"]:
+            payload["amountList"].append(
+                {
+                    "useYmd": item.get(
+                        "item_delivery_date", form_data.get("draft_date", "")
+                    ),
+                    "dvNm": item.get("item_name", ""),
+                    "useRsn": item.get("item_purpose", ""),
+                    "amount": (
+                        int(item.get("item_total_price", 0))
+                        if item.get("item_total_price")
+                        else 0
+                    ),
+                    "unit": "개",  # 기본 단위
+                    "quantity": (
+                        int(item.get("item_quantity", 0))
+                        if item.get("item_quantity")
+                        else 0
+                    ),
+                    "unitPrice": (
+                        int(item.get("item_unit_price", 0))
+                        if item.get("item_unit_price")
+                        else 0
+                    ),
+                }
+            )
+
+    # 결재라인 정보 추가
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """개인 경비 사용내역서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 8,  # form_configs.py의 personal_expense_report mstPid
+        "aprvNm": form_data.get("title", "개인 경비 사용내역서"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("expense_summary", "개인 경비 정산"),
+        "apdInfo": json.dumps(
+            {
+                "expense_period_start": form_data.get("expense_period_start", ""),
+                "expense_period_end": form_data.get("expense_period_end", ""),
+                "reimbursement_account": form_data.get("reimbursement_account", ""),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # amountList 구성 (경비 항목 정보)
+    if "expenseList" in form_data and form_data["expenseList"]:
+        for expense in form_data["expenseList"]:
+            payload["amountList"].append(
+                {
+                    "useYmd": expense.get("expense_date", ""),
+                    "dvNm": expense.get("expense_category", ""),
+                    "useRsn": expense.get("expense_description", ""),
+                    "amount": (
+                        int(expense.get("expense_amount", 0))
+                        if expense.get("expense_amount")
+                        else 0
+                    ),
+                }
+            )
+
+    # 결재라인 정보 추가
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """법인 카드 사용 내역서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
+
+    # API_명세.md에 따른 표준 구조
+    payload = {
+        "mstPid": 9,  # form_configs.py의 corporate_card_statement mstPid
+        "aprvNm": form_data.get("title", "법인 카드 사용 내역서"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": form_data.get("usage_summary", "법인 카드 사용 내역"),
+        "apdInfo": json.dumps(
+            {
+                "card_number_last4": form_data.get("card_number_last4", ""),
+                "statement_period_start": form_data.get("statement_period_start", ""),
+                "statement_period_end": form_data.get("statement_period_end", ""),
+            },
+            ensure_ascii=False,
+        ),
+        "lineList": [],
+        "dayList": [],
+        "amountList": [],
+    }
+
+    # amountList 구성 (카드 사용 내역 정보)
+    if "usageList" in form_data and form_data["usageList"]:
+        for usage in form_data["usageList"]:
+            payload["amountList"].append(
+                {
+                    "useYmd": usage.get("usage_date", ""),
+                    "dvNm": usage.get("usage_category", ""),
+                    "useRsn": f"{usage.get('merchant_name', '')} - {usage.get('usage_purpose', '')}",
+                    "amount": (
+                        int(usage.get("usage_amount", 0))
+                        if usage.get("usage_amount")
+                        else 0
+                    ),
+                }
+            )
+
+    # 결재라인 정보 추가
+    if "approvers" in form_data and form_data["approvers"]:
+        for approver in form_data["approvers"]:
+            payload["lineList"].append(
+                {
+                    "aprvPslId": approver.get("aprvPsId", ""),
+                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                    "ordr": approver.get("ordr", 1),
+                }
+            )
+
+    return payload
+
+
+def _convert_leave_type_to_korean(leave_type_value: str) -> str:
+    """HTML select 값을 한국어 휴가 종류로 변환"""
+
+    value_to_korean_map = {
+        "annual": "연차",
+        "half_day_morning": "오전 반차",
+        "half_day_afternoon": "오후 반차",
+        "quarter_day_morning": "오전 반반차",
+        "quarter_day_afternoon": "오후 반반차",
+    }
+
+    return value_to_korean_map.get(leave_type_value, leave_type_value)
+
+
+# --- END 2단계 변환 로직 --- #

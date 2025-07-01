@@ -14,7 +14,10 @@ import json
 
 # schema와 service에서 추가된 모델/함수 임포트
 from form_selector import schema as form_schema  # schema 전체를 form_schema로 임포트
-from form_selector.service import get_approval_info  # 새로 추가한 서비스 함수
+from form_selector.service import (
+    get_approval_info,
+    convert_form_data_to_api_payload,
+)  # 새로 추가한 서비스 함수
 
 # .env 파일 로드 (OPENAI_API_KEY 등을 환경변수로 로드)
 load_dotenv()
@@ -202,6 +205,144 @@ async def fetch_my_line_endpoint(request: form_schema.ApproverInfoRequest):
 
 
 # --- END 외부 myLine API 직접 호출 엔드포인트 --- #
+
+
+# --- 2단계: 폼 데이터 → API Payload 변환 엔드포인트 --- #
+@app.post("/convert-form-to-payload")
+async def convert_form_to_payload_endpoint(request: dict):
+    """HTML 폼에서 받은 데이터를 최종 API Payload로 변환하는 엔드포인트"""
+    try:
+        form_type = request.get("form_type")
+        form_data = request.get("form_data")
+
+        if not form_type:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "MISSING_FORM_TYPE",
+                    "message": "form_type이 필요합니다.",
+                },
+            )
+
+        if not form_data:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "MISSING_FORM_DATA",
+                    "message": "form_data가 필요합니다.",
+                },
+            )
+
+        # 2단계 변환 로직 호출
+        api_payload = convert_form_data_to_api_payload(form_type, form_data)
+
+        return {"success": True, "form_type": form_type, "api_payload": api_payload}
+
+    except ValueError as ve:
+        # 지원하지 않는 양식 타입 등의 경우
+        raise HTTPException(
+            status_code=400, detail={"error": "INVALID_FORM_TYPE", "message": str(ve)}
+        )
+    except Exception as e:
+        logging.error(f"폼 데이터 변환 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "CONVERSION_ERROR",
+                "message": "폼 데이터를 API Payload로 변환하는 중 오류가 발생했습니다.",
+            },
+        )
+
+
+# --- 최종 API 제출 엔드포인트 --- #
+@app.post("/submit-form")
+async def submit_form_endpoint(request: dict):
+    """변환된 API Payload를 실제 외부 API로 제출하는 엔드포인트"""
+    try:
+        form_type = request.get("form_type")
+        form_data = request.get("form_data")
+
+        if not form_type or not form_data:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "MISSING_DATA",
+                    "message": "form_type과 form_data가 필요합니다.",
+                },
+            )
+
+        # 1단계: 폼 데이터를 API Payload로 변환
+        api_payload = convert_form_data_to_api_payload(form_type, form_data)
+
+        # 2단계: 외부 API로 제출
+        api_base_url = os.getenv(
+            "APPROVAL_API_BASE_URL", "https://dev-api.ntoday.kr/api/v1/epaper"
+        )
+
+        # 모든 양식에 대해 동일한 엔드포인트 사용
+        endpoint = "register"  # 실제 외부 API에서 사용하는 통합 엔드포인트
+        submit_url = f"{api_base_url}/{endpoint}"
+
+        headers = {"Content-Type": "application/json"}
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            logging.info(f"외부 API 제출: POST {submit_url}")
+            logging.info(f"Payload: {api_payload}")
+
+            api_response = await client.put(
+                submit_url, json=api_payload, headers=headers
+            )
+
+            api_response.raise_for_status()
+            response_data = api_response.json()
+
+            logging.info(f"외부 API 응답: {response_data}")
+
+            return {
+                "success": True,
+                "form_type": form_type,
+                "api_response": response_data,
+                "submitted_payload": api_payload,
+            }
+
+    except httpx.HTTPStatusError as e:
+        error_detail = f"외부 API 오류: {e.response.status_code}"
+        try:
+            error_response = e.response.json()
+            error_detail += f" - {error_response}"
+        except:
+            error_detail += f" - {e.response.text}"
+
+        logging.error(error_detail)
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "EXTERNAL_API_ERROR",
+                "message": "외부 API 호출 중 오류가 발생했습니다.",
+                "details": error_detail,
+            },
+        )
+    except httpx.RequestError as e:
+        logging.error(f"외부 API 요청 오류: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "API_REQUEST_ERROR",
+                "message": "외부 API 연결 중 오류가 발생했습니다.",
+            },
+        )
+    except Exception as e:
+        logging.error(f"양식 제출 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "SUBMISSION_ERROR",
+                "message": "양식 제출 중 오류가 발생했습니다.",
+            },
+        )
+
+
+# --- END 2단계 변환 및 제출 엔드포인트 --- #
 
 
 # FastAPI 엔트리포인트 및 라우터 정의 예정

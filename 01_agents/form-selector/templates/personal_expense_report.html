@@ -20,7 +20,7 @@
 
         <div class="form-group">
             <label for="usage_status">사용 현황:</label>
-            <select id="usage_status" name="usage_status" class="form-control">
+            <select id="usage_status" name="usage_status" class="form-control" data-selected="{usage_status}">
                 <option value="">선택하세요</option>
                 <option value="personal_cash">개인현금</option>
                 <option value="personal_card">개인카드</option>
@@ -34,7 +34,7 @@
 
         <div class="form-group">
             <label for="expense_reason">지출 사유:</label>
-            <textarea id="expense_reason" name="expense_reason" rows="4" class="form-control"></textarea>
+            <textarea id="expense_reason" name="expense_reason" rows="4" class="form-control">{expense_reason}</textarea>
         </div>
         
         <h3 class="form-section-title">경비 사용 내역</h3>

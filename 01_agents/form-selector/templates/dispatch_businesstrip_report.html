@@ -10,47 +10,47 @@
     <form id="dispatch_businesstrip_report_form">
         <div class="form-group">
             <label for="title">제목:</label>
-            <input type="text" id="title" name="title" class="form-control">
+            <input type="text" id="title" name="title" class="form-control" value="{title}">
         </div>
 
         <div class="form-group">
             <label for="start_date">시작일:</label>
-            <input type="date" id="start_date" name="start_date" class="form-control">
+            <input type="date" id="start_date" name="start_date" class="form-control" value="{start_date}">
         </div>
 
         <div class="form-group">
             <label for="end_date">종료일:</label>
-            <input type="date" id="end_date" name="end_date" class="form-control">
+            <input type="date" id="end_date" name="end_date" class="form-control" value="{end_date}">
         </div>
 
         <div class="form-group">
             <label for="duration_days">총 일수:</label>
-            <input type="number" id="duration_days" name="duration_days" min="0" class="form-control">
+            <input type="number" id="duration_days" name="duration_days" min="0" class="form-control" value="{duration_days}">
         </div>
 
         <div class="form-group">
             <label for="origin">출발지:</label>
-            <input type="text" id="origin" name="origin" class="form-control">
+            <input type="text" id="origin" name="origin" class="form-control" value="{origin}">
         </div>
 
         <div class="form-group">
             <label for="destination">파견지 또는 출장지:</label>
-            <input type="text" id="destination" name="destination" class="form-control">
+            <input type="text" id="destination" name="destination" class="form-control" value="{destination}">
         </div>
 
         <div class="form-group">
             <label for="purpose">파견/출장 목적:</label>
-            <input type="text" id="purpose" name="purpose" class="form-control">
+            <input type="text" id="purpose" name="purpose" class="form-control" value="{purpose}">
         </div>
 
         <div class="form-group">
             <label for="report_details">주요 업무 내용 및 결과 (보고사항):</label>
-            <textarea id="report_details" name="report_details" rows="5" class="form-control"></textarea>
+            <textarea id="report_details" name="report_details" rows="5" class="form-control">{report_details}</textarea>
         </div>
 
         <div class="form-group">
             <label for="notes">기타 특이사항:</label>
-            <textarea id="notes" name="notes" rows="3" class="form-control"></textarea>
+            <textarea id="notes" name="notes" rows="3" class="form-control">{notes}</textarea>
         </div>
 
     </form>

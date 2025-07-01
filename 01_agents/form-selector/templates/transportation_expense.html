@@ -11,12 +11,12 @@
     <form id="transportation_expense_form">
         <div class="form-group">
             <label for="title">제목:</label>
-            <input type="text" id="title" name="title" class="form-control">
+            <input type="text" id="title" name="title" class="form-control" value="{title}">
         </div>
 
         <div class="form-group">
             <label for="departure_date">출발일 (사용일):</label>
-            <input type="date" id="departure_date" name="departure_date" class="form-control">
+            <input type="date" id="departure_date" name="departure_date" class="form-control" value="{departure_date}">
         </div>
 
         <!-- 필요시 도착일 추가 -->
@@ -29,32 +29,32 @@
 
         <div class="form-group">
             <label for="origin">출발지:</label>
-            <input type="text" id="origin" name="origin" class="form-control">
+            <input type="text" id="origin" name="origin" class="form-control" value="{origin}">
         </div>
 
         <div class="form-group">
             <label for="destination">목적지:</label>
-            <input type="text" id="destination" name="destination" class="form-control">
+            <input type="text" id="destination" name="destination" class="form-control" value="{destination}">
         </div>
 
         <div class="form-group">
             <label for="purpose">목적 (용무):</label>
-            <input type="text" id="purpose" name="purpose" class="form-control">
+            <input type="text" id="purpose" name="purpose" class="form-control" value="{purpose}">
         </div>
 
         <div class="form-group">
             <label for="transport_details">교통 내역 상세:</label>
-            <textarea id="transport_details" name="transport_details" rows="4" placeholder="예: 지하철 (강남역 -> 시청역) 1,450원, 택시 (시청역 -> 본사) 5,800원" class="form-control"></textarea>
+            <textarea id="transport_details" name="transport_details" rows="4" placeholder="예: 지하철 (강남역 -> 시청역) 1,450원, 택시 (시청역 -> 본사) 5,800원" class="form-control">{transport_details}</textarea>
         </div>
 
         <div class="form-group">
             <label for="total_amount">총 금액 (원):</label>
-            <input type="number" id="total_amount" name="total_amount" min="0" class="form-control">
+            <input type="number" id="total_amount" name="total_amount" min="0" class="form-control" value="{total_amount}">
         </div>
 
         <div class="form-group">
             <label for="notes">기타 보고 사항 (비고):</label>
-            <textarea id="notes" name="notes" rows="3" class="form-control"></textarea>
+            <textarea id="notes" name="notes" rows="3" class="form-control">{notes}</textarea>
         </div>
 
     </form>

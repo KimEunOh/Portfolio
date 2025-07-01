@@ -26,37 +26,37 @@
                 <tr>
                     <td class="table-cell-label">업무내용</td>
                     <td class="table-cell-input">
-                        <textarea id="work_details" name="work_details" rows="3" class="form-control" placeholder="야근 사유 및 주요 업무 내용"></textarea>
+                        <textarea id="work_details" name="work_details" rows="3" class="form-control" placeholder="야근 사유 및 주요 업무 내용">{work_details}</textarea>
                     </td>
                 </tr>
                 <tr>
                     <td class="table-cell-label">업무일자</td>
                     <td class="table-cell-input">
-                        <input type="date" id="work_date" name="work_date" class="form-control">
+                        <input type="date" id="work_date" name="work_date" class="form-control" value="{work_date}">
                     </td>
                 </tr>
                 <tr>
                     <td class="table-cell-label">업무장소</td>
                     <td class="table-cell-input">
-                        <input type="text" id="work_location" name="work_location" class="form-control" placeholder="예: 본사 사무실">
+                        <input type="text" id="work_location" name="work_location" class="form-control" placeholder="예: 본사 사무실" value="{work_location}">
                     </td>
                 </tr>
                 <tr>
                     <td class="table-cell-label">퇴근시간</td>
                     <td class="table-cell-input">
-                        <input type="time" id="overtime_time" name="overtime_time" class="form-control" style="width: auto;">
+                        <input type="time" id="overtime_time" name="overtime_time" class="form-control" style="width: auto;" value="{overtime_time}">
                     </td>
                 </tr>
                 <tr>
                     <td class="table-cell-label">식대비용 (원)</td>
                     <td class="table-cell-input">
-                        <input type="number" id="dinner_expense_amount" name="dinner_expense_amount" class="form-control" placeholder="숫자만 입력">
+                        <input type="number" id="dinner_expense_amount" name="dinner_expense_amount" class="form-control" placeholder="숫자만 입력" value="{dinner_expense_amount}">
                  </td>
              </tr>
              <tr>
                     <td class="table-cell-label">입금요청계좌</td>
                     <td class="table-cell-input">
-                        <input type="text" id="bank_account_for_deposit" name="bank_account_for_deposit" class="form-control" placeholder="예: [은행명] 123-456-789012 [예금주]">
+                        <input type="text" id="bank_account_for_deposit" name="bank_account_for_deposit" class="form-control" placeholder="예: [은행명] 123-456-789012 [예금주]" value="{bank_account_for_deposit}">
                  </td>
              </tr>
              <tr>

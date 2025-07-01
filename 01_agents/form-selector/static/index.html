@@ -882,26 +882,38 @@
                     console.warn("[연차 신청서 Processor] 시작일, 종료일 또는 휴가 종류가 누락되어 dayList를 생성할 수 없습니다.", {startDateStr, endDateStr, dvTypeForApi});
                 }
 
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: "연차 신청서",
+                    reason: docCn,
+                    leave_type: leaveTypeSlotValue || "",
+                    leave_days: leaveDaysValue || "",
+                    start_date: startDateStr || "",
+                    end_date: endDateStr || ""
+                };
+
                 const payload = {
-                    form_type: "연차 신청서", 
-                    mstPid: currentFormResponse ? currentFormResponse.mstPid : null,
-                    drafterId: currentFormResponse ? currentFormResponse.drafterId : null,
                     docCn: docCn, 
                     dayList: dayList,
-                    debug_original_slots: JSON.parse(JSON.stringify(slots)),
-                    debug_leave_days_from_form_or_slot: leaveDaysValue
+                    itemList: [], // 연차 신청서는 itemList 없음
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
                 console.log("%c[연차 신청서 Processor] 최종 페이로드:", "color: red; font-weight: bold;", payload);
                 return payload;
             },
-            "야근 식대 신청서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
-                console.log("%c[야근 식대 신청서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
-                // activeForm을 사용하여 요소 값 가져오기
-                let docCnValue = getElementValueOrSlotFunc(activeForm, 'work_details', 'work_details', slots) || getElementValueOrSlotFunc(activeForm, 'additional_notes', 'additional_notes', slots);
-                let workDateValue = getElementValueOrSlotFunc(activeForm, 'work_date', 'work_date', slots);
-                let dinnerAmountValue = getElementValueOrSlotFunc(activeForm, 'dinner_expense_amount', 'dinner_expense_amount', slots);
+            "야근식대비용 신청서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
+                console.log("%c[야근식대비용 신청서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
+                
+                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const workDetailsValue = getElementValueOrSlotFunc(activeForm, 'work_details', 'work_details', slots);
+                const workLocationValue = getElementValueOrSlotFunc(activeForm, 'work_location', 'work_location', slots);
+                const overtimeTimeValue = getElementValueOrSlotFunc(activeForm, 'overtime_time', 'overtime_time', slots);
+                const bankAccountValue = getElementValueOrSlotFunc(activeForm, 'bank_account_for_deposit', 'bank_account_for_deposit', slots);
+                const workDateValue = getElementValueOrSlotFunc(activeForm, 'work_date', 'work_date', slots);
+                const dinnerAmountValue = getElementValueOrSlotFunc(activeForm, 'dinner_expense_amount', 'dinner_expense_amount', slots);
 
-                // 간단한 필수값 검증 예시
+                // 필수값 검증
                 if (!workDateValue || !dinnerAmountValue) {
                     let missingFields = [];
                     if (!workDateValue) missingFields.push("업무일자");
@@ -909,33 +921,51 @@
                     return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
                 }
 
-                // itemList나 dayList를 구성해야 한다면 여기에 로직 추가
-                // 예시: itemList.push({ work_date: workDateValue, amount: dinnerAmountValue });
-                // 현재는 docCn만 반환하도록 단순화
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "야근식대비용 신청서",
+                    work_details: workDetailsValue || "",
+                    work_location: workLocationValue || "",
+                    overtime_time: overtimeTimeValue || "",
+                    bank_account_for_deposit: bankAccountValue || "",
+                    work_date: workDateValue,
+                    dinner_expense_amount: dinnerAmountValue
+                };
+
+                // itemList 구성 (호환성 유지)
                 const itemList = [];
                 if (workDateValue && dinnerAmountValue) {
                     itemList.push({
-                        itemNm: "야근식대", // 항목명 예시
-                        reqYmd: workDateValue, // 업무일자
-                        useAmt: parseFloat(dinnerAmountValue) || 0, // 금액
-                        docCn: docCnValue || "야근 식대 사용" // 상세 내용
+                        itemNm: "야근식대",
+                        reqYmd: workDateValue,
+                        useAmt: parseFloat(dinnerAmountValue) || 0,
+                        docCn: workDetailsValue || "야근 식대 사용"
                     });
                 }
 
                 return { 
-                    docCn: docCnValue || "야근 식대 신청", 
+                    docCn: workDetailsValue || "야근 식대 신청", 
                     dayList: [], 
-                    itemList: itemList 
+                    itemList: itemList,
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
             "파견 및 출장 보고서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
                 console.log("%c[파견 및 출장 보고서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
                 
-                // activeForm을 사용하여 요소 값 가져오기
+                // activeForm을 사용하여 요소 값 가져오기 - 모든 필드 수집
                 let docCnValue = getElementValueOrSlotFunc(activeForm, 'report_details', 'report_details', slots) || getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots);
                 const startDateStr = getElementValueOrSlotFunc(activeForm, 'start_date', 'start_date', slots);
                 const endDateStr = getElementValueOrSlotFunc(activeForm, 'end_date', 'end_date', slots);
                 const purposeValue = getElementValueOrSlotFunc(activeForm, 'purpose', 'purpose', slots);
+                
+                // 추가 필드들 수집 (apdInfo용)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const originValue = getElementValueOrSlotFunc(activeForm, 'origin', 'origin', slots);
+                const destinationValue = getElementValueOrSlotFunc(activeForm, 'destination', 'destination', slots);
+                const durationDaysValue = getElementValueOrSlotFunc(activeForm, 'duration_days', 'duration_days', slots);
+                const reportDetailsValue = getElementValueOrSlotFunc(activeForm, 'report_details', 'report_details', slots);
+                const notesValue = getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots);
 
                 // 필수값 검증 (예: 보고내용, 시작일, 목적)
                 if (!docCnValue || !startDateStr || !purposeValue) {
@@ -946,31 +976,26 @@
                     return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
                 }
 
-                let dayList = [];
-                if (startDateStr && endDateStr) {
-                    let currentDate = new Date(startDateStr);
-                    const endDate = new Date(endDateStr);
-                    if (!isNaN(currentDate.getTime()) && !isNaN(endDate.getTime()) && currentDate <= endDate) {
-                        while (currentDate <= endDate) {
-                            const year = currentDate.getFullYear();
-                            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                            const day = String(currentDate.getDate()).padStart(2, '0');
-                            dayList.push({
-                                reqYmd: `${year}-${month}-${day}`,
-                                dvType: "BUSINESSTRIP" // API 명세에 따른 정확한 dvType 필요
-                            });
-                            currentDate.setDate(currentDate.getDate() + 1);
-                        }
-                    } else {
-                        console.warn("파견 및 출장 보고서: 유효하지 않은 시작일/종료일 또는 날짜 순서 오류");
-                        // 필요시 사용자에게 알림 또는 오류 처리
-                        // return { error: true, message: "시작일 또는 종료일이 유효하지 않습니다." }; 
-                    }
-                }
+                // dayList 생성은 백엔드에서 담당 (중복 제거)
+                console.log("[파견 및 출장 보고서 Processor] dayList 생성은 백엔드에서 처리됩니다:", { startDateStr, endDateStr });
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "파견 및 출장 보고서",
+                    origin: originValue || "",
+                    destination: destinationValue || "",
+                    start_date: startDateStr || "",
+                    end_date: endDateStr || "",
+                    duration_days: durationDaysValue || "",
+                    purpose: purposeValue || "",
+                    report_details: reportDetailsValue || "",
+                    notes: notesValue || ""
+                };
+
                 return { 
                     docCn: docCnValue || "파견 및 출장 보고서 제출", 
-                    dayList, 
-                    itemList: [] // 출장 보고서는 보통 itemList가 없을 수 있음
+                    dayList: [], // dayList는 백엔드에서 생성
+                    itemList: [], // 출장 보고서는 보통 itemList가 없을 수 있음
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
             "비품/소모품 구입내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
@@ -1174,39 +1199,99 @@
             "교통비 신청서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
                 console.log("%c[교통비 신청서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
                 
-                // activeForm을 사용하여 요소 값 가져오기
-                let docCnValue = getElementValueOrSlotFunc(activeForm, 'transport_details', 'transport_details', slots) || getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots);
-                let departureDate = getElementValueOrSlotFunc(activeForm, 'departure_date', 'departure_date', slots);
-                let purpose = getElementValueOrSlotFunc(activeForm, 'purpose', 'purpose', slots);
-                let totalAmount = getElementValueOrSlotFunc(activeForm, 'total_amount', 'total_amount', slots);
+                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const purposeValue = getElementValueOrSlotFunc(activeForm, 'purpose', 'purpose', slots);
+                const departureDateValue = getElementValueOrSlotFunc(activeForm, 'departure_date', 'departure_date', slots);
+                const originValue = getElementValueOrSlotFunc(activeForm, 'origin', 'origin', slots);
+                const destinationValue = getElementValueOrSlotFunc(activeForm, 'destination', 'destination', slots);
+                const transportDetailsValue = getElementValueOrSlotFunc(activeForm, 'transport_details', 'transport_details', slots);
+                const notesValue = getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots);
+                const totalAmountValue = getElementValueOrSlotFunc(activeForm, 'total_amount', 'total_amount', slots);
 
-                // 필수값 검증 (예: 사용일, 목적, 총금액, 상세내역)
-                if (!departureDate || !purpose || !totalAmount || !docCnValue) {
+                // 필수값 검증
+                if (!departureDateValue || !purposeValue || !totalAmountValue || !transportDetailsValue) {
                     let missingFields = [];
-                    if (!departureDate) missingFields.push("출발일(사용일)");
-                    if (!purpose) missingFields.push("목적(용무)");
-                    if (!totalAmount) missingFields.push("총 금액");
-                    if (!docCnValue) missingFields.push("교통 내역 상세"); // docCnValue가 transport_details를 의미
+                    if (!departureDateValue) missingFields.push("출발일(사용일)");
+                    if (!purposeValue) missingFields.push("목적(용무)");
+                    if (!totalAmountValue) missingFields.push("총 금액");
+                    if (!transportDetailsValue) missingFields.push("교통 내역 상세");
                     return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
                 }
+
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "교통비 신청서",
+                    purpose: purposeValue,
+                    departure_date: departureDateValue,
+                    origin: originValue || "",
+                    destination: destinationValue || "",
+                    transport_details: transportDetailsValue,
+                    notes: notesValue || "",
+                    total_amount: totalAmountValue
+                };
                 
+                // itemList 구성 (호환성 유지)
                 const itemList = [];
-                if (departureDate && totalAmount && docCnValue) {
+                if (departureDateValue && totalAmountValue && transportDetailsValue) {
                     itemList.push({
-                        itemNm: purpose || "교통비", // 목적을 항목명으로 사용
-                        reqYmd: departureDate,
-                        useAmt: parseFloat(totalAmount) || 0,
-                        docCn: docCnValue
+                        itemNm: purposeValue || "교통비",
+                        reqYmd: departureDateValue,
+                        useAmt: parseFloat(totalAmountValue) || 0,
+                        docCn: transportDetailsValue
                     });
                 }
 
                 return { 
-                    docCn: docCnValue, // submitDocument에서 이미 formSpecificData.docCn || '내용 없음' 처리
-                    dayList: departureDate ? [{ reqYmd: departureDate, dvType: "TRANSPORTATION" }] : [], // dvType API 명세 확인 필요
-                    itemList 
+                    docCn: transportDetailsValue,
+                    dayList: departureDateValue ? [{ reqYmd: departureDateValue, dvType: "TRANSPORTATION" }] : [],
+                    itemList,
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             }
         };
+
+        /**
+         * 프론트엔드 양식 타입을 백엔드 API에서 사용하는 타입으로 변환
+         */
+        function getBackendFormType(frontendFormType) {
+            const typeMapping = {
+                "연차 신청서": "annual_leave",
+                "야근식대비용 신청서": "dinner_expense", 
+                "교통비 신청서": "transportation_expense",
+                "파견 및 출장 보고서": "dispatch_businesstrip_report",
+                "비품/소모품 구입내역서": "inventory_purchase_report",
+                "구매 품의서": "purchase_approval_form",
+                "개인 경비 사용 내역서": "personal_expense_report", 
+                "법인카드 지출내역서": "corporate_card_statement"
+            };
+            return typeMapping[frontendFormType] || frontendFormType;
+        }
+
+        /**
+         * 폼 필드 값을 가져오는 헬퍼 함수 (resultArea 내에서 검색)
+         */
+        function getFormFieldValue(fieldId) {
+            const resultArea = document.getElementById('resultArea');
+            if (!resultArea) {
+                console.log(`[getFormFieldValue] resultArea not found for field: ${fieldId}`);
+                return '';
+            }
+            
+            // 다양한 방법으로 필드 찾기
+            let element = resultArea.querySelector(`#${fieldId}`);
+            if (!element) {
+                element = resultArea.querySelector(`[name="${fieldId}"]`);
+            }
+            if (!element) {
+                // 부분 매칭도 시도
+                element = resultArea.querySelector(`[name*="${fieldId}"], [id*="${fieldId}"]`);
+            }
+            
+            const value = element ? (element.value || '') : '';
+            console.log(`[getFormFieldValue] ${fieldId}: element=${!!element}, value='${value}'`);
+            return value;
+        }
 
         /**
          * @async
@@ -1242,7 +1327,7 @@
 
             if (formType === "연차 신청서") {
                 activeFormElement = resultArea.querySelector('form#annualLeaveForm');
-            } else if (formType === "야근 식대 신청서") {
+            } else if (formType === "야근식대비용 신청서") {
                 activeFormElement = resultArea.querySelector('form#dinner_expense_form'); // dinner_expense.html의 form ID
             } else if (formType === "파견 및 출장 보고서") {
                 activeFormElement = resultArea.querySelector('form#dispatch_businesstrip_report_form');
@@ -1367,39 +1452,69 @@
                     itemList: formSpecificData.itemList || [] 
                 };
 
-                console.log("제출할 데이터:", JSON.stringify(payload, null, 2));
-                // resultArea.innerHTML += '<p>문서 제출 중...</p>';
-                console.log("[submitDocument] 문서 제출 중...");
+                console.log("원본 폼 데이터:", JSON.stringify(payload, null, 2));
+                console.log("[submitDocument] 백엔드 변환 로직 호출 중...");
                 
-                const submitResponse = await fetch('https://dev-api.ntoday.kr/api/v1/epaper/register', {
-                    method: 'PUT',
+                // 모듈화된 접근: formProcessor가 반환한 완전한 formData 사용
+                const backendFormType = getBackendFormType(formType);
+                let formData;
+                
+                if (formSpecificData.formData) {
+                    // 새로운 표준화된 processor가 완전한 formData 반환
+                    formData = {
+                        title: payload.aprvNm,
+                        drafterId: payload.drafterId,
+                        approvers: payload.lineList,
+                        ...formSpecificData.formData
+                    };
+                    console.log(`[DEBUG] Using standardized formData for ${formType}:`, formData);
+                } else {
+                    // 레거시 processor 지원 (단계적 이전)
+                    console.warn(`[DEBUG] ${formType} processor not yet standardized, using legacy approach`);
+                    formData = {
+                        title: payload.aprvNm,
+                        drafterId: payload.drafterId,
+                        approvers: payload.lineList,
+                        notes: payload.docCn
+                    };
+                }
+
+                const convertResponse = await fetch('/submit-form', {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        form_type: backendFormType,
+                        form_data: formData
+                    })
                 });
 
-                if (!submitResponse.ok) {
-                    const responseText = await submitResponse.text(); 
-                    let errorMessage = `제출 실패: ${submitResponse.status} - ${submitResponse.statusText}`;
+                if (!convertResponse.ok) {
+                    const responseText = await convertResponse.text(); 
+                    let errorMessage = `변환 및 제출 실패: ${convertResponse.status} - ${convertResponse.statusText}`;
                     try {
                         const errorData = JSON.parse(responseText); 
-                        errorMessage = `제출 실패: ${submitResponse.status} - ${errorData.message || errorData.msg || responseText}`;
+                        errorMessage = `변환 및 제출 실패: ${convertResponse.status} - ${errorData.message || errorData.detail?.message || responseText}`;
                     } catch (e) {
-                        errorMessage = `제출 실패: ${submitResponse.status} - ${responseText}`;
-                        console.warn("제출 API 응답 JSON 파싱 실패. 원본 응답 텍스트:", responseText);
+                        errorMessage = `변환 및 제출 실패: ${convertResponse.status} - ${responseText}`;
+                        console.warn("백엔드 변환 API 응답 JSON 파싱 실패. 원본 응답 텍스트:", responseText);
                     }
                     throw new Error(errorMessage);
                 }
 
-                const submitResult = await submitResponse.json();
-                console.log("제출 결과:", submitResult);
+                const convertResult = await convertResponse.json();
+                console.log("변환 및 제출 결과:", convertResult);
                 
-                const successMessage = submitResult.message || submitResult.msg || "문서가 성공적으로 제출되었습니다.";
-                alert(successMessage);
-                // resultArea.innerHTML += `<p>문서 제출 성공: ${successMessage}</p>`;
-                console.log(`[submitDocument] 문서 제출 성공: ${successMessage}`);
-                submitBtn.style.display = 'none'; 
+                if (convertResult.success && convertResult.api_response) {
+                    const successMessage = convertResult.api_response.message || convertResult.api_response.msg || "문서가 성공적으로 제출되었습니다.";
+                    alert(successMessage);
+                    console.log(`[submitDocument] 문서 제출 성공: ${successMessage}`);
+                    console.log("최종 API Payload:", convertResult.submitted_payload);
+                    submitBtn.style.display = 'none';
+                } else {
+                    throw new Error("백엔드에서 변환은 성공했지만 외부 API 제출에 실패했습니다.");
+                } 
 
             } catch (error) {
                 console.error('Error in submitDocument:', error);
