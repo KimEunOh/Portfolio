@@ -35,7 +35,7 @@ app.mount(
 
 @app.get("/")
 async def read_root():
-    return RedirectResponse(url="/ui/sso_welcome.html")
+    return RedirectResponse(url="/ui/login.html")
 
 
 @app.post("/form-selector")

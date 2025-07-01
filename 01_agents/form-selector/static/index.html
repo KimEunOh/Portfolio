@@ -445,25 +445,13 @@
                 selectedDrafter = JSON.parse(storedDrafterJSON);
                 console.log("Loaded drafter from sessionStorage:", selectedDrafter);
             } catch (e) {
-                console.error("Failed to parse drafter from sessionStorage, picking random.", e);
-                pickRandomDrafter();
+                console.error("Failed to parse drafter from sessionStorage, redirecting to login.", e);
+                window.location.href = '/ui/login.html';
             }
         } else {
-            console.log("No drafter in sessionStorage, picking random.");
-            pickRandomDrafter();
+            console.log("No drafter in sessionStorage, redirecting to login.");
+            window.location.href = '/ui/login.html';
         }
-    }
-
-    function pickRandomDrafter() {
-        if (window.DRAFTER_LIST && window.DRAFTER_LIST.length > 0) {
-            const idx = Math.floor(Math.random() * window.DRAFTER_LIST.length);
-            selectedDrafter = window.DRAFTER_LIST[idx];
-        } else {
-            selectedDrafter = { name: "알수없음", id: "00000000" };
-        }
-        console.log("Picked random drafter:", selectedDrafter);
-        // Store the newly picked random drafter for the session
-        sessionStorage.setItem('selectedDrafter', JSON.stringify(selectedDrafter));
     }
     
     // 페이지 로드 시 기안자 정보 초기화

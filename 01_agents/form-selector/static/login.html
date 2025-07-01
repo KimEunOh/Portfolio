@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인</title>
+    <link rel="stylesheet" href="/ui/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--background);
+        }
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+        .login-container h1 {
+            font-family: var(--h2-title-font-family);
+            font-size: var(--h2-title-font-size);
+            color: var(--primaryhigh);
+            margin-bottom: 30px;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+        }
+        .error-message {
+            color: var(--cancel);
+            margin-top: 15px;
+            text-align: left;
+            display: none; /* Initially hidden */
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>로그인</h1>
+        <form id="loginForm">
+            <label for="drafterIdInput">사번을 입력하세요</label>
+            <input type="text" id="drafterIdInput" name="drafterId" placeholder="예: 01240006" required>
+            <button type="submit">로그인</button>
+            <p id="errorMessage" class="error-message"></p>
+        </form>
+    </div>
+
+    <script src="/ui/js/drafter_list.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const drafterId = document.getElementById('drafterIdInput').value.trim();
+            const errorMessageElement = document.getElementById('errorMessage');
+
+            if (!drafterId) {
+                errorMessageElement.textContent = '사번을 입력해주세요.';
+                errorMessageElement.style.display = 'block';
+                return;
+            }
+
+            // DRAFTER_LIST에서 해당 사번을 가진 기안자 정보 찾기
+            const drafter = window.DRAFTER_LIST.find(d => d.id === drafterId);
+
+            if (drafter) {
+                // 기안자 정보를 sessionStorage에 저장
+                sessionStorage.setItem('selectedDrafter', JSON.stringify(drafter));
+                // 메인 페이지로 이동
+                window.location.href = '/ui/index.html';
+            } else {
+                errorMessageElement.textContent = '유효하지 않은 사번입니다. 다시 확인해주세요.';
+                errorMessageElement.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html> 
