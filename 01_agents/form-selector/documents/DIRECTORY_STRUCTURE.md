@@ -23,6 +23,7 @@ form-selector/
 │   │   ├── annual_leave_processor.py       # 📅 연차 신청서 처리기
 │   │   ├── personal_expense_processor.py   # 💰 개인 경비 처리기
 │   │   ├── dinner_expense_processor.py     # 🍽️ 야근 식대 처리기
+│   │   ├── transportation_expense_processor.py # 🚗 교통비 처리기 🆕
 │   │   └── processor_factory.py            # 🏭 프로세서 팩토리
 │   │
 │   ├── 📁 converters/                      # 🔄 데이터 변환기 (새로 구축됨)
@@ -122,7 +123,8 @@ form-selector/
 | `base_processor.py` | 기본 프로세서 클래스 | ✅ 완료 | 템플릿 메서드 패턴 |
 | `annual_leave_processor.py` | 연차 신청서 처리 | ✅ 완료 | 단순한 처리 로직 |
 | `personal_expense_processor.py` | 개인 경비 처리 | ✅ 완료 | 복잡한 아이템 처리 |
-| `dinner_expense_processor.py` | 야근 식대 처리 | ✅ 완료 🆕 | 자연어 시간 변환 |
+| `dinner_expense_processor.py` | 야근 식대 처리 | ✅ 완료 | 자연어 시간 변환 |
+| `transportation_expense_processor.py` | 교통비 처리 | ✅ 완료 🆕 | 금액 변환 및 출발지/목적지 처리 |
 | `processor_factory.py` | 프로세서 팩토리 | ✅ 완료 | 팩토리 패턴 |
 
 #### 🔄 변환기 모듈 (`converters/`)
@@ -166,25 +168,9 @@ form-selector/
 
 ## 🔄 리팩토링 진행 상황
 
-### ✅ 완료된 모듈화
-```
-이전: service.py (2,025줄 거대 파일)
-├── fill_slots_in_template() - 500+줄
-├── convert_dates() - 200+줄
-├── decompose_to_html_fields() - 300+줄
-└── 기타 모든 로직들...
-
-현재: 모듈화된 구조
-├── processors/base_processor.py (템플릿 메서드)
-├── converters/date_converter.py (날짜 변환)
-├── converters/item_converter.py (아이템 변환)
-├── converters/field_converter.py (필드 변환)
-└── processors/[form]_processor.py (양식별 처리)
-```
-
 ### 🚧 진행 중인 작업
 1. **Phase 1**: 백엔드 모듈 분리 ✅ **완료**
-2. **Phase 2**: 추가 프로세서 구현 🚧 **진행 예정**
+2. **Phase 2**: 추가 프로세서 구현 🚧 **33% 진행** (4/6 프로세서 완료) 🆕
 3. **Phase 3**: JavaScript 리팩토링 ⏳ **계획 중**
 
 ---
@@ -205,7 +191,18 @@ form-selector/
 | converter들 | 100-150줄 | 낮음 | ✅ 완료 |
 | validator들 | 50-80줄 | 낮음 | ✅ 완료 |
 
+### 📊 모듈화 성과 지표 🆕
+| 메트릭 | 수치 | 상태 |
+|--------|------|------|
+| 구현된 프로세서 수 | 4개 | ✅ 증가 |
+| 총 모듈 수 | 11개 | ✅ 모듈화 완료 |
+| 테스트 커버리지 | 10개 테스트 | ✅ 검증됨 |
+| Phase 2 진행률 | 33% | 🚧 진행중 |
+
 ---
+
+**📅 마지막 수정**: 2025-07-02 🆕  
+**📝 다음 우선순위**: InventoryPurchaseProcessor 구현
 
 ## 🎯 향후 디렉토리 구조 계획
 

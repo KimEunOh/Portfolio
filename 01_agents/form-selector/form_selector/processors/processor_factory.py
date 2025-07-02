@@ -11,6 +11,7 @@ from .base_processor import BaseFormProcessor, DefaultFormProcessor
 from .annual_leave_processor import AnnualLeaveProcessor
 from .personal_expense_processor import PersonalExpenseProcessor
 from .dinner_expense_processor import DinnerExpenseProcessor
+from .transportation_expense_processor import TransportationExpenseProcessor
 
 
 class ProcessorFactory:
@@ -24,6 +25,8 @@ class ProcessorFactory:
         "personal_expense_report": PersonalExpenseProcessor,
         "야근식대비용 신청서": DinnerExpenseProcessor,
         "dinner_expense": DinnerExpenseProcessor,
+        "교통비 신청서": TransportationExpenseProcessor,
+        "transportation_expense": TransportationExpenseProcessor,
     }
 
     @classmethod

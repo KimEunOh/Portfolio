@@ -162,6 +162,85 @@ class TestRefactoredProcessors(unittest.TestCase):
                 f"시간 변환 실패: {input_time} -> {expected_time}",
             )
 
+    def test_transportation_expense_processor(self):
+        """교통비 신청서 프로세서 테스트"""
+        # TransportationExpenseProcessor 생성
+        processor = ProcessorFactory.create_processor("교통비 신청서")
+        self.assertIsNotNone(processor)
+
+        # 테스트 슬롯 데이터
+        slots = {
+            "title": "10월 시내 교통비 정산",
+            "departure_date": "어제",
+            "origin": "본사",
+            "destination": "강남 거래처",
+            "purpose": "거래처 미팅",
+            "transport_details": "지하철 (시청역 -> 강남역) 편도 1,450원",
+            "total_amount": 1450,
+            "notes": "영수증 별도 제출",
+        }
+
+        # 슬롯 처리
+        transformed_slots = processor.process_slots(slots, self.current_date_iso)
+
+        # 날짜 변환 확인
+        self.assertEqual(transformed_slots["departure_date"], "2025-07-01")  # 어제
+
+        # 금액 확인 (숫자 타입 유지)
+        self.assertEqual(transformed_slots["total_amount"], 1450)
+
+        # 기타 필드 확인
+        self.assertEqual(transformed_slots["origin"], "본사")
+        self.assertEqual(transformed_slots["destination"], "강남 거래처")
+        self.assertEqual(transformed_slots["purpose"], "거래처 미팅")
+        self.assertEqual(
+            transformed_slots["transport_details"],
+            "지하철 (시청역 -> 강남역) 편도 1,450원",
+        )
+        self.assertEqual(transformed_slots["notes"], "영수증 별도 제출")
+
+    def test_transportation_expense_amount_conversion(self):
+        """교통비 금액 변환 테스트"""
+        processor = ProcessorFactory.create_processor("교통비 신청서")
+
+        # 다양한 금액 형태 테스트
+        amount_tests = [
+            ("1450", 1450),  # 문자열 숫자
+            (1450, 1450),  # 이미 숫자
+            ("0", 0),  # 문자열 0
+            ("", 0),  # 빈 문자열
+        ]
+
+        for input_amount, expected_amount in amount_tests:
+            slots = {"total_amount": input_amount}
+            transformed_slots = processor.process_slots(slots, self.current_date_iso)
+
+            self.assertIn(
+                "total_amount",
+                transformed_slots,
+                f"total_amount key missing for input: {input_amount}",
+            )
+            self.assertEqual(
+                transformed_slots["total_amount"],
+                expected_amount,
+                f"금액 변환 실패: {input_amount} -> {expected_amount}",
+            )
+
+        # None 값 테스트 - 다른 유효한 필드와 함께 테스트 (BaseFormProcessor의 빈 슬롯 필터링 회피)
+        slots_with_none = {"total_amount": None, "purpose": "회의 참석"}
+        transformed_slots = processor.process_slots(
+            slots_with_none, self.current_date_iso
+        )
+
+        self.assertIn(
+            "total_amount",
+            transformed_slots,
+            "total_amount key missing for None input with valid fields",
+        )
+        self.assertEqual(
+            transformed_slots["total_amount"], 0, "None 값이 0으로 변환되지 않음"
+        )
+
     def test_fill_template(self):
         """템플릿 채우기 테스트"""
         processor = ProcessorFactory.create_processor("연차 신청서")
