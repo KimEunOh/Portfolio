@@ -48,17 +48,23 @@ def _call_llm_for_datetime_parsing(text: str, today_iso: str) -> Optional[str]:
 다음 지침을 **반드시** 따르십시오:
 
 1. **모든 날짜 계산은 반드시 기준일({today_iso})을 기준으로 해야 합니다.**
-2. 날짜 정보만 있는 경우 'date_only' 필드를 YYYY-MM-DD 형식으로 설정하고, 'date_time'은 null로 설정하세요.
-3. 날짜와 시간 정보가 모두 있는 경우 'date_time' 필드를 YYYY-MM-DDTHH:MM 형식으로 설정하고, 'date_only'는 null로 설정하세요.
-4. 추출된 날짜 정보가 없다면 두 필드 모두 null로 설정하세요.
-5. 항상 기준일({today_iso})을 기준으로 상대적인 날짜를 계산하세요(예: "내일"은 기준일 + 1일).
-6. 시간은 24시간 형식(00-23)으로 표시하세요.
+2. **연도가 명시되지 않은 월/일의 경우:**
+   - 해당 월이 기준일의 월보다 이후이거나 같으면: 기준일과 같은 연도
+   - 해당 월이 기준일의 월보다 이전이면: 기준일의 다음 연도
+   - 예: 기준일이 2025-07-02이고 입력이 "12월 23일"이면 → 2025-12-23 (12월 >= 7월이므로 올해)
+   - 예: 기준일이 2025-07-02이고 입력이 "3월 15일"이면 → 2026-03-15 (3월 < 7월이므로 내년)
+3. 날짜 정보만 있는 경우 'date_only' 필드를 YYYY-MM-DD 형식으로 설정하고, 'date_time'은 null로 설정하세요.
+4. 날짜와 시간 정보가 모두 있는 경우 'date_time' 필드를 YYYY-MM-DDTHH:MM 형식으로 설정하고, 'date_only'는 null로 설정하세요.
+5. 추출된 날짜 정보가 없다면 두 필드 모두 null로 설정하세요.
+6. 항상 기준일({today_iso})을 기준으로 상대적인 날짜를 계산하세요(예: "내일"은 기준일 + 1일).
+7. 시간은 24시간 형식(00-23)으로 표시하세요.
 
 예시:
 1. 입력: "내일 회의가 있어요" → date_only: [기준일 다음 날], date_time: null
 2. 입력: "다음 주 화요일 오후 3시 반" → date_only: null, date_time: [기준일 기준 다음 주 화요일]T15:30
 3. 입력: "2023년 12월 25일에 만나요" → date_only: 2023-12-25, date_time: null
 4. 입력: "이번 달 마지막 날 오전 9시" → date_only: null, date_time: [기준일 기준 이번 달 마지막 날]T09:00
+5. 기준일이 2025-07-02이고 입력이 "12월 23일"인 경우 → date_only: 2025-12-23
 """
 
     # 2. Function calling 정의
@@ -292,12 +298,27 @@ def parse_relative_date_to_iso(
             lambda m: f"{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}",
             temp_str,
         )
-        # "MM월 DD일" (앞에 년도 없을 때) -> 올해 MM-DD
-        # 이미 YYYY-MM-DD로 바뀐 경우는 건드리지 않음.
+        # "MM월 DD일" (앞에 년도 없을 때) -> 스마트 년도 결정
+        # 현재 월보다 이전 월이면 다음 년도로, 이후 월이면 올해로 해석
         if not re.match(r"^\d{4}-", temp_str):
+
+            def smart_year_replace(m):
+                month = int(m.group(1))
+                day = int(m.group(2))
+                # 연도가 명시되지 않은 월/일의 경우:
+                # - 해당 월이 기준일의 월보다 이후이거나 같으면: 기준일과 같은 연도
+                # - 해당 월이 기준일의 월보다 이전이면: 기준일의 다음 연도
+                # 예: 기준일이 2025-07-02이고 입력이 "12월 23일"이면 → 2025-12-23 (12 >= 7)
+                # 예: 기준일이 2025-07-02이고 입력이 "3월 15일"이면 → 2026-03-15 (3 < 7)
+                if month >= today.month:
+                    year = today.year  # 현재 월 이후 또는 같으면 올해
+                else:
+                    year = today.year + 1  # 이전 월이면 다음 년도
+                return f"{year}-{month:02d}-{day:02d}"
+
             temp_str = re.sub(
                 r"(\d{1,2})월\s*(\d{1,2})일",
-                lambda m: f"{today.year}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}",
+                smart_year_replace,
                 temp_str,
             )
 
@@ -473,6 +494,71 @@ def parse_datetime_description_to_iso_local(
             f"Error in parse_datetime_description_to_iso_local (rule-based): {datetime_str}, Error: {e}"
         )
         return None
+
+
+def parse_date_range_with_context(
+    start_date_str: str, end_date_str: str, current_date_iso: Optional[str] = None
+) -> tuple[str, str]:
+    """날짜 범위를 컨텍스트를 유지하며 파싱합니다.
+
+    "12월 23일부터 25일까지" 같은 경우 start_date의 월 정보를 end_date에 적용합니다.
+
+    Args:
+        start_date_str: 시작 날짜 문자열 (예: "12월 23일부터")
+        end_date_str: 종료 날짜 문자열 (예: "25일까지")
+        current_date_iso: 기준 날짜 (YYYY-MM-DD 형식)
+
+    Returns:
+        tuple[str, str]: (파싱된 시작날짜, 파싱된 종료날짜)
+    """
+    if not isinstance(start_date_str, str) or not isinstance(end_date_str, str):
+        return start_date_str, end_date_str
+
+    # 기준 날짜 설정
+    if current_date_iso:
+        current_date = datetime.strptime(current_date_iso, "%Y-%m-%d").date()
+    else:
+        current_date = datetime.now().date()
+
+    # 1. start_date 먼저 파싱
+    parsed_start = parse_relative_date_to_iso(start_date_str, current_date_iso)
+
+    # 2. end_date에 월 정보가 없고, start_date에 월 정보가 있는 경우 컨텍스트 보강
+    if (
+        "월" in start_date_str or re.search(r"\d{4}-\d{2}", start_date_str)
+    ) and not (  # start_date에 월 정보 있음
+        "월" in end_date_str or re.search(r"\d{4}-\d{2}", end_date_str)
+    ):  # end_date에 월 정보 없음
+        # start_date에서 월 정보 추출
+        month_match = re.search(r"(\d{1,2})월", start_date_str)
+        year_match = re.search(r"(\d{4})", start_date_str)
+
+        if month_match:
+            month = int(month_match.group(1))
+            year = int(year_match.group(1)) if year_match else None
+
+            # 년도가 없는 경우 스마트 년도 결정 (parse_relative_date_to_iso와 동일한 로직)
+            if year is None:
+                if month < current_date.month:
+                    year = current_date.year + 1
+                else:
+                    year = current_date.year
+
+            # end_date에 월 정보 추가
+            enhanced_end_date = f"{year}년 {month}월 {end_date_str}"
+            parsed_end = parse_relative_date_to_iso(enhanced_end_date, current_date_iso)
+
+            print(
+                f"Enhanced end_date with context: '{end_date_str}' → '{enhanced_end_date}' → '{parsed_end}'"
+            )
+        else:
+            # 월 정보 추출 실패 시 일반 파싱
+            parsed_end = parse_relative_date_to_iso(end_date_str, current_date_iso)
+    else:
+        # 일반적인 개별 파싱
+        parsed_end = parse_relative_date_to_iso(end_date_str, current_date_iso)
+
+    return parsed_start, parsed_end
 
 
 if __name__ == "__main__":

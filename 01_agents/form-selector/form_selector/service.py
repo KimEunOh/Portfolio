@@ -27,6 +27,7 @@ from .form_configs import AVAILABLE_FORM_TYPES, TEMPLATE_FILENAME_MAP, FORM_CONF
 from .utils import (
     parse_relative_date_to_iso,
     parse_datetime_description_to_iso_local,
+    parse_date_range_with_context,
 )  # utils 모듈에서 함수 임포트
 from .rag import retrieve_template  # RAG 모듈의 retrieve_template 함수 임포트
 import re
@@ -52,7 +53,10 @@ LEAVE_TYPE_TEXT_TO_VALUE_MAP = {
 
 
 def fill_slots_in_template(
-    template: str, slots_dict: Dict[str, Any], current_date_iso: str
+    template: str,
+    slots_dict: Dict[str, Any],
+    current_date_iso: str,
+    form_type: str = "",
 ) -> Tuple[str, Dict[str, Any]]:
     """HTML 템플릿 내의 플레이스홀더를 추출된 슬롯 값으로 채웁니다.
 
@@ -139,6 +143,50 @@ def fill_slots_in_template(
     transformed_slots = {**active_slots}
 
     # --- 날짜/시간 관련 슬롯 우선 처리 ---
+    # 🔧 start_date와 end_date가 함께 있으면 컨텍스트 유지하며 파싱
+    if "start_date" in transformed_slots and "end_date" in transformed_slots:
+        start_parsed, end_parsed = parse_date_range_with_context(
+            transformed_slots["start_date"],
+            transformed_slots["end_date"],
+            current_date_iso,
+        )
+        transformed_slots["start_date"] = start_parsed
+        transformed_slots["end_date"] = end_parsed
+        logging.info(
+            f"Date range parsed with context: start='{start_parsed}', end='{end_parsed}'"
+        )
+        # start_date, end_date는 이미 처리했으므로 개별 파싱에서 제외
+        remaining_date_fields = [
+            f
+            for f in [
+                "application_date",
+                "work_date",
+                "departure_date",
+                "request_date",
+                "draft_date",
+                "statement_date",
+                "usage_date",
+            ]
+            if f in transformed_slots
+        ]
+    else:
+        # start_date나 end_date 중 하나만 있거나 둘 다 없는 경우 기존 로직 사용
+        remaining_date_fields = [
+            f
+            for f in [
+                "start_date",
+                "end_date",
+                "application_date",
+                "work_date",
+                "departure_date",
+                "request_date",
+                "draft_date",
+                "statement_date",
+                "usage_date",
+            ]
+            if f in transformed_slots
+        ]
+
     # 연차 신청서 등의 start_date, end_date를 먼저 YYYY-MM-DD로 변환
     date_fields_to_parse = [
         "start_date",
@@ -152,7 +200,7 @@ def fill_slots_in_template(
         "usage_date",
     ]  # 추가적인 직접 파싱 대상 필드들
 
-    for field in date_fields_to_parse:
+    for field in remaining_date_fields:
         if field in transformed_slots and isinstance(transformed_slots[field], str):
             original_value = transformed_slots[field]
             parsed_value = parse_relative_date_to_iso(
@@ -309,6 +357,196 @@ def fill_slots_in_template(
             f"Card usage items list processed for dates: {transformed_slots.get('card_usage_items')}"
         )
 
+        # 법인카드 사용 내역을 개별 HTML 필드로 분해
+        for i, item in enumerate(updated_card_items[:6], 1):  # 최대 6개 항목
+            transformed_slots[f"usage_date_{i}"] = item.get("usage_date", "")
+            transformed_slots[f"usage_category_{i}"] = item.get("usage_category", "")
+            transformed_slots[f"merchant_name_{i}"] = item.get("usage_description", "")
+            transformed_slots[f"usage_amount_{i}"] = item.get("usage_amount", "")
+            transformed_slots[f"usage_notes_{i}"] = item.get("usage_notes", "")
+
+        # 총 금액 계산
+        total_amount = sum(
+            int(item.get("usage_amount", 0))
+            for item in updated_card_items
+            if item.get("usage_amount")
+        )
+        transformed_slots["total_usage_amount"] = total_amount
+        transformed_slots["total_amount_header"] = total_amount
+
+    # 비품/소모품 구입내역서 (`items` 키 사용)의 아이템별 처리:
+    # - 요청일자를 파싱하고 개별 HTML 필드로 분해합니다.
+    if "items" in transformed_slots and isinstance(transformed_slots["items"], list):
+        updated_items = []
+        for item in transformed_slots["items"]:
+            if isinstance(item, dict):
+                processed_item = {**item}
+                # 별도 날짜 필드 처리는 없음 (요청일은 별도 필드)
+                updated_items.append(processed_item)
+            else:
+                updated_items.append(item)
+        transformed_slots["items"] = updated_items
+
+        # 비품/소모품 구입 내역을 개별 HTML 필드로 분해
+        for i, item in enumerate(updated_items[:6], 1):  # 최대 6개 항목
+            transformed_slots[f"item_name_{i}"] = item.get("item_name", "")
+            transformed_slots[f"item_quantity_{i}"] = item.get("item_quantity", "")
+            transformed_slots[f"item_unit_price_{i}"] = item.get("item_unit_price", "")
+            transformed_slots[f"item_total_price_{i}"] = item.get(
+                "item_total_price", ""
+            )
+            transformed_slots[f"item_purpose_{i}"] = item.get(
+                "item_notes", ""
+            )  # item_notes를 item_purpose로 매핑
+
+        # 총 금액 계산
+        total_amount = sum(
+            int(item.get("item_total_price", 0))
+            for item in updated_items
+            if item.get("item_total_price")
+        )
+        transformed_slots["total_amount"] = total_amount
+
+    # 개인 경비 사용 내역서 (`expense_items` 키 사용)의 아이템별 처리:
+    # - 사용일자를 파싱하고 개별 HTML 필드로 분해합니다.
+    if "expense_items" in transformed_slots and isinstance(
+        transformed_slots["expense_items"], list
+    ):
+        updated_expense_items = []
+        for item in transformed_slots["expense_items"]:
+            if isinstance(item, dict):
+                processed_item = {**item}
+                # 사용일자 파싱
+                if "expense_date" in processed_item and isinstance(
+                    processed_item["expense_date"], str
+                ):
+                    original_date_str = processed_item["expense_date"]
+                    parsed_date = parse_relative_date_to_iso(
+                        original_date_str, current_date_iso=current_date_iso
+                    )
+                    if parsed_date:
+                        processed_item["expense_date"] = parsed_date
+                        logging.debug(
+                            f"Expense item's 'expense_date' ('{original_date_str}') parsed to '{parsed_date}'"
+                        )
+                    else:
+                        logging.warning(
+                            f"Failed to parse expense_date: {original_date_str}. Keeping original."
+                        )
+
+                # 분류 텍스트를 HTML select value로 매핑
+                if "expense_category" in processed_item:
+                    category_text = processed_item["expense_category"]
+                    category_value = _map_expense_category_to_value(category_text)
+                    processed_item["expense_category"] = category_value
+                    logging.debug(
+                        f"Expense category mapped: '{category_text}' -> '{category_value}'"
+                    )
+
+                updated_expense_items.append(processed_item)
+            else:
+                updated_expense_items.append(item)
+        transformed_slots["expense_items"] = updated_expense_items
+
+        # 개인 경비 사용 내역을 개별 HTML 필드로 분해
+        for i, item in enumerate(
+            updated_expense_items[:3], 1
+        ):  # 최대 3개 항목 (HTML 기본)
+            transformed_slots[f"expense_date_{i}"] = item.get("expense_date", "")
+            transformed_slots[f"expense_category_{i}"] = item.get(
+                "expense_category", ""
+            )
+            transformed_slots[f"expense_description_{i}"] = item.get(
+                "expense_description", ""
+            )
+            transformed_slots[f"expense_amount_{i}"] = item.get("expense_amount", "")
+            transformed_slots[f"expense_notes_{i}"] = item.get("expense_notes", "")
+
+        # 총 금액 계산
+        total_expense_amount = sum(
+            int(item.get("expense_amount", 0))
+            for item in updated_expense_items
+            if item.get("expense_amount")
+        )
+        transformed_slots["total_expense_amount"] = total_expense_amount
+        transformed_slots["total_amount_header"] = total_expense_amount
+
+    # 구매 품의서 확인: form_type과 title 모두 확인
+    is_purchase_form = (
+        form_type == "구매 품의서"
+        or transformed_slots.get("title") == "구매 품의서"
+        or "payment_terms" in transformed_slots
+        or "delivery_location" in transformed_slots
+        or "attached_files_description" in transformed_slots
+    )
+
+    # 구매 품의서의 items 처리 (비품/소모품과는 다른 구조)
+    if (
+        is_purchase_form
+        and "items" in transformed_slots
+        and isinstance(transformed_slots["items"], list)
+    ):
+
+        updated_items = []
+        for item in transformed_slots["items"]:
+            if isinstance(item, dict):
+                processed_item = {**item}
+                # 납기요청일 파싱
+                if "item_delivery_request_date" in processed_item and isinstance(
+                    processed_item["item_delivery_request_date"], str
+                ):
+                    original_date_str = processed_item["item_delivery_request_date"]
+                    parsed_date = parse_relative_date_to_iso(
+                        original_date_str, current_date_iso=current_date_iso
+                    )
+                    if parsed_date:
+                        processed_item["item_delivery_request_date"] = parsed_date
+                        logging.debug(
+                            f"Purchase item's 'item_delivery_request_date' ('{original_date_str}') parsed to '{parsed_date}'"
+                        )
+                    else:
+                        logging.warning(
+                            f"Failed to parse item_delivery_request_date: {original_date_str}. Keeping original."
+                        )
+                updated_items.append(processed_item)
+            else:
+                updated_items.append(item)
+        transformed_slots["items"] = updated_items
+
+        # 구매 품의서 항목을 개별 HTML 필드로 분해
+        for i, item in enumerate(updated_items[:3], 1):  # 최대 3개 항목
+            transformed_slots[f"item_name_{i}"] = item.get("item_name", "")
+            transformed_slots[f"item_spec_{i}"] = item.get("item_spec", "")
+            transformed_slots[f"item_quantity_{i}"] = item.get("item_quantity", "")
+            transformed_slots[f"item_unit_price_{i}"] = item.get("item_unit_price", "")
+            transformed_slots[f"item_total_price_{i}"] = item.get(
+                "item_total_price", ""
+            )
+            # 파싱된 납기일 사용 (item_delivery_date → item_delivery_date_1)
+            transformed_slots[f"item_delivery_date_{i}"] = item.get(
+                "item_delivery_date", item.get("item_delivery_request_date", "")
+            )
+            transformed_slots[f"item_supplier_{i}"] = item.get("item_supplier", "")
+            # 처리된 목적 사용 (item_notes → item_notes_1)
+            transformed_slots[f"item_notes_{i}"] = item.get(
+                "item_notes", item.get("item_purpose", "")
+            )
+
+        # 총 구매 금액 계산
+        total_purchase_amount = sum(
+            int(item.get("item_total_price", 0))
+            for item in updated_items
+            if item.get("item_total_price")
+        )
+        transformed_slots["total_purchase_amount"] = total_purchase_amount
+
+        # 잘못된 필드명 제거 (HTML과 일치시키기 위해)
+        if "total_amount" in transformed_slots:
+            del transformed_slots["total_amount"]
+        for i in range(1, 4):
+            if f"item_purpose_{i}" in transformed_slots:
+                del transformed_slots[f"item_purpose_{i}"]
+
     # 휴가 종류 텍스트를 HTML <select>의 value로 매핑합니다.
     if "leave_type" in transformed_slots and isinstance(
         transformed_slots["leave_type"], str
@@ -349,6 +587,39 @@ def fill_slots_in_template(
         logging.debug(
             f"Slot 'overtime_ampm' preprocessed: '{ampm_value_original}' -> '{transformed_slots['overtime_ampm']}'"
         )
+
+    # 퇴근 시간을 자연어에서 HH:MM 형식으로 변환합니다.
+    if "overtime_time" in transformed_slots and isinstance(
+        transformed_slots["overtime_time"], str
+    ):
+        from .utils import parse_datetime_description_to_iso_local
+
+        original_time = transformed_slots["overtime_time"]
+
+        # 먼저 이미 HH:MM 형식인지 확인 (re 모듈은 이미 상단에서 import됨)
+        if re.match(r"^\d{1,2}:\d{2}$", original_time):
+            # 이미 HH:MM 형식이면 그대로 유지
+            logging.debug(f"overtime_time '{original_time}' is already in HH:MM format")
+        else:
+            # 자연어 시간을 파싱 시도
+            # "밤 10시 30분" -> "2025-07-02T22:30" -> "22:30" 형식으로 변환
+            parsed_datetime = parse_datetime_description_to_iso_local(
+                original_time, current_date_iso=current_date_iso
+            )
+            if parsed_datetime and "T" in parsed_datetime:
+                # "2025-07-02T22:30" -> "22:30" 추출
+                time_part = parsed_datetime.split("T")[1]
+                transformed_slots["overtime_time"] = time_part
+                logging.info(
+                    f"overtime_time converted: '{original_time}' -> '{time_part}'"
+                )
+            else:
+                # 파싱 실패 시 원본 값 유지하되 경고 로깅
+                logging.warning(
+                    f"Failed to parse overtime_time: '{original_time}'. Keeping original value."
+                )
+                # HTML type="time"에서 작동하지 않을 수 있으므로 빈 값으로 설정
+                transformed_slots["overtime_time"] = ""
 
     # 일반적인 날짜 슬롯 처리
     for key, value in list(
@@ -425,6 +696,10 @@ def fill_slots_in_template(
             # `items_json_str`은 이미 `json.dumps`를 통해 올바르게 이스케이프된 JSON 문자열입니다.
             # 따라서 추가적인 백슬래시 이스케이프 없이 그대로 반환합니다.
             return items_json_str
+
+        if key_in_template == "today":
+            # {today} 플레이스홀더는 현재 날짜(current_date_iso)로 치환합니다.
+            return current_date_iso
 
         # `transformed_slots`에서 해당 키의 값을 가져옵니다.
         # 값이 없을 경우 빈 문자열로 대체하여 HTML이 깨지지 않도록 합니다.
@@ -658,7 +933,7 @@ def classify_and_extract_slots_for_template(
     # fill_slots_in_template 함수는 raw_slots에 있는 값들을 기반으로 날짜 변환, 키 변경 등을 수행하고,
     # 최종적으로 HTML 템플릿에 값들을 채워넣습니다.
     final_html, final_processed_slots = fill_slots_in_template(
-        retrieved_template_html, raw_slots, current_date_iso
+        retrieved_template_html, raw_slots, current_date_iso, form_type
     )
     logging.info(
         f"Final processed slots after fill_slots_in_template: {final_processed_slots}"
@@ -957,38 +1232,77 @@ def _convert_annual_leave_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any
         "aprvNm": form_data.get("title", "연차 사용 신청"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("reason", "개인 사유"),
-        "apdInfo": json.dumps(
-            {
-                "leave_type": _convert_leave_type_to_korean(
-                    form_data.get("leave_type", "연차")
-                ),
-                "start_date": form_data.get("start_date", ""),
-                "end_date": form_data.get("end_date", ""),
-                "duration": form_data.get("duration", ""),
-            },
-            ensure_ascii=False,
-        ),
+        "apdInfo": json.dumps({}, ensure_ascii=False),
         "lineList": [],
         "dayList": [],
         "amountList": [],
     }
 
-    # dayList 구성 (연차 날짜 정보)
+    # dayList 구성 (연차 날짜 정보) - 날짜 범위 전체 생성
     start_date = form_data.get("start_date", "")
+    end_date = form_data.get("end_date", "")
     leave_type = form_data.get("leave_type", "annual")
 
-    if start_date:
-        # 휴가 종류를 API dvType으로 변환
-        dv_type_map = {
-            "annual": "DAY",
-            "half_day_morning": "HALF_AM",
-            "half_day_afternoon": "HALF_PM",
-            "quarter_day_morning": "QUARTER_AM",
-            "quarter_day_afternoon": "QUARTER_PM",
-        }
+    # 휴가 종류를 API dvType으로 변환
+    dv_type_map = {
+        "annual": "DAY",
+        "half_day_morning": "HALF_AM",
+        "half_day_afternoon": "HALF_PM",
+        "quarter_day_morning": "QUARTER_AM",
+        "quarter_day_afternoon": "QUARTER_PM",
+    }
 
+    if start_date and end_date:
+        try:
+            from datetime import datetime, timedelta
+            import logging
+
+            # 날짜 문자열을 datetime 객체로 변환
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+            logging.info(f"[연차 신청서] dayList 생성 시작: {start_date} ~ {end_date}")
+
+            if start_dt <= end_dt:
+                current_date = start_dt
+                while current_date <= end_dt:
+                    payload["dayList"].append(
+                        {
+                            "reqYmd": current_date.isoformat(),  # YYYY-MM-DD 형식
+                            "dvType": dv_type_map.get(leave_type, "DAY"),
+                        }
+                    )
+                    current_date += timedelta(days=1)
+
+                logging.info(
+                    f"[연차 신청서] dayList 생성 완료: {len(payload['dayList'])}개 날짜"
+                )
+            else:
+                logging.warning(
+                    f"[연차 신청서] 잘못된 날짜 순서: start_date({start_date}) > end_date({end_date})"
+                )
+
+        except ValueError as e:
+            import logging
+
+            logging.error(
+                f"[연차 신청서] 날짜 파싱 오류: {e}, start_date={start_date}, end_date={end_date}"
+            )
+        except Exception as e:
+            import logging
+
+            logging.error(f"[연차 신청서] dayList 생성 중 예외 발생: {e}")
+    elif start_date:
+        # end_date가 없고 start_date만 있는 경우 (당일 휴가)
         payload["dayList"].append(
             {"reqYmd": start_date, "dvType": dv_type_map.get(leave_type, "DAY")}
+        )
+        logging.info(f"[연차 신청서] 당일 휴가 dayList 생성: {start_date}")
+    else:
+        import logging
+
+        logging.warning(
+            f"[연차 신청서] 시작일이 누락되어 dayList를 생성할 수 없습니다."
         )
 
     # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
@@ -1226,32 +1540,51 @@ def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         "amountList": [],
     }
 
-    # amountList 구성 (구매 항목 정보)
-    if "itemList" in form_data and form_data["itemList"]:
-        for item in form_data["itemList"]:
-            payload["amountList"].append(
-                {
-                    "useYmd": form_data.get("request_date", ""),
-                    "dvNm": item.get("item_name", ""),
-                    "useRsn": item.get("item_purpose", ""),
-                    "amount": (
-                        int(item.get("item_total_price", 0))
-                        if item.get("item_total_price")
-                        else 0
-                    ),
-                    "unit": "개",  # 기본 단위
-                    "quantity": (
-                        int(item.get("item_quantity", 0))
-                        if item.get("item_quantity")
-                        else 0
-                    ),
-                    "unitPrice": (
-                        int(item.get("item_unit_price", 0))
-                        if item.get("item_unit_price")
-                        else 0
-                    ),
-                }
-            )
+    # amountList 구성 (구매 항목 정보) - 두 가지 경로 지원
+    items_to_process = []
+
+    # 1. 1단계에서 추출된 items 배열 사용
+    if "items" in form_data and form_data["items"]:
+        items_to_process = form_data["items"]
+    # 2. 2단계에서 수집된 개별 HTML 필드들 처리
+    else:
+        for i in range(1, 7):  # 최대 6개 항목
+            item_name = form_data.get(f"item_name_{i}")
+            if item_name:  # 품명이 있는 경우만 처리
+                items_to_process.append(
+                    {
+                        "item_name": item_name,
+                        "item_quantity": form_data.get(f"item_quantity_{i}", 0),
+                        "item_unit_price": form_data.get(f"item_unit_price_{i}", 0),
+                        "item_total_price": form_data.get(f"item_total_price_{i}", 0),
+                        "item_purpose": form_data.get(f"item_purpose_{i}", ""),
+                    }
+                )
+
+    for item in items_to_process:
+        payload["amountList"].append(
+            {
+                "useYmd": form_data.get("request_date", ""),
+                "dvNm": item.get("item_name", ""),
+                "useRsn": item.get("item_purpose", ""),
+                "amount": (
+                    int(item.get("item_total_price", 0))
+                    if item.get("item_total_price")
+                    else 0
+                ),
+                "unit": "개",  # 기본 단위
+                "quantity": (
+                    int(item.get("item_quantity", 0))
+                    if item.get("item_quantity")
+                    else 0
+                ),
+                "unitPrice": (
+                    int(item.get("item_unit_price", 0))
+                    if item.get("item_unit_price")
+                    else 0
+                ),
+            }
+        )
 
     # 결재라인 정보 추가
     if "approvers" in form_data and form_data["approvers"]:
@@ -1281,11 +1614,13 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
                 "draft_department": form_data.get("draft_department", ""),
                 "drafter_name": form_data.get("drafter_name", ""),
                 "draft_date": form_data.get("draft_date", ""),
+                "total_purchase_amount": form_data.get("total_purchase_amount", 0),
                 "payment_terms": form_data.get("payment_terms", ""),
                 "delivery_location": form_data.get("delivery_location", ""),
                 "attached_files_description": form_data.get(
                     "attached_files_description", ""
                 ),
+                "special_notes": form_data.get("special_notes", ""),
             },
             ensure_ascii=False,
         ),
@@ -1294,34 +1629,91 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
         "amountList": [],
     }
 
-    # amountList 구성 (구매 품목 정보)
-    if "itemList" in form_data and form_data["itemList"]:
-        for item in form_data["itemList"]:
-            payload["amountList"].append(
+    # amountList 구성 (구매 품목 정보) - 세 가지 경로 지원
+    items_to_process = []
+
+    # 1. 1단계에서 추출된 items 배열 사용
+    if "items" in form_data and form_data["items"]:
+        items_to_process = form_data["items"]
+    # 2. JavaScript processor에서 수집된 purchase_items 배열 사용
+    elif "purchase_items" in form_data and form_data["purchase_items"]:
+        # purchase_items를 items 형식으로 변환
+        for item in form_data["purchase_items"]:
+            items_to_process.append(
                 {
-                    "useYmd": item.get(
-                        "item_delivery_date", form_data.get("draft_date", "")
-                    ),
-                    "dvNm": item.get("item_name", ""),
-                    "useRsn": item.get("item_purpose", ""),
-                    "amount": (
-                        int(item.get("item_total_price", 0))
-                        if item.get("item_total_price")
-                        else 0
-                    ),
-                    "unit": "개",  # 기본 단위
-                    "quantity": (
-                        int(item.get("item_quantity", 0))
-                        if item.get("item_quantity")
-                        else 0
-                    ),
-                    "unitPrice": (
-                        int(item.get("item_unit_price", 0))
-                        if item.get("item_unit_price")
-                        else 0
-                    ),
+                    "item_name": item.get("item_name", ""),
+                    "item_spec": item.get("item_spec", ""),
+                    "item_quantity": item.get("item_quantity", ""),
+                    "item_unit_price": item.get("item_unit_price", ""),
+                    "item_total_price": item.get("item_total_price", ""),
+                    "item_delivery_request_date": item.get("item_delivery_date", ""),
+                    "item_supplier": item.get("item_supplier", ""),
+                    "item_purpose": item.get("item_notes", ""),
                 }
             )
+    # 3. 2단계에서 수집된 개별 HTML 필드들 처리
+    else:
+        for i in range(1, 4):  # 최대 3개 항목
+            item_name = form_data.get(f"item_name_{i}")
+            item_total_price = form_data.get(f"item_total_price_{i}")
+            if item_name and item_total_price:  # 필수 필드가 있는 경우만 처리
+                items_to_process.append(
+                    {
+                        "item_name": item_name,
+                        "item_spec": form_data.get(f"item_spec_{i}", ""),
+                        "item_quantity": form_data.get(f"item_quantity_{i}", ""),
+                        "item_unit_price": form_data.get(f"item_unit_price_{i}", ""),
+                        "item_total_price": item_total_price,
+                        "item_delivery_request_date": form_data.get(
+                            f"item_delivery_date_{i}", ""
+                        ),
+                        "item_supplier": form_data.get(f"item_supplier_{i}", ""),
+                        "item_purpose": form_data.get(f"item_notes_{i}", ""),
+                    }
+                )
+
+    for item in items_to_process:
+        # 납기요청일이 없으면 기안일 사용
+        use_date = (
+            item.get("item_delivery_request_date")
+            or item.get("item_delivery_date")
+            or form_data.get("draft_date", "")
+        )
+
+        # dvNm 필드에 주요거래처 + 품명 + 규격/사양을 조합
+        dvNm_parts = []
+        if item.get("item_supplier"):
+            dvNm_parts.append(item["item_supplier"])
+        if item.get("item_name"):
+            dvNm_parts.append(item["item_name"])
+        if item.get("item_spec"):
+            dvNm_parts.append(item["item_spec"])
+
+        dvNm_combined = " - ".join(filter(None, dvNm_parts))
+
+        payload["amountList"].append(
+            {
+                "useYmd": use_date,
+                "dvNm": dvNm_combined or "품목",  # 빈 값이면 기본값 사용
+                "useRsn": item.get("item_purpose", ""),
+                "amount": (
+                    int(item.get("item_total_price", 0))
+                    if item.get("item_total_price")
+                    else 0
+                ),
+                "unit": "개",  # 기본 단위
+                "quantity": (
+                    int(item.get("item_quantity", 0))
+                    if item.get("item_quantity")
+                    else 0
+                ),
+                "unitPrice": (
+                    int(item.get("item_unit_price", 0))
+                    if item.get("item_unit_price")
+                    else 0
+                ),
+            }
+        )
 
     # 결재라인 정보 추가
     if "approvers" in form_data and form_data["approvers"]:
@@ -1345,12 +1737,11 @@ def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         "mstPid": 8,  # form_configs.py의 personal_expense_report mstPid
         "aprvNm": form_data.get("title", "개인 경비 사용내역서"),
         "drafterId": form_data.get("drafterId", "00009"),
-        "docCn": form_data.get("expense_summary", "개인 경비 정산"),
+        "docCn": form_data.get("expense_reason", "개인 경비 정산"),
         "apdInfo": json.dumps(
             {
-                "expense_period_start": form_data.get("expense_period_start", ""),
-                "expense_period_end": form_data.get("expense_period_end", ""),
-                "reimbursement_account": form_data.get("reimbursement_account", ""),
+                "total_amount": form_data.get("total_expense_amount", 0),
+                "usage_status": form_data.get("usage_status", ""),
             },
             ensure_ascii=False,
         ),
@@ -1359,21 +1750,68 @@ def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         "amountList": [],
     }
 
-    # amountList 구성 (경비 항목 정보)
-    if "expenseList" in form_data and form_data["expenseList"]:
-        for expense in form_data["expenseList"]:
-            payload["amountList"].append(
-                {
-                    "useYmd": expense.get("expense_date", ""),
-                    "dvNm": expense.get("expense_category", ""),
-                    "useRsn": expense.get("expense_description", ""),
-                    "amount": (
-                        int(expense.get("expense_amount", 0))
-                        if expense.get("expense_amount")
-                        else 0
-                    ),
-                }
-            )
+    # amountList 구성 (경비 항목 정보) - 두 가지 경로 지원
+    expenses_to_process = []
+
+    # 1. 1단계에서 추출된 expense_items 배열 사용
+    if "expense_items" in form_data and form_data["expense_items"]:
+        expenses_to_process = form_data["expense_items"]
+    # 2. 2단계에서 수집된 개별 HTML 필드들 처리
+    else:
+        for i in range(1, 4):  # 최대 3개 항목
+            expense_date = form_data.get(f"expense_date_{i}")
+            expense_amount = form_data.get(f"expense_amount_{i}")
+            if expense_date and expense_amount:  # 필수 필드가 있는 경우만 처리
+                expenses_to_process.append(
+                    {
+                        "expense_date": expense_date,
+                        "expense_category": form_data.get(f"expense_category_{i}", ""),
+                        "expense_description": form_data.get(
+                            f"expense_description_{i}", ""
+                        ),
+                        "expense_amount": expense_amount,
+                        "expense_notes": form_data.get(f"expense_notes_{i}", ""),
+                    }
+                )
+
+    # 분류 매핑 (HTML select value -> 한글명)
+    category_mapping = {
+        "traffic": "교통비",
+        "accommodation": "숙박비",
+        "meals": "식대",
+        "entertainment": "접대비",
+        "education": "교육훈련비",
+        "supplies": "소모품비",
+        "other": "기타",
+    }
+
+    for expense in expenses_to_process:
+        # 분류 매핑
+        expense_category = expense.get("expense_category", "")
+        dvNm = category_mapping.get(expense_category, "기타")
+
+        # useRsn 조합 (사용내역 + 비고)
+        expense_description = expense.get("expense_description", "")
+        expense_notes = expense.get("expense_notes", "")
+        useRsn_parts = []
+        if expense_description:
+            useRsn_parts.append(expense_description)
+        if expense_notes and expense_notes.strip():
+            useRsn_parts.append(expense_notes.strip())
+        useRsn = " - ".join(useRsn_parts) if useRsn_parts else ""
+
+        payload["amountList"].append(
+            {
+                "useYmd": expense.get("expense_date", ""),
+                "dvNm": dvNm,
+                "useRsn": useRsn,
+                "amount": (
+                    int(expense.get("expense_amount", 0))
+                    if expense.get("expense_amount")
+                    else 0
+                ),
+            }
+        )
 
     # 결재라인 정보 추가
     if "approvers" in form_data and form_data["approvers"]:
@@ -1397,12 +1835,14 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
         "mstPid": 9,  # form_configs.py의 corporate_card_statement mstPid
         "aprvNm": form_data.get("title", "법인 카드 사용 내역서"),
         "drafterId": form_data.get("drafterId", "00009"),
-        "docCn": form_data.get("usage_summary", "법인 카드 사용 내역"),
+        "docCn": form_data.get("expense_reason", "법인카드 사용 정산"),
         "apdInfo": json.dumps(
             {
-                "card_number_last4": form_data.get("card_number_last4", ""),
-                "statement_period_start": form_data.get("statement_period_start", ""),
-                "statement_period_end": form_data.get("statement_period_end", ""),
+                "card_number": form_data.get("card_number", ""),
+                "card_user_name": form_data.get("card_user_name", ""),
+                "expense_reason": form_data.get("expense_reason", ""),
+                "statement_date": form_data.get("statement_date", ""),
+                "payment_account": form_data.get("payment_account", ""),
             },
             ensure_ascii=False,
         ),
@@ -1412,13 +1852,40 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
     }
 
     # amountList 구성 (카드 사용 내역 정보)
-    if "usageList" in form_data and form_data["usageList"]:
-        for usage in form_data["usageList"]:
+    # 방법 1: card_usage_items 배열이 있는 경우 (1단계에서 바로 변환)
+    if "card_usage_items" in form_data and form_data["card_usage_items"]:
+        # 분류 매핑 (HTML select value -> 한글명)
+        category_mapping = {
+            "meals": "식대/회식비",
+            "traffic_transport": "교통/운반비",
+            "supplies": "사무용품비",
+            "entertainment": "접대비",
+            "utility": "공과금",
+            "welfare": "복리후생비",
+            "education": "교육훈련비",
+            "other": "기타",
+        }
+
+        for usage in form_data["card_usage_items"]:
+            # 분류 매핑
+            usage_category = usage.get("usage_category", "")
+            dvNm = category_mapping.get(usage_category, "기타")
+
+            # useRsn 조합 (가맹점명 + 비고)
+            usage_description = usage.get("usage_description", "")
+            usage_notes = usage.get("usage_notes", "")
+            useRsn_parts = []
+            if usage_description:
+                useRsn_parts.append(usage_description)
+            if usage_notes and usage_notes.strip():
+                useRsn_parts.append(usage_notes.strip())
+            useRsn = " - ".join(useRsn_parts) if useRsn_parts else ""
+
             payload["amountList"].append(
                 {
                     "useYmd": usage.get("usage_date", ""),
-                    "dvNm": usage.get("usage_category", ""),
-                    "useRsn": f"{usage.get('merchant_name', '')} - {usage.get('usage_purpose', '')}",
+                    "dvNm": dvNm,
+                    "useRsn": useRsn,
                     "amount": (
                         int(usage.get("usage_amount", 0))
                         if usage.get("usage_amount")
@@ -1426,6 +1893,47 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
                     ),
                 }
             )
+    # 방법 2: HTML 폼에서 온 개별 필드들 처리 (2단계에서 변환)
+    else:
+        # HTML 템플릿의 개별 필드들을 수집하여 amountList 구성
+        for i in range(1, 7):  # 최대 6개 항목
+            usage_date = form_data.get(f"usage_date_{i}")
+            usage_amount = form_data.get(f"usage_amount_{i}")
+            merchant_name = form_data.get(f"merchant_name_{i}")
+            usage_category = form_data.get(f"usage_category_{i}")
+            usage_notes = form_data.get(f"usage_notes_{i}")
+
+            # 필수 필드가 있는 경우만 추가
+            if usage_date and usage_amount and merchant_name:
+                # 분류 매핑 (HTML select value -> 한글명)
+                category_mapping = {
+                    "meals": "식대/회식비",
+                    "traffic_transport": "교통/운반비",
+                    "supplies": "사무용품비",
+                    "entertainment": "접대비",
+                    "utility": "공과금",
+                    "welfare": "복리후생비",
+                    "education": "교육훈련비",
+                    "other": "기타",
+                }
+                dvNm = category_mapping.get(usage_category, "기타")
+
+                # useRsn 조합 (가맹점명 + 비고)
+                useRsn_parts = [merchant_name]
+                if usage_notes and usage_notes.strip():
+                    useRsn_parts.append(usage_notes.strip())
+                useRsn = " - ".join(useRsn_parts)
+
+                payload["amountList"].append(
+                    {
+                        "useYmd": usage_date,
+                        "dvNm": dvNm,
+                        "useRsn": useRsn,
+                        "amount": (
+                            int(usage_amount) if str(usage_amount).isdigit() else 0
+                        ),
+                    }
+                )
 
     # 결재라인 정보 추가
     if "approvers" in form_data and form_data["approvers"]:
@@ -1453,6 +1961,88 @@ def _convert_leave_type_to_korean(leave_type_value: str) -> str:
     }
 
     return value_to_korean_map.get(leave_type_value, leave_type_value)
+
+
+def _map_expense_category_to_value(category_text: str) -> str:
+    """개인 경비 분류 텍스트를 HTML select value로 매핑"""
+    if not category_text:
+        return ""
+
+    category_lower = category_text.lower()
+
+    # 교통비 관련
+    if any(
+        keyword in category_lower
+        for keyword in [
+            "교통",
+            "택시",
+            "지하철",
+            "버스",
+            "주차",
+            "ktx",
+            "항공",
+            "유류",
+            "톨게이트",
+        ]
+    ):
+        return "traffic"
+
+    # 숙박비 관련
+    if any(
+        keyword in category_lower
+        for keyword in ["숙박", "호텔", "펜션", "게스트하우스", "모텔"]
+    ):
+        return "accommodation"
+
+    # 식대 관련
+    if any(
+        keyword in category_lower
+        for keyword in [
+            "식",
+            "음식",
+            "커피",
+            "음료",
+            "카페",
+            "식당",
+            "회식",
+            "점심",
+            "저녁",
+            "간식",
+        ]
+    ):
+        return "meals"
+
+    # 접대비 관련
+    if any(
+        keyword in category_lower
+        for keyword in [
+            "접대",
+            "거래처",
+            "고객",
+            "클라이언트",
+            "비즈니스",
+            "미팅",
+            "상담",
+        ]
+    ):
+        return "entertainment"
+
+    # 교육훈련비 관련
+    if any(
+        keyword in category_lower
+        for keyword in ["교육", "세미나", "연수", "강의", "자격증", "도서"]
+    ):
+        return "education"
+
+    # 소모품비 관련
+    if any(
+        keyword in category_lower
+        for keyword in ["사무용품", "문구", "소모품", "it용품", "프린터", "복사"]
+    ):
+        return "supplies"
+
+    # 기타
+    return "other"
 
 
 # --- END 2단계 변환 로직 --- #

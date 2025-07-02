@@ -21,7 +21,7 @@ SYSTEM:
 추출된 슬롯: {"leave_type": "연차", "start_date": "내일", "end_date": "내일", "duration": "하루", "leave_days": "1", "reason": "개인 사유"}
 
 예시 2 (입력: "다음 주 월요일부터 수요일까지 3일간 가족 여행으로 연차 신청합니다."):
-추출된 슬롯: {"leave_type": "연차", "start_date": "다음 주 월요일", "end_date": "수요일까지", "duration": "3일간", "leave_days": "3", "reason": "가족 여행"}
+추출된 슬롯: {"leave_type": "연차", "start_date": "다음 주 월요일", "end_date": "다음 주 수요일", "duration": "3일간", "leave_days": "3", "reason": "가족 여행"}
 
 # 예시 3 (다음 달 표현)
 사용자 입력: "다음 달 첫째 주 월요일부터 3일간 쉽니다. 개인적인 일입니다."
@@ -33,8 +33,8 @@ SYSTEM:
 사용자 입력: "내년 1월 첫째 주 금요일부터 주말 포함해서 3일 휴가갈게요. 스키 타러 갑니다."
 추출된 슬롯: {"leave_type": "연차", "start_date": "내년 1월 첫째 주 금요일", "end_date": "3일", "duration": "3일", "leave_days": "3", "reason": "스키 타러 갑니다."}
 
-# 예시 5 (입력: "내일 놀러갔다올게"):
-추출된 슬롯: {"leave_days": "연차", "start_date": "내일", "end_date": "내일", "duration": "하루", "leave_days": "1", "reason": "개인 사유"}
+# 예시 5 (입력: "12월 23일부터 25일까지 3일간 연차를 사용하겠습니다. 연말연시 휴가로 신청합니다."):
+추출된 슬롯: {"leave_days": "연차", "start_date": "12월 23일", "end_date": "12월 25일", "duration": "3일간", "leave_days": "3", "reason": "연말연시 휴가"}
 
 모든 슬롯은 선택 사항입니다. 사용자 입력에서 정보가 명확하지 않으면 해당 슬롯을 생략하거나 null로 설정하세요.
 

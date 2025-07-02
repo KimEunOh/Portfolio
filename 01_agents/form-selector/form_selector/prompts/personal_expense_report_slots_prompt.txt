@@ -19,7 +19,14 @@ SYSTEM:
 - expense_reason: 전체 지출에 대한 주된 사유 또는 설명
 - expense_items: 경비 사용 내역 리스트. 각 항목은 다음 정보를 포함합니다:
     - expense_date: 사용 일자 (예: "어제", "10월 25일")
-    - expense_category: 분류 (예: "물품구입비", "유류대", "식비", "교통비", "잡비")
+    - expense_category: 분류 - 사용 내역의 성격에 따라 다음 중 가장 적합한 카테고리를 자동으로 선택:
+        * "교통비": 교통, 택시, 지하철, 버스, 주차비, KTX, 항공료, 유류비, 톨게이트비 등
+        * "숙박비": 호텔, 숙박, 펜션, 게스트하우스, 모텔 등
+        * "식대": 식사, 음식, 커피, 음료, 카페, 식당, 회식, 점심, 저녁, 간식 등
+        * "접대비": 접대, 거래처, 고객, 클라이언트, 비즈니스 미팅, 상담 등
+        * "교육훈련비": 교육, 세미나, 연수, 강의, 교육비, 자격증, 도서 등
+        * "소모품비": 사무용품, 문구류, 소모품, IT용품, 프린터, 복사비 등
+        * "기타": 위 분류에 해당하지 않는 모든 항목
     - expense_amount: 금액 (숫자, 예: 25000)
     - expense_description: 사용 내역 (예: "프로젝트 회의용 다과 구입", "주유 (서울-부산)", "점심 식대 (거래처 미팅)")
     - expense_notes: 비고 (선택 사항, 예: "간이영수증 첨부", "택시비 (야근)")
@@ -55,7 +62,7 @@ SYSTEM:
     },
     {
       "expense_date": "오늘",
-      "expense_category": "물품구입비",
+      "expense_category": "소모품비",
       "expense_amount": 30000,
       "expense_description": "사무용품 구입",
       "expense_notes": null
@@ -81,14 +88,14 @@ SYSTEM:
   "expense_items": [
     {
       "expense_date": "10월 25일",
-      "expense_category": "식비",
+      "expense_category": "식대",
       "expense_amount": 12000,
       "expense_description": "점심 식대 (클라이언트 미팅)",
       "expense_notes": null
     },
     {
       "expense_date": "10월 25일",
-      "expense_category": "식비",
+      "expense_category": "식대",
       "expense_amount": 20000,
       "expense_description": "저녁 식대 (클라이언트 미팅)",
       "expense_notes": null

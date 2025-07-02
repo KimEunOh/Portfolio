@@ -19,6 +19,22 @@ SYSTEM:
 - total_amount_header: 문서 상단에 표시될 수 있는 총 금액 (숫자, 예: 250000). 명시적 언급이 없으면 null.
 - expense_reason: 전체 지출에 대한 주된 사유 또는 설명
 - card_usage_items: 법인카드 사용 내역 목록 (아래 상세 내용 참조)
+  * usage_date: 사용일자 (예: "7월 3일", "어제", "지난 주 월요일")
+  * usage_category: 사용 분류 (아래 카테고리 매핑 참조, 정확히 매칭되지 않으면 null)
+  * usage_amount: 사용 금액 (숫자, 예: 12000)
+  * usage_description: 사용내역/가맹점명 (예: "스타벅스 커피", "주차비", "사무용품 구매")
+  * usage_notes: 비고/내부 사용 목적 (예: "팀 회의용", "출장 관련", 명시되지 않으면 null)
+
+## 사용 분류 카테고리 매핑 가이드:
+다음 키워드/상황에 따라 적절한 카테고리를 자동 매핑하세요:
+- "meals": 식사, 커피, 음료, 회식, 스타벅스, 카페, 식당, 점심, 저녁, 간식
+- "traffic_transport": 주차비, 교통비, 택시, 버스, 지하철, 주유비, 운반비, 배송비
+- "supplies": 사무용품, 문구류, 용지, 펜, 노트북, 컴퓨터, IT용품, 비품
+- "entertainment": 접대비, 거래처, 고객, 미팅, 골프, 회사 행사, 고객 응대
+- "utility": 공과금, 전기료, 수도료, 인터넷, 통신비, 전화료
+- "welfare": 복리후생, 직원, 복지, 건강검진, 워크샵, 교육비 (직원 대상)
+- "education": 교육, 세미나, 강의, 연수, 자격증, 도서, 온라인 강좌
+- "other": 위 카테고리에 해당하지 않는 경우 또는 분류가 애매한 경우
 - total_usage_amount: 문서 하단에 표시될 수 있는 총 합계 금액 (숫자, 예: 250000). 명시적 언급이 없으면 null.
 
 # 지침:
@@ -44,14 +60,14 @@ SYSTEM:
   "card_usage_items": [
     {
       "usage_date": "지난 주 월요일",
-      "usage_category": "식비",
+      "usage_category": "meals",
       "usage_amount": 150000,
-      "usage_description": "강남맛집 (팀 회식)",
-      "usage_notes": null
+      "usage_description": "강남맛집",
+      "usage_notes": "팀 회식"
     },
     {
       "usage_date": "지난 주 수요일",
-      "usage_category": "물품구입",
+      "usage_category": "supplies",
       "usage_amount": 30000,
       "usage_description": "사무용품 구매",
       "usage_notes": null
@@ -78,10 +94,10 @@ SYSTEM:
   "card_usage_items": [
     {
       "usage_date": "어제",
-      "usage_category": "접대비",
+      "usage_category": "entertainment",
       "usage_amount": 250000,
       "usage_description": "청기와 한정식",
-      "usage_notes": null
+      "usage_notes": "거래처 접대"
     }
   ],
   "total_usage_amount": 250000

@@ -1001,199 +1001,299 @@
             "비품/소모품 구입내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
                 console.log("%c[비품/소모품 구입내역서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
                 
-                let docCn = getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots); // 특이사항
-                let requestDate = getElementValueOrSlotFunc(activeForm, 'request_date', 'request_date', slots);
+                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const requestDateValue = getElementValueOrSlotFunc(activeForm, 'request_date', 'request_date', slots);
+                const totalAmountValue = getElementValueOrSlotFunc(activeForm, 'total_amount', 'total_amount', slots);
+                const paymentMethodValue = getElementValueOrSlotFunc(activeForm, 'payment_method', 'payment_method', slots);
+                const notesValue = getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots);
 
-                if (!requestDate) {
+                // 필수값 검증
+                if (!requestDateValue) {
                     return { error: true, message: "필수 항목을 입력해주세요: 요청일" };
                 }
 
-                let itemList = [];
-                // activeForm 내부의 .item-set을 찾아야 함
-                const itemSets = activeForm.querySelectorAll('.item-set'); 
-                itemSets.forEach((set, index) => {
-                    const item = {};
-                    // fieldMapping의 ID는 activeForm 컨텍스트 내에서 찾아야 함
-                    const fieldMapping = { 
-                        itemName: `item_name_${index + 1}`, 
-                        quantity: `item_quantity_${index + 1}`, 
-                        unitPrice: `item_unit_price_${index + 1}`,
-                        totalPrice: `item_total_price_${index + 1}`, 
-                        purpose: `item_purpose_${index + 1}`
-                    };
-                    // baseId는 이제 사용하지 않음, elementId가 완전한 ID가 됨
-                    let hasValue = false;
-                    for (const apiKey in fieldMapping) {
-                        const elementId = fieldMapping[apiKey];
-                        // getElementValueOrSlotFunc를 사용하여 activeForm 내에서 값을 가져옴
-                        const valueFromForm = getElementValueOrSlotFunc(activeForm, elementId, `${apiKey}_${index+1}`, slots); 
-                        // 슬롯 키는 좀 더 일반적인 형태로 구성 (예: slots.item_name_1)
-
-                        if (valueFromForm !== undefined && valueFromForm.trim() !== "") {
-                            if ((apiKey === 'quantity' || apiKey === 'unitPrice' || apiKey === 'totalPrice') && !isNaN(parseFloat(valueFromForm))) {
-                                item[apiKey] = parseFloat(valueFromForm);
-                            } else {
-                                item[apiKey] = valueFromForm.trim();
-                            }
-                            hasValue = true;
-                        } 
-                        // SELECT 요소에 대한 처리는 이 폼에 없으므로 제거
+                // 구입 내역 수집 (items 배열로)
+                let items = [];
+                
+                // 개별 필드에서 구입 내역 수집 (최대 6개)
+                for (let i = 1; i <= 6; i++) {
+                    const itemName = getElementValueOrSlotFunc(activeForm, `item_name_${i}`, `item_name_${i}`, slots);
+                    const itemQuantity = getElementValueOrSlotFunc(activeForm, `item_quantity_${i}`, `item_quantity_${i}`, slots);
+                    const itemUnitPrice = getElementValueOrSlotFunc(activeForm, `item_unit_price_${i}`, `item_unit_price_${i}`, slots);
+                    const itemTotalPrice = getElementValueOrSlotFunc(activeForm, `item_total_price_${i}`, `item_total_price_${i}`, slots);
+                    const itemPurpose = getElementValueOrSlotFunc(activeForm, `item_purpose_${i}`, `item_purpose_${i}`, slots);
+                    
+                    // 필수 필드가 있는 경우만 추가
+                    if (itemName) {
+                        items.push({
+                            item_name: itemName,
+                            item_quantity: parseFloat(itemQuantity) || 0,
+                            item_unit_price: parseFloat(itemUnitPrice) || 0,
+                            item_total_price: parseFloat(itemTotalPrice) || 0,
+                            item_purpose: itemPurpose || ""
+                        });
                     }
-                    if (hasValue) itemList.push(item);
-                });
-
-                if (itemList.length === 0) {
-                    return { error: true, message: "하나 이상의 구입 품목을 입력해야 합니다." };
                 }
 
+                if (items.length === 0) {
+                    return { error: true, message: "하나 이상의 구입 품목을 입력해야 합니다." };
+                }
+                
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "비품/소모품 구입 요청",
+                    request_date: requestDateValue,
+                    total_amount: parseFloat(totalAmountValue) || 0,
+                    payment_method: paymentMethodValue || "",
+                    notes: notesValue || "",
+                    items: items
+                };
+                
+                // itemList 구성 (호환성 유지)
+                const itemList = items.map(item => ({
+                    itemNm: item.item_name,
+                    reqYmd: requestDateValue,
+                    useAmt: item.item_total_price,
+                    docCn: item.item_purpose || "비품/소모품 구입"
+                }));
+
                 return { 
-                    docCn, 
-                    dayList: requestDate ? [{ reqYmd: requestDate, dvType: "PURCHASE_REQUEST" }] : [], // dvType은 API 명세에 따라 수정
-                    itemList 
+                    docCn: notesValue || "비품/소모품 구입 요청",
+                    dayList: requestDateValue ? [{ reqYmd: requestDateValue, dvType: "INVENTORY_PURCHASE" }] : [],
+                    itemList,
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
             "구매 품의서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
                 console.log("%c[구매 품의서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
 
-                let docCn = getElementValueOrSlotFunc(activeForm, 'special_notes', 'special_notes', slots);
-                let draftDate = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
+                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const draftDateValue = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
+                const totalPurchaseAmountValue = getElementValueOrSlotFunc(activeForm, 'total_purchase_amount', 'total_purchase_amount', slots);
+                const paymentTermsValue = getElementValueOrSlotFunc(activeForm, 'payment_terms', 'payment_terms', slots);
+                const deliveryLocationValue = getElementValueOrSlotFunc(activeForm, 'delivery_location', 'delivery_location', slots);
+                const attachedFilesDescriptionValue = getElementValueOrSlotFunc(activeForm, 'attached_files_description', 'attached_files_description', slots);
+                const specialNotesValue = getElementValueOrSlotFunc(activeForm, 'special_notes', 'special_notes', slots);
 
-                if (!draftDate) {
+                // 필수값 검증
+                if (!draftDateValue) {
                     return { error: true, message: "필수 항목을 입력해주세요: 기안일" };
                 }
 
-                let itemList = [];
-                const itemSets = activeForm.querySelectorAll('.item-set');
-                itemSets.forEach((set, index) => {
-                    const item = {};
-                    const fieldMapping = {
-                        itemName: `item_name_${index + 1}`,
-                        spec: `item_spec_${index + 1}`,
-                        quantity: `item_quantity_${index + 1}`,
-                        unitPrice: `item_unit_price_${index + 1}`,
-                        totalPrice: `item_total_price_${index + 1}`,
-                        deliveryDate: `item_delivery_date_${index + 1}`,
-                        supplier: `item_supplier_${index + 1}`,
-                        notes: `item_notes_${index + 1}`
-                    };
-                    let hasValue = false;
-                    for (const apiKey in fieldMapping) {
-                        const elementId = fieldMapping[apiKey];
-                        const valueFromForm = getElementValueOrSlotFunc(activeForm, elementId, `${apiKey}_${index+1}`, slots);
-                        if (valueFromForm !== undefined && valueFromForm.trim() !== "") {
-                            if ((apiKey === 'quantity' || apiKey === 'unitPrice' || apiKey === 'totalPrice') && !isNaN(parseFloat(valueFromForm))) {
-                                item[apiKey] = parseFloat(valueFromForm);
-                            } else {
-                                item[apiKey] = valueFromForm.trim();
-                            }
-                            hasValue = true;
-                        }
+                // 구매 품목 수집 (purchase_items 배열로)
+                let purchaseItems = [];
+                
+                // 개별 필드에서 구매 품목 수집 (최대 3개)
+                for (let i = 1; i <= 3; i++) {
+                    const itemName = getElementValueOrSlotFunc(activeForm, `item_name_${i}`, `item_name_${i}`, slots);
+                    const itemTotalPrice = getElementValueOrSlotFunc(activeForm, `item_total_price_${i}`, `item_total_price_${i}`, slots);
+                    
+                    // 필수 필드가 있는 경우만 추가
+                    if (itemName && itemTotalPrice) {
+                        const itemSpec = getElementValueOrSlotFunc(activeForm, `item_spec_${i}`, `item_spec_${i}`, slots);
+                        const itemQuantity = getElementValueOrSlotFunc(activeForm, `item_quantity_${i}`, `item_quantity_${i}`, slots);
+                        const itemUnitPrice = getElementValueOrSlotFunc(activeForm, `item_unit_price_${i}`, `item_unit_price_${i}`, slots);
+                        const itemDeliveryDate = getElementValueOrSlotFunc(activeForm, `item_delivery_date_${i}`, `item_delivery_date_${i}`, slots);
+                        const itemSupplier = getElementValueOrSlotFunc(activeForm, `item_supplier_${i}`, `item_supplier_${i}`, slots);
+                        const itemNotes = getElementValueOrSlotFunc(activeForm, `item_notes_${i}`, `item_notes_${i}`, slots);
+                        
+                        purchaseItems.push({
+                            item_name: itemName,
+                            item_spec: itemSpec || "",
+                            item_quantity: parseFloat(itemQuantity) || 0,
+                            item_unit_price: parseFloat(itemUnitPrice) || 0,
+                            item_total_price: parseFloat(itemTotalPrice) || 0,
+                            item_delivery_date: itemDeliveryDate || "",
+                            item_supplier: itemSupplier || "",
+                            item_notes: itemNotes || ""
+                        });
                     }
-                    if (hasValue) itemList.push(item);
-                });
-
-                if (itemList.length === 0) {
-                    return { error: true, message: "하나 이상의 품의 요청 항목을 입력해야 합니다." };
                 }
 
+                if (purchaseItems.length === 0) {
+                    return { error: true, message: "하나 이상의 품의 요청 항목을 입력해야 합니다." };
+                }
+                
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "구매 품의서",
+                    draft_date: draftDateValue,
+                    total_purchase_amount: parseFloat(totalPurchaseAmountValue) || 0,
+                    payment_terms: paymentTermsValue || "",
+                    delivery_location: deliveryLocationValue || "",
+                    attached_files_description: attachedFilesDescriptionValue || "",
+                    special_notes: specialNotesValue || "",
+                    purchase_items: purchaseItems
+                };
+                
+                // itemList 구성 (호환성 유지)
+                const itemList = purchaseItems.map(item => ({
+                    itemName: item.item_name,
+                    spec: item.item_spec,
+                    quantity: item.item_quantity,
+                    unitPrice: item.item_unit_price,
+                    totalPrice: item.item_total_price,
+                    deliveryDate: item.item_delivery_date,
+                    supplier: item.item_supplier,
+                    notes: item.item_notes
+                }));
+
                 return { 
-                    docCn, 
-                    dayList: draftDate ? [{ reqYmd: draftDate, dvType: "PURCHASE_APPROVAL" }] : [], // dvType은 API 명세에 따라 수정
-                    itemList 
+                    docCn: specialNotesValue || "구매 품의 요청",
+                    dayList: draftDateValue ? [{ reqYmd: draftDateValue, dvType: "PURCHASE_APPROVAL" }] : [],
+                    itemList,
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
             "개인 경비 사용 내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // "개인경비 사용내역서" -> "개인 경비 사용 내역서" (띄어쓰기 추가)
                 console.log("%c[개인경비 사용내역서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
 
-                let docCnValue = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots);
-                let draftDateValue = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
+                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const draftDateValue = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
+                const usageStatusValue = getElementValueOrSlotFunc(activeForm, 'usage_status', 'usage_status', slots);
+                const totalAmountHeaderValue = getElementValueOrSlotFunc(activeForm, 'total_amount_header', 'total_amount_header', slots);
+                const expenseReasonValue = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots);
+                const totalExpenseAmountValue = getElementValueOrSlotFunc(activeForm, 'total_expense_amount', 'total_expense_amount', slots);
 
-                if (!draftDateValue) {
-                    return { error: true, message: "필수 항목을 입력해주세요: 기안일" };
+                // 필수값 검증
+                if (!draftDateValue || !expenseReasonValue) {
+                    let missingFields = [];
+                    if (!draftDateValue) missingFields.push("기안일");
+                    if (!expenseReasonValue) missingFields.push("지출 사유");
+                    return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
                 }
 
-                let itemList = [];
-                const itemSets = activeForm.querySelectorAll('.item-set');
-                itemSets.forEach((set, index) => {
-                    const itemData = {
-                        reqYmd: getElementValueOrSlotFunc(activeForm, `expense_date_${index + 1}`, `date_${index+1}`, slots),
-                        acntCd: getElementValueOrSlotFunc(activeForm, `expense_category_${index + 1}`, `category_${index+1}`, slots),
-                        briefs: getElementValueOrSlotFunc(activeForm, `expense_description_${index + 1}`, `description_${index+1}`, slots),
-                        reqAmt: getElementValueOrSlotFunc(activeForm, `expense_amount_${index + 1}`, `amount_${index+1}`, slots),
-                        docCn: getElementValueOrSlotFunc(activeForm, `expense_notes_${index + 1}`, `notes_${index+1}`, slots)
-                    };
-
-                    // 사용일자와 금액이 있는 경우에만 유효한 항목으로 간주
-                    if (itemData.reqYmd && itemData.reqAmt) {
-                        itemData.reqAmt = parseFloat(itemData.reqAmt) || 0;
-                        itemList.push(itemData);
-                    }
-                });
+                // 경비 사용 내역 수집 (expense_items 배열로)
+                let expenseItems = [];
                 
-                if (itemList.length === 0) {
-                    // 사용자가 항목을 추가했지만 값을 입력하지 않은 경우를 고려하여 alert 대신 console에만 기록
-                    console.warn("[개인경비 사용내역서 Processor] 유효한 경비 항목이 없습니다. (사용일자, 금액 필수)");
-                    // return { error: true, message: "하나 이상의 유효한 경비 항목(사용일자, 금액 포함)을 입력해야 합니다." };
+                // 개별 필드에서 경비 내역 수집 (최대 3개)
+                for (let i = 1; i <= 3; i++) {
+                    const expenseDate = getElementValueOrSlotFunc(activeForm, `expense_date_${i}`, `expense_date_${i}`, slots);
+                    const expenseCategory = getElementValueOrSlotFunc(activeForm, `expense_category_${i}`, `expense_category_${i}`, slots);
+                    const expenseDescription = getElementValueOrSlotFunc(activeForm, `expense_description_${i}`, `expense_description_${i}`, slots);
+                    const expenseAmount = getElementValueOrSlotFunc(activeForm, `expense_amount_${i}`, `expense_amount_${i}`, slots);
+                    const expenseNotes = getElementValueOrSlotFunc(activeForm, `expense_notes_${i}`, `expense_notes_${i}`, slots);
+                    
+                    // 필수 필드가 있는 경우만 추가
+                    if (expenseDate && expenseAmount) {
+                        expenseItems.push({
+                            expense_date: expenseDate,
+                            expense_category: expenseCategory || "",
+                            expense_description: expenseDescription || "",
+                            expense_amount: parseFloat(expenseAmount) || 0,
+                            expense_notes: expenseNotes || ""
+                        });
+                    }
                 }
+
+                if (expenseItems.length === 0) {
+                    return { error: true, message: "하나 이상의 경비 사용 내역을 입력해야 합니다." };
+                }
+                
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "개인경비 사용내역",
+                    draft_date: draftDateValue,
+                    usage_status: usageStatusValue || "",
+                    total_amount_header: parseFloat(totalAmountHeaderValue) || 0,
+                    expense_reason: expenseReasonValue,
+                    total_expense_amount: parseFloat(totalExpenseAmountValue) || 0,
+                    expense_items: expenseItems
+                };
+                
+                // itemList 구성 (호환성 유지)
+                const itemList = expenseItems.map(item => ({
+                    reqYmd: item.expense_date,
+                    acntCd: item.expense_category,
+                    briefs: item.expense_description,
+                    reqAmt: item.expense_amount,
+                    docCn: item.expense_notes || ""
+                }));
 
                 return { 
-                    docCn: docCnValue || "개인경비 사용내역서 제출", 
-                    dayList: draftDateValue ? [{ reqYmd: draftDateValue }] : [], // dvType 없이 reqYmd만 포함
-                    itemList: itemList 
+                    docCn: expenseReasonValue,
+                    dayList: draftDateValue ? [{ reqYmd: draftDateValue, dvType: "PERSONAL_EXPENSE" }] : [],
+                    itemList,
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
             "법인카드 지출내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
                 console.log("%c[법인카드 지출내역서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
                 
-                let docCn = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots); 
-                let draftDate = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
-                let cardNumber = getElementValueOrSlotFunc(activeForm, 'card_number', 'card_number', slots);
+                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
+                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
+                const expenseReasonValue = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots);
+                const draftDateValue = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
+                const cardNumberValue = getElementValueOrSlotFunc(activeForm, 'card_number', 'card_number', slots);
+                const cardUserNameValue = getElementValueOrSlotFunc(activeForm, 'card_user_name', 'card_user_name', slots);
+                const statementDateValue = getElementValueOrSlotFunc(activeForm, 'statement_date', 'statement_date', slots);
+                const totalAmountHeaderValue = getElementValueOrSlotFunc(activeForm, 'total_amount_header', 'total_amount_header', slots);
+                const totalUsageAmountValue = getElementValueOrSlotFunc(activeForm, 'total_usage_amount', 'total_usage_amount', slots);
 
-                if (!draftDate || !cardNumber) {
+                // 필수값 검증
+                if (!cardNumberValue || !expenseReasonValue) {
                     let missingFields = [];
-                    if (!draftDate) missingFields.push("기안일");
-                    if (!cardNumber) missingFields.push("카드번호");
+                    if (!cardNumberValue) missingFields.push("카드번호");
+                    if (!expenseReasonValue) missingFields.push("지출 사유");
                     return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
                 }
 
-                let itemList = [];
-                const itemSets = activeForm.querySelectorAll('.item-set');
-                itemSets.forEach((set, index) => {
-                    const item = {};
-                    const fieldMapping = { 
-                        date: `usage_date_${index + 1}`,          
-                        category: `usage_category_${index + 1}`,    
-                        merchantName: `merchant_name_${index + 1}`, 
-                        amount: `usage_amount_${index + 1}`,        
-                        notes: `usage_notes_${index + 1}`           
-                    };
-                    let hasValue = false;
-                    for (const apiKey in fieldMapping) {
-                        const elementId = fieldMapping[apiKey];
-                        const valueFromForm = getElementValueOrSlotFunc(activeForm, elementId, `${apiKey}_${index+1}`, slots);
-                        if (valueFromForm !== undefined && valueFromForm.trim() !== "") {
-                            if (apiKey === 'amount' && !isNaN(parseFloat(valueFromForm))) {
-                                item[apiKey] = parseFloat(valueFromForm);
-                            } else {
-                                item[apiKey] = valueFromForm.trim();
-                            }
-                            hasValue = true;
-                        } else if (elementId.includes('category') && valueFromForm === "") {
-                            // 카테고리 선택이 없는 경우
-                        }
+                // 카드 사용 내역 수집 (card_usage_items 배열로)
+                let cardUsageItems = [];
+                
+                // 개별 필드에서 카드 사용 내역 수집 (최대 6개)
+                for (let i = 1; i <= 6; i++) {
+                    const usageDate = getElementValueOrSlotFunc(activeForm, `usage_date_${i}`, `usage_date_${i}`, slots);
+                    const usageAmount = getElementValueOrSlotFunc(activeForm, `usage_amount_${i}`, `usage_amount_${i}`, slots);
+                    const merchantName = getElementValueOrSlotFunc(activeForm, `merchant_name_${i}`, `merchant_name_${i}`, slots);
+                    const usageCategory = getElementValueOrSlotFunc(activeForm, `usage_category_${i}`, `usage_category_${i}`, slots);
+                    const usageNotes = getElementValueOrSlotFunc(activeForm, `usage_notes_${i}`, `usage_notes_${i}`, slots);
+                    
+                    // 필수 필드가 있는 경우만 추가
+                    if (usageDate && usageAmount && merchantName) {
+                        cardUsageItems.push({
+                            usage_date: usageDate,
+                            usage_category: usageCategory || "",
+                            usage_amount: parseFloat(usageAmount) || 0,
+                            usage_description: merchantName,
+                            usage_notes: usageNotes || ""
+                        });
                     }
-                    if (hasValue) itemList.push(item);
-                });
-
-                if (itemList.length === 0) {
-                    return { error: true, message: "하나 이상의 카드 사용 내역을 입력해야 합니다." };
                 }
 
+                if (cardUsageItems.length === 0) {
+                    return { error: true, message: "하나 이상의 카드 사용 내역을 입력해야 합니다." };
+                }
+                
+                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
+                const formData = {
+                    title: titleValue || "법인카드 지출내역서",
+                    draft_date: draftDateValue,
+                    card_number: cardNumberValue,
+                    card_user_name: cardUserNameValue || "",
+                    expense_reason: expenseReasonValue,
+                    statement_date: statementDateValue || "",
+                    total_amount_header: totalAmountHeaderValue || 0,
+                    total_usage_amount: totalUsageAmountValue || 0,
+                    card_usage_items: cardUsageItems
+                };
+                
+                // itemList 구성 (호환성 유지)
+                const itemList = cardUsageItems.map(item => ({
+                    itemNm: item.usage_description,
+                    reqYmd: item.usage_date,
+                    useAmt: item.usage_amount,
+                    dvNm: item.usage_category || "기타"
+                }));
+
                 return { 
-                    docCn, 
-                    dayList: draftDate ? [{ reqYmd: draftDate, dvType: "CORPORATE_CARD" }] : [], // dvType은 API 명세에 따라 수정
-                    itemList, 
-                    cardNumber // API 페이로드에 카드번호 추가 필요 시
+                    docCn: expenseReasonValue,
+                    dayList: draftDateValue ? [{ reqYmd: draftDateValue, dvType: "CORPORATE_CARD" }] : [],
+                    itemList,
+                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
             "교통비 신청서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
@@ -1218,7 +1318,7 @@
                     if (!transportDetailsValue) missingFields.push("교통 내역 상세");
                     return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
                 }
-
+                
                 // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
                 const formData = {
                     title: titleValue || "교통비 신청서",
@@ -1508,10 +1608,10 @@
                 
                 if (convertResult.success && convertResult.api_response) {
                     const successMessage = convertResult.api_response.message || convertResult.api_response.msg || "문서가 성공적으로 제출되었습니다.";
-                    alert(successMessage);
-                    console.log(`[submitDocument] 문서 제출 성공: ${successMessage}`);
+                alert(successMessage);
+                console.log(`[submitDocument] 문서 제출 성공: ${successMessage}`);
                     console.log("최종 API Payload:", convertResult.submitted_payload);
-                    submitBtn.style.display = 'none';
+                submitBtn.style.display = 'none'; 
                 } else {
                     throw new Error("백엔드에서 변환은 성공했지만 외부 API 제출에 실패했습니다.");
                 } 
