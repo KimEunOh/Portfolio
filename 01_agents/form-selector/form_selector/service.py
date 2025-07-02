@@ -18,6 +18,9 @@ import httpx  # httpx 임포트
 import os  # 환경 변수 사용을 위해 os 임포트
 from . import schema  # schema import 경로 수정 (service.py 기준)
 
+# 새로운 모듈 구조 임포트
+from .processors import get_form_processor
+
 # llm.py에서 체인 생성 함수와 SLOT_EXTRACTOR_CHAINS를 가져옴
 from .llm import get_form_classifier_chain, SLOT_EXTRACTOR_CHAINS
 
@@ -749,6 +752,51 @@ def fill_slots_in_template(
     )
 
 
+def fill_slots_in_template_v2(
+    template: str,
+    slots_dict: Dict[str, Any],
+    current_date_iso: str,
+    form_type: str = "",
+) -> Tuple[str, Dict[str, Any]]:
+    """새로운 모듈 구조를 사용한 슬롯 처리 함수
+
+    기존 fill_slots_in_template을 리팩토링한 버전입니다.
+    양식별 프로세서를 사용하여 처리합니다.
+
+    Args:
+        template: 플레이스홀더를 포함하는 원본 HTML 템플릿 문자열
+        slots_dict: LLM으로부터 추출된 슬롯 이름과 값으로 구성된 딕셔너리
+        current_date_iso: 날짜 파싱의 기준이 되는 YYYY-MM-DD 형식의 날짜 문자열
+        form_type: 양식 타입 (새로운 모듈 구조에서 프로세서 선택용)
+
+    Returns:
+        Tuple[str, Dict[str, Any]]:
+            - str: 슬롯 값이 채워진 HTML 템플릿 문자열
+            - Dict[str, Any]: 최종적으로 처리된 슬롯 딕셔너리
+    """
+    logging.info(f"Using new modular structure for form_type: {form_type}")
+    logging.info(f"Initial slots_dict: {slots_dict}")
+
+    if not slots_dict:
+        return template, {}
+
+    # 1. 양식별 프로세서 생성
+    processor = get_form_processor(form_type)
+
+    # 2. 슬롯 처리 (모든 변환 로직 포함)
+    final_processed_slots = processor.process_slots(slots_dict, current_date_iso)
+
+    # 3. HTML 템플릿 채우기
+    final_html = processor.fill_template(
+        template, final_processed_slots, current_date_iso
+    )
+
+    logging.info(f"V2 processing completed for form_type: {form_type}")
+    logging.info(f"Final processed slots: {final_processed_slots}")
+
+    return final_html, final_processed_slots
+
+
 def classify_and_extract_slots_for_template(
     user_input: schema.UserInput,
 ) -> Dict[str, Any]:
@@ -930,11 +978,21 @@ def classify_and_extract_slots_for_template(
         raw_slots = {}
 
     # 4단계: 슬롯 값 변환 및 HTML 템플릿 채우기
-    # fill_slots_in_template 함수는 raw_slots에 있는 값들을 기반으로 날짜 변환, 키 변경 등을 수행하고,
-    # 최종적으로 HTML 템플릿에 값들을 채워넣습니다.
-    final_html, final_processed_slots = fill_slots_in_template(
-        retrieved_template_html, raw_slots, current_date_iso, form_type
-    )
+    # 환경 변수를 통해 새로운 모듈 구조 사용 여부 결정
+    use_v2_processing = os.getenv("USE_V2_PROCESSING", "false").lower() == "true"
+
+    if use_v2_processing:
+        logging.info("Using V2 modular processing structure")
+        final_html, final_processed_slots = fill_slots_in_template_v2(
+            retrieved_template_html, raw_slots, current_date_iso, form_type
+        )
+    else:
+        logging.info("Using legacy processing structure")
+        # fill_slots_in_template 함수는 raw_slots에 있는 값들을 기반으로 날짜 변환, 키 변경 등을 수행하고,
+        # 최종적으로 HTML 템플릿에 값들을 채워넣습니다.
+        final_html, final_processed_slots = fill_slots_in_template(
+            retrieved_template_html, raw_slots, current_date_iso, form_type
+        )
     logging.info(
         f"Final processed slots after fill_slots_in_template: {final_processed_slots}"
     )
