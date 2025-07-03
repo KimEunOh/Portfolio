@@ -596,6 +596,200 @@ class TestRefactoredProcessors(unittest.TestCase):
         # 총액 확인
         self.assertEqual(result["total_purchase_amount"], 3000000)
 
+    def test_corporate_card_processor_creation(self):
+        """법인카드 지출내역서 프로세서 생성 테스트"""
+        processor = ProcessorFactory.create_processor("corporate_card_statement")
+        self.assertIsNotNone(processor)
+        self.assertEqual(processor.__class__.__name__, "CorporateCardProcessor")
+
+        # 한국어 양식명으로도 생성 가능한지 테스트
+        processor_korean = ProcessorFactory.create_processor("법인카드 지출내역서")
+        self.assertIsNotNone(processor_korean)
+        self.assertEqual(processor_korean.__class__.__name__, "CorporateCardProcessor")
+
+    def test_corporate_card_usage_items_processing(self):
+        """법인카드 사용 내역 처리 테스트 (복잡한 구조)"""
+        processor = ProcessorFactory.create_processor("corporate_card_statement")
+
+        slots = {
+            "title": "10월 법인카드 사용 보고",
+            "draft_date": "오늘",
+            "card_number": "1234-5678-****-9012",
+            "card_user_name": "김영희",
+            "expense_reason": "팀 운영비 및 사무용품 구매",
+            "card_usage_items": [
+                {
+                    "usage_date": "지난 주 월요일",
+                    "usage_category": "meals",
+                    "usage_amount": 150000,
+                    "usage_description": "강남맛집",
+                    "usage_notes": "팀 회식",
+                },
+                {
+                    "usage_date": "지난 주 수요일",
+                    "usage_category": "supplies",
+                    "usage_amount": 30000,
+                    "usage_description": "사무용품 구매",
+                    "usage_notes": "노트북 액세서리",
+                },
+                {
+                    "usage_date": "어제",
+                    "usage_category": "entertainment",
+                    "usage_amount": 250000,
+                    "usage_description": "청기와 한정식",
+                    "usage_notes": "거래처 접대",
+                },
+            ],
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 기본 필드 확인
+        self.assertEqual(result["title"], "10월 법인카드 사용 보고")
+        self.assertEqual(result["draft_date"], "2025-07-02")  # 오늘
+        self.assertEqual(result["card_number"], "1234-5678-****-9012")
+        self.assertEqual(result["card_user_name"], "김영희")
+        self.assertEqual(result["expense_reason"], "팀 운영비 및 사무용품 구매")
+
+        # 사용 내역 필드 확인 (최대 6개까지 지원)
+        self.assertEqual(
+            result["usage_date_1"], "2025-06-23"
+        )  # 지난 주 월요일 (LLM 변환 결과)
+        self.assertEqual(result["usage_category_1"], "meals")
+        self.assertEqual(result["merchant_name_1"], "강남맛집")
+        self.assertEqual(result["usage_amount_1"], 150000)
+        self.assertEqual(result["usage_notes_1"], "팀 회식")
+
+        self.assertEqual(
+            result["usage_date_2"], "2025-06-25"
+        )  # 지난 주 수요일 (LLM 변환 결과)
+        self.assertEqual(result["usage_category_2"], "supplies")
+        self.assertEqual(result["merchant_name_2"], "사무용품 구매")
+        self.assertEqual(result["usage_amount_2"], 30000)
+        self.assertEqual(result["usage_notes_2"], "노트북 액세서리")
+
+        self.assertEqual(result["usage_date_3"], "2025-07-01")  # 어제
+        self.assertEqual(result["usage_category_3"], "entertainment")
+        self.assertEqual(result["merchant_name_3"], "청기와 한정식")
+        self.assertEqual(result["usage_amount_3"], 250000)
+        self.assertEqual(result["usage_notes_3"], "거래처 접대")
+
+        # 총액 계산 확인
+        self.assertEqual(
+            result["total_amount_header"], 430000
+        )  # 150000 + 30000 + 250000
+        self.assertEqual(result["total_usage_amount"], 430000)
+
+    def test_corporate_card_category_mapping(self):
+        """법인카드 카테고리 매핑 테스트"""
+        processor = ProcessorFactory.create_processor("corporate_card_statement")
+
+        # 카테고리 매핑 테스트
+        test_cases = [
+            ("meals", "meals"),
+            ("식대", "meals"),
+            ("회식", "meals"),
+            ("교통비", "traffic_transport"),
+            ("주차비", "traffic_transport"),
+            ("사무용품", "supplies"),
+            ("접대비", "entertainment"),
+            ("공과금", "utility"),
+            ("복리후생", "welfare"),
+            ("교육", "education"),
+            ("기타", "other"),
+            ("모르겠음", "other"),
+        ]
+
+        for input_category, expected_category in test_cases:
+            result = processor.convert_category(input_category)
+            self.assertEqual(
+                result,
+                expected_category,
+                f"'{input_category}' should map to '{expected_category}'",
+            )
+
+    def test_corporate_card_total_calculation(self):
+        """법인카드 총액 계산 테스트"""
+        processor = ProcessorFactory.create_processor("corporate_card_statement")
+
+        # 1. card_usage_items 배열에서 총액 계산
+        slots_with_items = {
+            "card_usage_items": [
+                {"usage_amount": 100000},
+                {"usage_amount": 200000},
+                {"usage_amount": 150000},
+            ]
+        }
+
+        result = processor.convert_items(slots_with_items)
+        self.assertEqual(result["total_amount_header"], 450000)
+        self.assertEqual(result["total_usage_amount"], 450000)
+
+        # 2. 직접 total_amount_header가 제공된 경우
+        slots_with_direct_total = {
+            "total_amount_header": 1000000,
+            "card_usage_items": [{"usage_amount": 300000}],
+        }
+
+        result = processor.convert_items(slots_with_direct_total)
+        self.assertEqual(result["total_amount_header"], 1000000)  # 직접 제공된 값 우선
+
+    def test_corporate_card_template_filling(self):
+        """법인카드 지출내역서 템플릿 채우기 테스트"""
+        processor = ProcessorFactory.create_processor("corporate_card_statement")
+
+        slots = {
+            "title": "법인카드 지출 정산",
+            "draft_date": "오늘",
+            "card_number": "9876-5432-****-1234",
+            "card_user_name": "박철수",
+            "expense_reason": "출장 및 업무 관련 지출",
+            "statement_date": "어제",
+            "card_usage_items": [
+                {
+                    "usage_date": "어제",
+                    "usage_category": "traffic_transport",
+                    "usage_amount": 45000,
+                    "usage_description": "KTX 승차권",
+                    "usage_notes": "부산 출장",
+                },
+                {
+                    "usage_date": "어제",
+                    "usage_category": "meals",
+                    "usage_amount": 25000,
+                    "usage_description": "역 내 식당",
+                    "usage_notes": "점심 식사",
+                },
+            ],
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 기본 필드 확인
+        self.assertEqual(result["title"], "법인카드 지출 정산")
+        self.assertEqual(result["draft_date"], "2025-07-02")  # 오늘
+        self.assertEqual(result["card_number"], "9876-5432-****-1234")
+        self.assertEqual(result["card_user_name"], "박철수")
+        self.assertEqual(result["expense_reason"], "출장 및 업무 관련 지출")
+        self.assertEqual(result["statement_date"], "2025-07-01")  # 어제
+
+        # 사용 내역 확인
+        self.assertEqual(result["usage_date_1"], "2025-07-01")  # 어제
+        self.assertEqual(result["usage_category_1"], "traffic_transport")
+        self.assertEqual(result["merchant_name_1"], "KTX 승차권")
+        self.assertEqual(result["usage_amount_1"], 45000)
+        self.assertEqual(result["usage_notes_1"], "부산 출장")
+
+        self.assertEqual(result["usage_date_2"], "2025-07-01")  # 어제
+        self.assertEqual(result["usage_category_2"], "meals")
+        self.assertEqual(result["merchant_name_2"], "역 내 식당")
+        self.assertEqual(result["usage_amount_2"], 25000)
+        self.assertEqual(result["usage_notes_2"], "점심 식사")
+
+        # 총액 확인
+        self.assertEqual(result["total_amount_header"], 70000)  # 45000 + 25000
+        self.assertEqual(result["total_usage_amount"], 70000)
+
 
 if __name__ == "__main__":
     print("새로운 모듈 구조 테스트 시작...")
