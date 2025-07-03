@@ -24,6 +24,7 @@ form-selector/
 │   │   ├── personal_expense_processor.py   # 💰 개인 경비 처리기
 │   │   ├── dinner_expense_processor.py     # 🍽️ 야근 식대 처리기
 │   │   ├── transportation_expense_processor.py # 🚗 교통비 처리기 🆕
+│   │   ├── inventory_purchase_processor.py   # 📦 비품 구입 처리기 🆕
 │   │   └── processor_factory.py            # 🏭 프로세서 팩토리
 │   │
 │   ├── 📁 converters/                      # 🔄 데이터 변환기 (새로 구축됨)
@@ -124,7 +125,8 @@ form-selector/
 | `annual_leave_processor.py` | 연차 신청서 처리 | ✅ 완료 | 단순한 처리 로직 |
 | `personal_expense_processor.py` | 개인 경비 처리 | ✅ 완료 | 복잡한 아이템 처리 |
 | `dinner_expense_processor.py` | 야근 식대 처리 | ✅ 완료 | 자연어 시간 변환 |
-| `transportation_expense_processor.py` | 교통비 처리 | ✅ 완료 🆕 | 금액 변환 및 출발지/목적지 처리 |
+| `transportation_expense_processor.py` | 교통비 처리 | ✅ 완료 | 금액 변환 및 출발지/목적지 처리 |
+| `inventory_purchase_processor.py` | 비품 구입 처리 | ✅ 완료 🆕 | 아이템 분해(최대 6개), 총액 계산 |
 | `processor_factory.py` | 프로세서 팩토리 | ✅ 완료 | 팩토리 패턴 |
 
 #### 🔄 변환기 모듈 (`converters/`)
@@ -194,15 +196,15 @@ form-selector/
 ### 📊 모듈화 성과 지표 🆕
 | 메트릭 | 수치 | 상태 |
 |--------|------|------|
-| 구현된 프로세서 수 | 4개 | ✅ 증가 |
-| 총 모듈 수 | 11개 | ✅ 모듈화 완료 |
-| 테스트 커버리지 | 10개 테스트 | ✅ 검증됨 |
-| Phase 2 진행률 | 33% | 🚧 진행중 |
+| 구현된 프로세서 수 | 5개 🆕 | ✅ 증가 |
+| 총 모듈 수 | 12개 🆕 | ✅ 모듈화 완료 |
+| 테스트 커버리지 | 13개 테스트 🆕 | ✅ 검증됨 |
+| Phase 2 진행률 | 63% 🆕 | 🚧 진행중 |
 
 ---
 
 **📅 마지막 수정**: 2025-07-02 🆕  
-**📝 다음 우선순위**: InventoryPurchaseProcessor 구현
+**📝 다음 우선순위**: PurchaseApprovalProcessor 구현
 
 ## 🎯 향후 디렉토리 구조 계획
 

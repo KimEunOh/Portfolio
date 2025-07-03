@@ -12,6 +12,7 @@ from .annual_leave_processor import AnnualLeaveProcessor
 from .personal_expense_processor import PersonalExpenseProcessor
 from .dinner_expense_processor import DinnerExpenseProcessor
 from .transportation_expense_processor import TransportationExpenseProcessor
+from .inventory_purchase_processor import InventoryPurchaseProcessor
 
 
 class ProcessorFactory:
@@ -27,6 +28,8 @@ class ProcessorFactory:
         "dinner_expense": DinnerExpenseProcessor,
         "교통비 신청서": TransportationExpenseProcessor,
         "transportation_expense": TransportationExpenseProcessor,
+        "비품/소모품 구입내역서": InventoryPurchaseProcessor,
+        "inventory_purchase_report": InventoryPurchaseProcessor,
     }
 
     @classmethod
