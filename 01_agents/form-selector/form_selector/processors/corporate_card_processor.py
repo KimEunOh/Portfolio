@@ -2,6 +2,8 @@
 
 from typing import Dict, Any, List
 from .base_processor import BaseFormProcessor
+import logging
+import json
 
 
 class CorporateCardProcessor(BaseFormProcessor):
@@ -91,23 +93,15 @@ class CorporateCardProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """사용 내역 내 날짜 변환"""
-        from ..utils import parse_relative_date_to_iso
+        """법인카드 아이템 날짜 변환"""
+        if "card_usage_items" not in slots or not isinstance(
+            slots["card_usage_items"], list
+        ):
+            return slots
 
-        result = slots.copy()
-
-        # card_usage_items 배열 내의 날짜 변환
-        if "card_usage_items" in result and result["card_usage_items"]:
-            for item in result["card_usage_items"]:
-                # usage_date 변환
-                if "usage_date" in item and item["usage_date"]:
-                    usage_date = parse_relative_date_to_iso(
-                        item["usage_date"], current_date_iso
-                    )
-                    if usage_date:
-                        item["usage_date"] = usage_date
-
-        return result
+        return self.item_converter.convert_card_usage_item_dates(
+            slots, current_date_iso
+        )
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """사용 내역 처리: card_usage_items 배열을 HTML 필드로 분해하고 총액 계산"""
@@ -190,3 +184,56 @@ class CorporateCardProcessor(BaseFormProcessor):
             processed["statement_date"] = ""
 
         return processed
+
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """법인카드 지출내역서 폼 데이터를 API Payload로 변환"""
+        logging.info("CorporateCardProcessor: Converting form data to API payload")
+
+        payload = {
+            "mstPid": "9",  # API 명세에 맞게 string 형태로 수정 (법인카드는 9번)
+            "aprvNm": form_data.get("title", "법인카드 사용 내역서"),
+            "drafterId": form_data.get("drafterId", "00009"),
+            "docCn": form_data.get("purpose", "법인카드 사용 내역서"),
+            "apdInfo": json.dumps(
+                {
+                    "statement_date": form_data.get("statement_date", ""),
+                    "total_amount": form_data.get("total_usage_amount", 0),
+                },
+                ensure_ascii=False,
+            ),
+            "lineList": [],
+            "dayList": [],
+            "amountList": [],
+        }
+
+        # amountList 구성 (카드 사용 내역)
+        for i in range(1, 7):  # 최대 6개 항목
+            usage_date = form_data.get(f"usage_date_{i}", "")
+            usage_category = form_data.get(f"usage_category_{i}", "")
+            merchant_name = form_data.get(f"merchant_name_{i}", "")
+            usage_amount = form_data.get(f"usage_amount_{i}", 0)
+            usage_notes = form_data.get(f"usage_notes_{i}", "")
+
+            if usage_date and usage_amount:
+                payload["amountList"].append(
+                    {
+                        "useYmd": usage_date,
+                        "dvNm": usage_category or "기타",
+                        "useRsn": f"{merchant_name} - {usage_notes}".strip(" -"),
+                        "amount": int(usage_amount) if usage_amount else 0,
+                    }
+                )
+
+        # 결재라인 정보 추가
+        if "approvers" in form_data and form_data["approvers"]:
+            for approver in form_data["approvers"]:
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.get("aprvPsId", ""),
+                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                        "ordr": approver.get("ordr", 1),
+                    }
+                )
+
+        logging.info("CorporateCardProcessor: API payload conversion completed")
+        return payload

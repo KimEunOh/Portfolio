@@ -5,15 +5,14 @@
 - 사용자 입력을 받아 적절한 전자결재 양식을 분류합니다.
 - 분류된 양식에 필요한 정보를 사용자 입력으로부터 추출(슬롯 필링)합니다.
 - 추출된 정보를 HTML 템플릿에 채워 사용자에게 제공합니다.
-- 상대적인 날짜 표현(예: "내일", "다음 주 월요일")을 "YYYY-MM-DD" 형식으로 변환합니다.
-- 다중 항목을 포함하는 양식(예: 구매 품의서의 여러 품목)을 처리합니다.
+- 리팩토링된 모듈 구조(processors/, converters/, validators/)를 사용합니다.
 """
 
 # LLM 호출 및 템플릿 반환 서비스 함수 정의 예정
 import logging  # 로깅 추가
 from typing import Tuple, Dict, Any, Optional
 import json  # json 모듈 추가
-from datetime import datetime  # datetime 추가
+from datetime import datetime, timedelta  # datetime 추가
 import httpx  # httpx 임포트
 import os  # 환경 변수 사용을 위해 os 임포트
 from . import schema  # schema import 경로 수정 (service.py 기준)
@@ -36,23 +35,11 @@ from .rag import retrieve_template  # RAG 모듈의 retrieve_template 함수 임
 import re
 from langchain_core.exceptions import OutputParserException
 
-# 날짜 관련 슬롯의 키 이름에 포함될 수 있는 문자열 리스트입니다.
-# 이 리스트에 포함된 문자열이 키 이름에 있으면 해당 슬롯 값을 날짜로 간주하고 파싱을 시도합니다.
-DATE_SLOT_KEY_SUBSTRINGS = ["date", "일자", "기간"]
+# 🆕 logger 추가
+logger = logging.getLogger(__name__)
 
-# LLM이 추출한 휴가 종류 텍스트(키)를 HTML <select> 요소의 option 값(value)으로 매핑합니다.
-# 예를 들어, LLM이 "오전 반차"라고 추출하면, HTML에서는 "half_day_morning" 값으로 사용됩니다.
-LEAVE_TYPE_TEXT_TO_VALUE_MAP = {
-    "연차": "annual",
-    "오전 반차": "half_day_morning",
-    "오후 반차": "half_day_afternoon",
-    "오전 반반차": "quarter_day_morning",
-    "오후 반반차": "quarter_day_afternoon",
-    "오전반차": "half_day_morning",  # 공백 없는 경우도 고려
-    "오후반차": "half_day_afternoon",  # 공백 없는 경우도 고려
-    "오전반반차": "quarter_day_morning",  # 공백 없는 경우도 고려
-    "오후반반차": "quarter_day_afternoon",  # 공백 없는 경우도 고려
-}
+# ProcessorFactory import 추가
+from .processors.processor_factory import ProcessorFactory
 
 
 def fill_slots_in_template(
@@ -61,720 +48,23 @@ def fill_slots_in_template(
     current_date_iso: str,
     form_type: str = "",
 ) -> Tuple[str, Dict[str, Any]]:
-    """HTML 템플릿 내의 플레이스홀더를 추출된 슬롯 값으로 채웁니다.
-
-    이 함수는 다음 주요 단계를 수행합니다:
-    1.  입력된 `slots_dict`에서 None 값을 필터링하여 실제 값이 있는 활성 슬롯만 사용합니다.
-    2.  슬롯 값 변환:
-        *   **날짜/시간 변환**:
-            *   아이템 리스트(`items`, `expense_items`, `card_usage_items`) 내의 날짜 관련 문자열
-                (예: `item_delivery_request_date`, `expense_date`, `usage_date`)을 `parse_relative_date_to_iso`를
-                사용하여 "YYYY-MM-DD" 형식으로 변환합니다.
-            *   일반적인 날짜 슬롯 (키 이름에 `DATE_SLOT_KEY_SUBSTRINGS`의 문자열 포함 시)의 값도
-                "YYYY-MM-DD" 형식으로 변환합니다.
-            *   회의 시간 관련 슬롯 (`meeting_datetime`, `meeting_time`, `meeting_time_description`)은
-                `parse_datetime_description_to_iso_local`을 사용하여 "YYYY-MM-DDTHH:MM" 형식으로 변환합니다.
-        *   **구매 품의서 아이템 키 변경**:
-            *   `items` 리스트 내 각 아이템의 `item_delivery_request_date` 키를 `item_delivery_date`로 변경합니다.
-            *   `item_purpose` 키를 `item_notes`로 변경 (단, `item_notes`가 이미 존재하지 않거나 비어있을 경우).
-        *   **휴가 종류 매핑**: `leave_type` 슬롯 값을 `LEAVE_TYPE_TEXT_TO_VALUE_MAP`을 참고하여 HTML `<select>` 태그의 `value`에 맞는 문자열로 변환합니다.
-        *   **야근 시간 오전/오후 구분**: `overtime_ampm` 슬롯 값을 "AM" 또는 "PM"으로 표준화합니다.
-    3.  **JSON 문자열 생성**: 변환이 완료된 아이템 리스트(`items`, `expense_items`, `card_usage_items` 중 하나)를
-        JavaScript에서 사용할 수 있도록 `items_json_str` 이라는 JSON 문자열로 직렬화합니다.
-        이 작업은 모든 슬롯 값 변환(특히 날짜 파싱)이 완료된 *후*에 수행되어, HTML의 `<input type="date">` 필드 등에
-        올바른 형식의 날짜 값이 설정되도록 합니다.
-    4.  **백슬래시 이스케이프 처리**: `re.sub` 함수는 백슬래시를 특별하게 취급하므로, HTML 템플릿에 삽입될 슬롯 값 중
-        문자열 타입의 값들에 포함된 백슬래시를 이스케이프 처리합니다. (`value.replace("\\", "\\\\")`)
-        단, `items_json_str`은 `json.dumps`를 통해 이미 올바르게 이스케이프된 JSON 문자열이므로 추가 처리를 하지 않습니다.
-    5.  **플레이스홀더 치환**: `re.sub`를 사용하여 HTML 템플릿 내의 `{key}` 또는 `{items_json}` 형태의 플레이스홀더를
-        처리된 슬롯 값 또는 `items_json_str`로 치환합니다.
-
-    Args:
-        template: 플레이스홀더를 포함하는 원본 HTML 템플릿 문자열.
-        slots_dict: LLM으로부터 추출된 슬롯 이름과 값으로 구성된 딕셔너리.
-        current_date_iso: 날짜 파싱의 기준이 되는 YYYY-MM-DD 형식의 날짜 문자열.
-
-    Returns:
-        Tuple[str, Dict[str, Any]]:
-            - str: 슬롯 값이 채워진 HTML 템플릿 문자열.
-            - Dict[str, Any]: 최종적으로 처리된 슬롯 딕셔너리 (UI 디버그 정보 및 반환용).
-    """
-    logging.info(f"Initial slots_dict before any processing: {slots_dict}")
-    logging.info(
-        f"Using current_date_iso for parsing: {current_date_iso}"
-    )  # 기준 날짜 로깅
-
-    if slots_dict:
-        processed_slots_for_re = {}
-        for k, v in slots_dict.items():
-            if isinstance(v, str):
-                # 단일 문자열 값의 백슬래시 이스케이프
-                processed_slots_for_re[k] = v.replace("\\", "\\\\")
-            elif isinstance(v, list):
-                new_list = []
-                for item in v:
-                    if isinstance(item, dict):
-                        new_dict_item = {}
-                        for item_k, item_v in item.items():
-                            if isinstance(item_v, str):
-                                # 리스트 내 딕셔너리의 문자열 값 백슬래시 이스케이프
-                                new_dict_item[item_k] = item_v.replace("\\", "\\\\")
-                            else:
-                                new_dict_item[item_k] = item_v
-                        new_list.append(new_dict_item)
-                    elif isinstance(item, str):  # list of strings
-                        # 리스트 내 단순 문자열 값 백슬래시 이스케이프
-                        new_list.append(item.replace("\\", "\\\\"))
-                    else:
-                        new_list.append(item)
-                processed_slots_for_re[k] = new_list
-            else:
-                processed_slots_for_re[k] = v
-    else:
-        processed_slots_for_re = {}
-
-    logging.info(
-        f"fill_slots_in_template_called with original slots_dict: {slots_dict}"
-    )
-    if not slots_dict:
-        return template, {}
-
-    # None 값을 가진 슬롯은 템플릿 채우기에서 제외 (활성 슬롯만 사용)
-    active_slots = {k: v for k, v in slots_dict.items() if v is not None}
-
-    # 모든 변환(날짜 파싱, 키 변경 등)은 active_slots의 복사본인 transformed_slots에 대해 수행됩니다.
-    transformed_slots = {**active_slots}
-
-    # --- 날짜/시간 관련 슬롯 우선 처리 ---
-    # 🔧 start_date와 end_date가 함께 있으면 컨텍스트 유지하며 파싱
-    if "start_date" in transformed_slots and "end_date" in transformed_slots:
-        start_parsed, end_parsed = parse_date_range_with_context(
-            transformed_slots["start_date"],
-            transformed_slots["end_date"],
-            current_date_iso,
-        )
-        transformed_slots["start_date"] = start_parsed
-        transformed_slots["end_date"] = end_parsed
-        logging.info(
-            f"Date range parsed with context: start='{start_parsed}', end='{end_parsed}'"
-        )
-        # start_date, end_date는 이미 처리했으므로 개별 파싱에서 제외
-        remaining_date_fields = [
-            f
-            for f in [
-                "application_date",
-                "work_date",
-                "departure_date",
-                "request_date",
-                "draft_date",
-                "statement_date",
-                "usage_date",
-            ]
-            if f in transformed_slots
-        ]
-    else:
-        # start_date나 end_date 중 하나만 있거나 둘 다 없는 경우 기존 로직 사용
-        remaining_date_fields = [
-            f
-            for f in [
-                "start_date",
-                "end_date",
-                "application_date",
-                "work_date",
-                "departure_date",
-                "request_date",
-                "draft_date",
-                "statement_date",
-                "usage_date",
-            ]
-            if f in transformed_slots
-        ]
-
-    # 연차 신청서 등의 start_date, end_date를 먼저 YYYY-MM-DD로 변환
-    date_fields_to_parse = [
-        "start_date",
-        "end_date",
-        "application_date",
-        "work_date",
-        "departure_date",
-        "request_date",
-        "draft_date",
-        "statement_date",
-        "usage_date",
-    ]  # 추가적인 직접 파싱 대상 필드들
-
-    for field in remaining_date_fields:
-        if field in transformed_slots and isinstance(transformed_slots[field], str):
-            original_value = transformed_slots[field]
-            parsed_value = parse_relative_date_to_iso(
-                original_value, current_date_iso=current_date_iso
-            )
-            if (
-                parsed_value and parsed_value != original_value
-            ):  # 파싱 성공하고 값이 변경된 경우
-                transformed_slots[field] = parsed_value
-                logging.info(
-                    f"Parsed general date field '{field}': '{original_value}' -> '{parsed_value}'"
-                )
-            elif not parsed_value:  # 파싱 실패
-                logging.warning(
-                    f"Failed to parse general date field '{field}': '{original_value}'. Keeping original."
-                )
-
-    # 구매 품의서(`items` 키 사용)의 아이템별 특별 처리:
-    # - 납기요청일(`item_delivery_request_date`)을 `item_delivery_date`로 변경 및 파싱.
-    # - 사용목적(`item_purpose`)을 `item_notes`로 변경 (기존 `item_notes`가 없는 경우).
-    if "items" in transformed_slots and isinstance(transformed_slots["items"], list):
-        updated_items = []
-        for item in transformed_slots["items"]:
-            if isinstance(item, dict):
-                processed_item = {**item}  # 원본 수정을 피하기 위해 복사
-
-                # 'item_delivery_request_date'를 'item_delivery_date'로 변환 및 파싱
-                if "item_delivery_request_date" in processed_item and isinstance(
-                    processed_item["item_delivery_request_date"], str
-                ):
-                    parsed_date = parse_relative_date_to_iso(
-                        processed_item["item_delivery_request_date"],
-                        current_date_iso=current_date_iso,
-                    )
-                    if parsed_date:
-                        processed_item["item_delivery_date"] = parsed_date
-                        logging.debug(
-                            f"Item's 'item_delivery_request_date' ('{processed_item['item_delivery_request_date']}') parsed to 'item_delivery_date': '{parsed_date}'"
-                        )
-                    else:
-                        # 파싱 실패 시 원본 값 유지 또는 경고 로깅
-                        logging.warning(
-                            f"Failed to parse item_delivery_request_date: {processed_item['item_delivery_request_date']}. Keeping original if item_delivery_date not present."
-                        )
-                        if "item_delivery_date" not in processed_item:
-                            processed_item["item_delivery_date"] = processed_item[
-                                "item_delivery_request_date"
-                            ]
-                    # 원본 키는 삭제하여 혼동 방지 (단, 값이 실제로 변경되었을 때만)
-                    if (
-                        "item_delivery_request_date" in processed_item
-                        and "item_delivery_date" in processed_item
-                        and processed_item["item_delivery_request_date"]
-                        != processed_item["item_delivery_date"]
-                    ):
-                        del processed_item["item_delivery_request_date"]
-
-                # 'item_purpose'를 'item_notes'로 매핑 (기존 'item_notes'가 없거나 비어있을 경우)
-                if "item_purpose" in processed_item:
-                    if (
-                        "item_notes" not in processed_item
-                        or not processed_item[
-                            "item_notes"
-                        ]  # item_notes가 빈 문자열일 경우에도 purpose 사용
-                    ):
-                        processed_item["item_notes"] = processed_item["item_purpose"]
-                        logging.debug(
-                            f"Item's 'item_purpose' ('{processed_item['item_purpose']}') mapped to 'item_notes'"
-                        )
-                        # 원본 키는 삭제 (단, 값이 실제로 복사되었을 때만)
-                        if (
-                            "item_purpose" in processed_item
-                            and "item_notes" in processed_item
-                            and processed_item["item_purpose"]
-                            == processed_item["item_notes"]
-                        ):
-                            del processed_item["item_purpose"]
-                    elif processed_item["item_purpose"] != processed_item["item_notes"]:
-                        # item_notes가 이미 존재하고, item_purpose와 다른 값을 가질 경우, item_purpose는 유지 (혹은 로깅만)
-                        logging.debug(
-                            f"Item's 'item_purpose' ('{processed_item['item_purpose']}') not mapped to 'item_notes' as 'item_notes' already exists with value: '{processed_item['item_notes']}'"
-                        )
-                updated_items.append(processed_item)
-            else:
-                updated_items.append(item)  # 딕셔너리가 아닌 아이템은 그대로 추가
-        transformed_slots["items"] = updated_items
-        logging.info(
-            f"Items list processed for date and purpose mapping: {transformed_slots['items']}"
-        )
-
-    # 개인 경비 사용 내역서 (`expense_items` 키 사용)의 아이템별 날짜 처리:
-    # - 사용일자(`expense_date`)를 파싱합니다.
-    if "expense_items" in transformed_slots and isinstance(
-        transformed_slots["expense_items"], list
-    ):
-        updated_expense_items = []
-        for item in transformed_slots["expense_items"]:
-            if isinstance(item, dict):
-                processed_item = {**item}
-                if "expense_date" in processed_item and isinstance(
-                    processed_item["expense_date"], str
-                ):
-                    original_date_str = processed_item["expense_date"]
-                    parsed_date = parse_relative_date_to_iso(
-                        original_date_str, current_date_iso=current_date_iso
-                    )
-                    if parsed_date:
-                        processed_item["expense_date"] = parsed_date
-                        logging.debug(
-                            f"Expense item's 'expense_date' ('{original_date_str}') parsed to '{parsed_date}'"
-                        )
-                    else:
-                        logging.warning(
-                            f"Failed to parse expense_date: {original_date_str}. Keeping original."
-                        )
-                updated_expense_items.append(processed_item)
-            else:
-                updated_expense_items.append(item)
-        transformed_slots["expense_items"] = updated_expense_items
-        logging.info(
-            f"Expense items list processed for dates: {transformed_slots.get('expense_items')}"
-        )
-
-    # 법인카드 지출내역서 (`card_usage_items` 키 사용)의 아이템별 날짜 처리:
-    # - 사용일자(`usage_date`)를 파싱합니다.
-    if "card_usage_items" in transformed_slots and isinstance(
-        transformed_slots["card_usage_items"], list
-    ):
-        updated_card_items = []
-        for item in transformed_slots["card_usage_items"]:
-            if isinstance(item, dict):
-                processed_item = {**item}
-                if "usage_date" in processed_item and isinstance(
-                    processed_item["usage_date"], str
-                ):
-                    original_date_str = processed_item["usage_date"]
-                    parsed_date = parse_relative_date_to_iso(
-                        original_date_str, current_date_iso=current_date_iso
-                    )
-                    if parsed_date:
-                        processed_item["usage_date"] = parsed_date
-                        logging.debug(
-                            f"Card usage item's 'usage_date' ('{original_date_str}') parsed to '{parsed_date}'"
-                        )
-                    else:
-                        logging.warning(
-                            f"Failed to parse usage_date: {original_date_str}. Keeping original."
-                        )
-                updated_card_items.append(processed_item)
-            else:
-                updated_card_items.append(item)
-        transformed_slots["card_usage_items"] = updated_card_items
-        logging.info(
-            f"Card usage items list processed for dates: {transformed_slots.get('card_usage_items')}"
-        )
-
-        # 법인카드 사용 내역을 개별 HTML 필드로 분해
-        for i, item in enumerate(updated_card_items[:6], 1):  # 최대 6개 항목
-            transformed_slots[f"usage_date_{i}"] = item.get("usage_date", "")
-            transformed_slots[f"usage_category_{i}"] = item.get("usage_category", "")
-            transformed_slots[f"merchant_name_{i}"] = item.get("usage_description", "")
-            transformed_slots[f"usage_amount_{i}"] = item.get("usage_amount", "")
-            transformed_slots[f"usage_notes_{i}"] = item.get("usage_notes", "")
-
-        # 총 금액 계산
-        total_amount = sum(
-            int(item.get("usage_amount", 0))
-            for item in updated_card_items
-            if item.get("usage_amount")
-        )
-        transformed_slots["total_usage_amount"] = total_amount
-        transformed_slots["total_amount_header"] = total_amount
-
-    # 비품/소모품 구입내역서 (`items` 키 사용)의 아이템별 처리:
-    # - 요청일자를 파싱하고 개별 HTML 필드로 분해합니다.
-    if "items" in transformed_slots and isinstance(transformed_slots["items"], list):
-        updated_items = []
-        for item in transformed_slots["items"]:
-            if isinstance(item, dict):
-                processed_item = {**item}
-                # 별도 날짜 필드 처리는 없음 (요청일은 별도 필드)
-                updated_items.append(processed_item)
-            else:
-                updated_items.append(item)
-        transformed_slots["items"] = updated_items
-
-        # 비품/소모품 구입 내역을 개별 HTML 필드로 분해
-        for i, item in enumerate(updated_items[:6], 1):  # 최대 6개 항목
-            transformed_slots[f"item_name_{i}"] = item.get("item_name", "")
-            transformed_slots[f"item_quantity_{i}"] = item.get("item_quantity", "")
-            transformed_slots[f"item_unit_price_{i}"] = item.get("item_unit_price", "")
-            transformed_slots[f"item_total_price_{i}"] = item.get(
-                "item_total_price", ""
-            )
-            transformed_slots[f"item_purpose_{i}"] = item.get(
-                "item_notes", ""
-            )  # item_notes를 item_purpose로 매핑
-
-        # 총 금액 계산
-        total_amount = sum(
-            int(item.get("item_total_price", 0))
-            for item in updated_items
-            if item.get("item_total_price")
-        )
-        transformed_slots["total_amount"] = total_amount
-
-    # 개인 경비 사용 내역서 (`expense_items` 키 사용)의 아이템별 처리:
-    # - 사용일자를 파싱하고 개별 HTML 필드로 분해합니다.
-    if "expense_items" in transformed_slots and isinstance(
-        transformed_slots["expense_items"], list
-    ):
-        updated_expense_items = []
-        for item in transformed_slots["expense_items"]:
-            if isinstance(item, dict):
-                processed_item = {**item}
-                # 사용일자 파싱
-                if "expense_date" in processed_item and isinstance(
-                    processed_item["expense_date"], str
-                ):
-                    original_date_str = processed_item["expense_date"]
-                    parsed_date = parse_relative_date_to_iso(
-                        original_date_str, current_date_iso=current_date_iso
-                    )
-                    if parsed_date:
-                        processed_item["expense_date"] = parsed_date
-                        logging.debug(
-                            f"Expense item's 'expense_date' ('{original_date_str}') parsed to '{parsed_date}'"
-                        )
-                    else:
-                        logging.warning(
-                            f"Failed to parse expense_date: {original_date_str}. Keeping original."
-                        )
-
-                # 분류 텍스트를 HTML select value로 매핑
-                if "expense_category" in processed_item:
-                    category_text = processed_item["expense_category"]
-                    category_value = _map_expense_category_to_value(category_text)
-                    processed_item["expense_category"] = category_value
-                    logging.debug(
-                        f"Expense category mapped: '{category_text}' -> '{category_value}'"
-                    )
-
-                updated_expense_items.append(processed_item)
-            else:
-                updated_expense_items.append(item)
-        transformed_slots["expense_items"] = updated_expense_items
-
-        # 개인 경비 사용 내역을 개별 HTML 필드로 분해
-        for i, item in enumerate(
-            updated_expense_items[:3], 1
-        ):  # 최대 3개 항목 (HTML 기본)
-            transformed_slots[f"expense_date_{i}"] = item.get("expense_date", "")
-            transformed_slots[f"expense_category_{i}"] = item.get(
-                "expense_category", ""
-            )
-            transformed_slots[f"expense_description_{i}"] = item.get(
-                "expense_description", ""
-            )
-            transformed_slots[f"expense_amount_{i}"] = item.get("expense_amount", "")
-            transformed_slots[f"expense_notes_{i}"] = item.get("expense_notes", "")
-
-        # 총 금액 계산
-        total_expense_amount = sum(
-            int(item.get("expense_amount", 0))
-            for item in updated_expense_items
-            if item.get("expense_amount")
-        )
-        transformed_slots["total_expense_amount"] = total_expense_amount
-        transformed_slots["total_amount_header"] = total_expense_amount
-
-    # 구매 품의서 확인: form_type과 title 모두 확인
-    is_purchase_form = (
-        form_type == "구매 품의서"
-        or transformed_slots.get("title") == "구매 품의서"
-        or "payment_terms" in transformed_slots
-        or "delivery_location" in transformed_slots
-        or "attached_files_description" in transformed_slots
-    )
-
-    # 구매 품의서의 items 처리 (비품/소모품과는 다른 구조)
-    if (
-        is_purchase_form
-        and "items" in transformed_slots
-        and isinstance(transformed_slots["items"], list)
-    ):
-
-        updated_items = []
-        for item in transformed_slots["items"]:
-            if isinstance(item, dict):
-                processed_item = {**item}
-                # 납기요청일 파싱
-                if "item_delivery_request_date" in processed_item and isinstance(
-                    processed_item["item_delivery_request_date"], str
-                ):
-                    original_date_str = processed_item["item_delivery_request_date"]
-                    parsed_date = parse_relative_date_to_iso(
-                        original_date_str, current_date_iso=current_date_iso
-                    )
-                    if parsed_date:
-                        processed_item["item_delivery_request_date"] = parsed_date
-                        logging.debug(
-                            f"Purchase item's 'item_delivery_request_date' ('{original_date_str}') parsed to '{parsed_date}'"
-                        )
-                    else:
-                        logging.warning(
-                            f"Failed to parse item_delivery_request_date: {original_date_str}. Keeping original."
-                        )
-                updated_items.append(processed_item)
-            else:
-                updated_items.append(item)
-        transformed_slots["items"] = updated_items
-
-        # 구매 품의서 항목을 개별 HTML 필드로 분해
-        for i, item in enumerate(updated_items[:3], 1):  # 최대 3개 항목
-            transformed_slots[f"item_name_{i}"] = item.get("item_name", "")
-            transformed_slots[f"item_spec_{i}"] = item.get("item_spec", "")
-            transformed_slots[f"item_quantity_{i}"] = item.get("item_quantity", "")
-            transformed_slots[f"item_unit_price_{i}"] = item.get("item_unit_price", "")
-            transformed_slots[f"item_total_price_{i}"] = item.get(
-                "item_total_price", ""
-            )
-            # 파싱된 납기일 사용 (item_delivery_date → item_delivery_date_1)
-            transformed_slots[f"item_delivery_date_{i}"] = item.get(
-                "item_delivery_date", item.get("item_delivery_request_date", "")
-            )
-            transformed_slots[f"item_supplier_{i}"] = item.get("item_supplier", "")
-            # 처리된 목적 사용 (item_notes → item_notes_1)
-            transformed_slots[f"item_notes_{i}"] = item.get(
-                "item_notes", item.get("item_purpose", "")
-            )
-
-        # 총 구매 금액 계산
-        total_purchase_amount = sum(
-            int(item.get("item_total_price", 0))
-            for item in updated_items
-            if item.get("item_total_price")
-        )
-        transformed_slots["total_purchase_amount"] = total_purchase_amount
-
-        # 잘못된 필드명 제거 (HTML과 일치시키기 위해)
-        if "total_amount" in transformed_slots:
-            del transformed_slots["total_amount"]
-        for i in range(1, 4):
-            if f"item_purpose_{i}" in transformed_slots:
-                del transformed_slots[f"item_purpose_{i}"]
-
-    # 휴가 종류 텍스트를 HTML <select>의 value로 매핑합니다.
-    if "leave_type" in transformed_slots and isinstance(
-        transformed_slots["leave_type"], str
-    ):
-        leave_type_text = transformed_slots["leave_type"]
-        if leave_type_text in LEAVE_TYPE_TEXT_TO_VALUE_MAP:
-            transformed_slots["leave_type"] = LEAVE_TYPE_TEXT_TO_VALUE_MAP[
-                leave_type_text
-            ]
-            logging.debug(
-                f"Slot 'leave_type' preprocessed: '{leave_type_text}' -> '{transformed_slots['leave_type']}'"
-            )
-        else:
-            # 매핑되지 않는 경우 원본 값 유지 (HTML에 해당 option이 없을 수 있음)
-            logging.warning(
-                f"Slot 'leave_type' text '{leave_type_text}' not found in LEAVE_TYPE_TEXT_TO_VALUE_MAP. Keeping original."
-            )
-
-    # 야근 시간 오전/오후 구분 값을 "AM" 또는 "PM"으로 표준화합니다.
-    if "overtime_ampm" in transformed_slots and isinstance(
-        transformed_slots["overtime_ampm"], str
-    ):
-        ampm_value_original = transformed_slots["overtime_ampm"]
-        ampm_value_upper = ampm_value_original.upper()
-        if (
-            "밤" in ampm_value_original
-            or "오후" in ampm_value_original
-            or "P" in ampm_value_upper  # PM, P.M. 등 고려
-        ):
-            transformed_slots["overtime_ampm"] = "PM"
-        elif (
-            "새벽" in ampm_value_original
-            or "오전" in ampm_value_original
-            or "A" in ampm_value_upper  # AM, A.M. 등 고려
-        ):
-            transformed_slots["overtime_ampm"] = "AM"
-        # 정확히 매칭되지 않으면 원본 값을 유지 (HTML option에 해당 값이 없을 수 있음)
-        logging.debug(
-            f"Slot 'overtime_ampm' preprocessed: '{ampm_value_original}' -> '{transformed_slots['overtime_ampm']}'"
-        )
-
-    # 퇴근 시간을 자연어에서 HH:MM 형식으로 변환합니다.
-    if "overtime_time" in transformed_slots and isinstance(
-        transformed_slots["overtime_time"], str
-    ):
-        from .utils import parse_datetime_description_to_iso_local
-
-        original_time = transformed_slots["overtime_time"]
-
-        # 먼저 이미 HH:MM 형식인지 확인 (re 모듈은 이미 상단에서 import됨)
-        if re.match(r"^\d{1,2}:\d{2}$", original_time):
-            # 이미 HH:MM 형식이면 그대로 유지
-            logging.debug(f"overtime_time '{original_time}' is already in HH:MM format")
-        else:
-            # 자연어 시간을 파싱 시도
-            # "밤 10시 30분" -> "2025-07-02T22:30" -> "22:30" 형식으로 변환
-            parsed_datetime = parse_datetime_description_to_iso_local(
-                original_time, current_date_iso=current_date_iso
-            )
-            if parsed_datetime and "T" in parsed_datetime:
-                # "2025-07-02T22:30" -> "22:30" 추출
-                time_part = parsed_datetime.split("T")[1]
-                transformed_slots["overtime_time"] = time_part
-                logging.info(
-                    f"overtime_time converted: '{original_time}' -> '{time_part}'"
-                )
-            else:
-                # 파싱 실패 시 원본 값 유지하되 경고 로깅
-                logging.warning(
-                    f"Failed to parse overtime_time: '{original_time}'. Keeping original value."
-                )
-                # HTML type="time"에서 작동하지 않을 수 있으므로 빈 값으로 설정
-                transformed_slots["overtime_time"] = ""
-
-    # 일반적인 날짜 슬롯 처리
-    for key, value in list(
-        transformed_slots.items()
-    ):  # list()로 복사본 순회 (딕셔너리 변경 가능성)
-        if isinstance(value, str) and any(
-            substr in key.lower() for substr in DATE_SLOT_KEY_SUBSTRINGS
-        ):
-            # 이미 위에서 date_fields_to_parse를 통해 처리된 필드는 건너뜀
-            if key in date_fields_to_parse:
-                continue
-
-            # 아이템 리스트 내의 필드는 각 아이템 처리 루프에서 개별적으로 처리됨
-            is_item_list_field = False
-            for item_list_key in ["items", "expense_items", "card_usage_items"]:
-                if key.startswith(item_list_key + "[") and key.endswith(
-                    "]"
-                ):  # 예: items[0].some_date_field
-                    is_item_list_field = True
-                    break
-            if (
-                is_item_list_field
-            ):  # TODO: 이 방식으로는 아이템 내부 필드 감지 어려움. 각 아이템 루프에서 처리하는 것이 맞음.
-                continue
-
-            original_value = value
-            # DATE_SLOT_KEY_SUBSTRINGS에 해당하는 키는 대부분 날짜만 있는 YYYY-MM-DD 형식을 기대.
-            parsed_value = parse_relative_date_to_iso(
-                original_value, current_date_iso=current_date_iso
-            )
-            if parsed_value and parsed_value != original_value:
-                transformed_slots[key] = parsed_value
-                logging.info(
-                    f"Parsed date field by substring '{key}': '{original_value}' -> '{parsed_value}'"
-                )
-            elif not parsed_value:
-                logging.warning(
-                    f"Failed to parse date field by substring '{key}': '{original_value}'. Keeping original."
-                )
-
-    logging.info(
-        f"Final slots prepared for template filling after all transformations: {transformed_slots}"
-    )
-
-    # JavaScript로 전달될 아이템 리스트용 JSON 문자열 생성 (`items_json_str`).
-    # 이 작업은 모든 슬롯 값 변환(특히 날짜 파싱)이 완료된 *후*에 수행되어야 합니다.
-    # HTML의 <input type="date"> 필드 등이 올바른 형식의 날짜 값을 받도록 하기 위함입니다.
-    items_json_str = "null"  # 기본값
-    item_keys_for_js = ["items", "expense_items", "card_usage_items"]
-
-    for item_key in item_keys_for_js:
-        if item_key in transformed_slots and isinstance(
-            transformed_slots[item_key], list
-        ):
-            # 모든 변환이 완료된 최종 아이템 리스트를 JSON으로 직렬화합니다.
-            final_items_list_for_json = transformed_slots.get(item_key, [])
-            items_json_str = json.dumps(final_items_list_for_json, ensure_ascii=False)
-            logging.debug(
-                f"Slot '{item_key}' (transformed values) will be passed to JS as JSON: {items_json_str}"
-            )
-            break  # 첫 번째로 발견되는 아이템 리스트만 사용 (일반적으로 양식당 하나만 존재)
-
-    logging.info(
-        f"Attempting to fill template. items_json_str (first 200 chars): {items_json_str[:200]}"
-    )
-    logging.info(f"Template before re.sub (first 300 chars): {template[:300]}")
-
-    # HTML 템플릿의 플레이스홀더를 실제 값으로 치환합니다.
-    # replacer 함수는 {key} 또는 {items_json} 형태의 플레이스홀더를 처리합니다.
-    def replacer(match):
-        key_in_template = match.group(1)  # 매칭된 그룹 (중괄호 안의 내용)
-
-        if key_in_template == "items_json":
-            # `items_json_str`은 이미 `json.dumps`를 통해 올바르게 이스케이프된 JSON 문자열입니다.
-            # 따라서 추가적인 백슬래시 이스케이프 없이 그대로 반환합니다.
-            return items_json_str
-
-        if key_in_template == "today":
-            # {today} 플레이스홀더는 현재 날짜(current_date_iso)로 치환합니다.
-            return current_date_iso
-
-        # `transformed_slots`에서 해당 키의 값을 가져옵니다.
-        # 값이 없을 경우 빈 문자열로 대체하여 HTML이 깨지지 않도록 합니다.
-        value_to_return = transformed_slots.get(key_in_template, "")
-
-        # `re.sub`는 백슬래시를 특별하게 취급하므로, 삽입될 문자열 값에 포함된 백슬래시를 이스케이프 처리합니다.
-        # 예를 들어, 슬롯 값이 "C:\path\to\file" 이라면, "C:\\path\\to\\file"로 변경되어야
-        # `re.sub`가 이를 올바르게 "C:\path\to\file"로 HTML에 삽입합니다.
-        # 숫자나 다른 타입은 문자열로 변환하여 처리합니다.
-        if isinstance(value_to_return, str):
-            return value_to_return.replace("\\", "\\\\")  # 백슬래시 이스케이프
-        else:
-            return str(value_to_return)  # 다른 타입은 문자열로 변환
-
-    # 정규식을 사용하여 HTML 템플릿 내의 모든 {플레이스홀더_이름}을 치환합니다.
-    # 플레이스홀더 이름은 영문자, 숫자, 언더스코어(_)로 구성될 수 있습니다 (예: {user_name}, {items_json}).
-    filled_template = re.sub(r"{(\w+)}", replacer, template)
-
-    logging.info(
-        f"Template after re.sub (first 300 chars of filled_template): {filled_template[:300]}"
-    )
-
-    # 특정 필드가 실제로 채워졌는지 확인
-    if "work_date" in transformed_slots:
-        if "{work_date}" in template:
-            logging.info(f"[DEBUG] work_date placeholder found in template")
-        if f'value="{transformed_slots["work_date"]}"' in filled_template:
-            logging.info(
-                f"[DEBUG] work_date successfully filled: {transformed_slots['work_date']}"
-            )
-        else:
-            logging.warning(f"[DEBUG] work_date NOT filled in template")
-
-    if "dinner_expense_amount" in transformed_slots:
-        if "{dinner_expense_amount}" in template:
-            logging.info(f"[DEBUG] dinner_expense_amount placeholder found in template")
-        if f'value="{transformed_slots["dinner_expense_amount"]}"' in filled_template:
-            logging.info(
-                f"[DEBUG] dinner_expense_amount successfully filled: {transformed_slots['dinner_expense_amount']}"
-            )
-        else:
-            logging.warning(f"[DEBUG] dinner_expense_amount NOT filled in template")
-
-    return (
-        filled_template,
-        transformed_slots,  # 최종적으로 UI 등에 전달될, 모든 변환이 완료된 슬롯
-    )
-
-
-def fill_slots_in_template_v2(
-    template: str,
-    slots_dict: Dict[str, Any],
-    current_date_iso: str,
-    form_type: str = "",
-) -> Tuple[str, Dict[str, Any]]:
     """새로운 모듈 구조를 사용한 슬롯 처리 함수
 
-    기존 fill_slots_in_template을 리팩토링한 버전입니다.
-    양식별 프로세서를 사용하여 처리합니다.
+    기존 거대한 함수를 리팩토링하여 양식별 프로세서를 사용합니다.
+    모든 복잡한 로직은 processors/, converters/, validators/ 모듈에 위임합니다.
 
     Args:
         template: 플레이스홀더를 포함하는 원본 HTML 템플릿 문자열
         slots_dict: LLM으로부터 추출된 슬롯 이름과 값으로 구성된 딕셔너리
         current_date_iso: 날짜 파싱의 기준이 되는 YYYY-MM-DD 형식의 날짜 문자열
-        form_type: 양식 타입 (새로운 모듈 구조에서 프로세서 선택용)
+        form_type: 양식 타입 (프로세서 선택용)
 
     Returns:
         Tuple[str, Dict[str, Any]]:
             - str: 슬롯 값이 채워진 HTML 템플릿 문자열
             - Dict[str, Any]: 최종적으로 처리된 슬롯 딕셔너리
     """
-    logging.info(f"Using new modular structure for form_type: {form_type}")
+    logging.info(f"Using modular structure for form_type: {form_type}")
     logging.info(f"Initial slots_dict: {slots_dict}")
 
     if not slots_dict:
@@ -791,7 +81,7 @@ def fill_slots_in_template_v2(
         template, final_processed_slots, current_date_iso
     )
 
-    logging.info(f"V2 processing completed for form_type: {form_type}")
+    logging.info(f"Modular processing completed for form_type: {form_type}")
     logging.info(f"Final processed slots: {final_processed_slots}")
 
     return final_html, final_processed_slots
@@ -977,22 +267,13 @@ def classify_and_extract_slots_for_template(
         )
         raw_slots = {}
 
-    # 4단계: 슬롯 값 변환 및 HTML 템플릿 채우기
-    # 환경 변수를 통해 새로운 모듈 구조 사용 여부 결정
-    use_v2_processing = os.getenv("USE_V2_PROCESSING", "false").lower() == "true"
-
-    if use_v2_processing:
-        logging.info("Using V2 modular processing structure")
-        final_html, final_processed_slots = fill_slots_in_template_v2(
-            retrieved_template_html, raw_slots, current_date_iso, form_type
-        )
-    else:
-        logging.info("Using legacy processing structure")
-        # fill_slots_in_template 함수는 raw_slots에 있는 값들을 기반으로 날짜 변환, 키 변경 등을 수행하고,
-        # 최종적으로 HTML 템플릿에 값들을 채워넣습니다.
-        final_html, final_processed_slots = fill_slots_in_template(
-            retrieved_template_html, raw_slots, current_date_iso, form_type
-        )
+        # 4단계: 슬롯 처리 및 템플릿 채우기 (리팩토링된 모듈 구조 사용)
+    final_html, final_processed_slots = fill_slots_in_template(
+        template=retrieved_template_html,
+        slots_dict=raw_slots,
+        current_date_iso=current_date_iso,
+        form_type=form_type,
+    )
     logging.info(
         f"Final processed slots after fill_slots_in_template: {final_processed_slots}"
     )
@@ -1231,62 +512,71 @@ def get_approval_info(
 # --- 2단계: HTML 폼 데이터 → 최종 API Payload 변환 로직 --- #
 
 
-def convert_form_data_to_api_payload(
-    form_type: str, form_data: Dict[str, Any]
-) -> Dict[str, Any]:
-    """HTML 폼에서 받은 데이터를 최종 API Payload 형식으로 변환합니다.
+def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
+    """폼 데이터를 API 페이로드로 변환하는 통합 함수"""
+    logger.info(f"Converting form data to API payload for form_type: {form_type}")
+    logger.info(f"Input form_data: {form_data}")
 
-    Args:
-        form_type: 양식 타입 (예: "annual_leave", "dinner_expense" 또는 한국어 양식명)
-        form_data: HTML 폼에서 받은 데이터 딕셔너리
-
-    Returns:
-        Dict[str, Any]: 최종 API로 전송할 Payload
-    """
-    logging.info(f"Converting form data to API payload for form_type: {form_type}")
-    logging.info(f"Input form_data: {form_data}")
-
-    # form_configs의 자동 매핑 함수를 사용하여 한국어 → 영어 변환
-    from .form_configs import get_english_form_type
+    # 🆕 approvers가 딕셔너리 리스트인 경우 ApproverDetail 객체로 변환
+    if "approvers" in form_data and form_data["approvers"]:
+        converted_approvers = []
+        for approver in form_data["approvers"]:
+            if isinstance(approver, dict):
+                # 딕셔너리를 ApproverDetail 객체로 변환
+                # aprvPsNm이 누락된 경우 기본값 추가
+                if "aprvPsNm" not in approver:
+                    approver["aprvPsNm"] = ""  # 빈 문자열로 기본값 설정
+                converted_approvers.append(schema.ApproverDetail(**approver))
+            else:
+                # 이미 ApproverDetail 객체인 경우
+                converted_approvers.append(approver)
+        form_data["approvers"] = converted_approvers
+        logger.info(
+            f"Converted {len(converted_approvers)} approvers from dict to ApproverDetail objects"
+        )
 
     try:
-        original_form_type = form_type
-        form_type = get_english_form_type(form_type)
-        if original_form_type != form_type:
-            logging.info(
-                f"Converted Korean form type '{original_form_type}' to English '{form_type}'"
+        # V2 프로세서 사용 시도
+        processor = ProcessorFactory.create_processor(form_type)
+        if processor and hasattr(processor, "convert_to_api_payload"):
+            logger.info(
+                f"Using v2 processor for conversion: {processor.__class__.__name__}"
             )
-    except ValueError:
-        # 지원하지 않는 양식 타입인 경우 원래 에러 메시지 유지
-        pass
+            return processor.convert_to_api_payload(form_data)
+        else:
+            logger.warning(
+                f"No v2 processor found for {form_type}, falling back to legacy conversion"
+            )
 
-    # 양식 타입별 변환 로직
-    if form_type == "annual_leave":
-        return _convert_annual_leave_to_payload(form_data)
-    elif form_type == "dinner_expense":
-        return _convert_dinner_expense_to_payload(form_data)
-    elif form_type == "transportation_expense":
-        return _convert_transportation_expense_to_payload(form_data)
-    elif form_type == "dispatch_businesstrip_report":
-        return _convert_dispatch_report_to_payload(form_data)
-    elif form_type == "inventory_purchase_report":
-        return _convert_inventory_report_to_payload(form_data)
-    elif form_type == "purchase_approval_form":
-        return _convert_purchase_approval_to_payload(form_data)
-    elif form_type == "personal_expense_report":
-        return _convert_personal_expense_to_payload(form_data)
-    elif form_type == "corporate_card_statement":
-        return _convert_corporate_card_to_payload(form_data)
+    except Exception as e:
+        logger.warning(f"V2 processor conversion failed for {form_type}: {e}")
+
+    # Legacy 변환 함수들 사용
+    legacy_converters = {
+        "annual_leave": _convert_annual_leave_to_payload,
+        "personal_expense": _convert_personal_expense_to_payload,
+        "dinner_expense": _convert_dinner_expense_to_payload,
+        "transportation_expense": _convert_transportation_expense_to_payload,
+        "inventory_purchase": _convert_inventory_report_to_payload,
+        "purchase_approval": _convert_purchase_approval_to_payload,
+        "corporate_card": _convert_corporate_card_to_payload,
+        "dispatch_report": _convert_dispatch_report_to_payload,
+    }
+
+    if form_type in legacy_converters:
+        logger.info(f"Using legacy converter for {form_type}")
+        return legacy_converters[form_type](form_data)
     else:
-        raise ValueError(f"Unsupported form type: {form_type}")
+        logger.error(f"No converter found for form_type: {form_type}")
+        raise ValueError(f"지원하지 않는 양식 타입입니다: {form_type}")
 
 
 def _convert_annual_leave_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
     """연차 신청서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
 
-    # API_명세.md에 따른 표준 구조
+    # 기존 Legacy API 형식과 동일한 구조 사용
     payload = {
-        "mstPid": 1,  # form_configs.py의 annual_leave mstPid
+        "mstPid": "1",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "연차 사용 신청"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("reason", "개인 사유"),
@@ -1368,9 +658,9 @@ def _convert_annual_leave_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),  # aprvPslId로 수정
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1382,7 +672,7 @@ def _convert_dinner_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
 
     # API_명세.md에 따른 표준 구조
     payload = {
-        "mstPid": 3,  # form_configs.py의 dinner_expense mstPid
+        "mstPid": "3",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "야근 식대 신청"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get(
@@ -1423,9 +713,9 @@ def _convert_dinner_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),  # aprvPslId로 수정
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1437,9 +727,9 @@ def _convert_transportation_expense_to_payload(
 ) -> Dict[str, Any]:
     """교통비 신청서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
 
-    # API_명세.md에 따른 표준 구조
+    # 기존 Legacy API 형식과 동일한 구조 사용
     payload = {
-        "mstPid": 4,  # form_configs.py의 transportation_expense mstPid
+        "mstPid": "4",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "교통비 신청"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("purpose", "교통비 신청"),
@@ -1477,9 +767,9 @@ def _convert_transportation_expense_to_payload(
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),  # aprvPslId로 수정
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1491,17 +781,17 @@ def _convert_dispatch_report_to_payload(form_data: Dict[str, Any]) -> Dict[str, 
 
     # API_명세.md에 따른 표준 구조
     payload = {
-        "mstPid": 5,  # form_configs.py의 dispatch_businesstrip_report mstPid
+        "mstPid": "5",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "파견 및 출장 보고서"),
         "drafterId": form_data.get("drafterId", "00009"),
-        "docCn": form_data.get("purpose", "파견 및 출장 보고"),
+        "docCn": form_data.get("purpose", "파견 및 출장 보고서"),
         "apdInfo": json.dumps(
             {
-                "origin": form_data.get("origin", ""),
+                "departure_date": form_data.get("departure_date", ""),
+                "return_date": form_data.get("return_date", ""),
                 "destination": form_data.get("destination", ""),
-                "duration_days": form_data.get("duration_days", ""),
-                "report_details": form_data.get("report_details", ""),
-                "notes": form_data.get("notes", ""),
+                "accommodation": form_data.get("accommodation", ""),
+                "transport_details": form_data.get("transport_details", ""),
             },
             ensure_ascii=False,
         ),
@@ -1568,9 +858,9 @@ def _convert_dispatch_report_to_payload(form_data: Dict[str, Any]) -> Dict[str, 
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1582,7 +872,7 @@ def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str,
 
     # API_명세.md에 따른 표준 구조
     payload = {
-        "mstPid": 6,  # form_configs.py의 inventory_purchase_report mstPid
+        "mstPid": "6",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "비품/소모품 구입내역서"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("notes", "비품/소모품 구입"),
@@ -1649,9 +939,9 @@ def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1663,7 +953,7 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
 
     # API_명세.md에 따른 표준 구조
     payload = {
-        "mstPid": 7,  # form_configs.py의 purchase_approval_form mstPid
+        "mstPid": "7",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "구매 품의서"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("special_notes", "구매 품의 요청"),
@@ -1778,9 +1068,9 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1792,7 +1082,7 @@ def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str,
 
     # API_명세.md에 따른 표준 구조
     payload = {
-        "mstPid": 8,  # form_configs.py의 personal_expense_report mstPid
+        "mstPid": "8",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "개인 경비 사용내역서"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("expense_reason", "개인 경비 정산"),
@@ -1876,9 +1166,9 @@ def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 
@@ -1890,7 +1180,7 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
 
     # API_명세.md에 따른 표준 구조
     payload = {
-        "mstPid": 9,  # form_configs.py의 corporate_card_statement mstPid
+        "mstPid": "9",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "법인 카드 사용 내역서"),
         "drafterId": form_data.get("drafterId", "00009"),
         "docCn": form_data.get("expense_reason", "법인카드 사용 정산"),
@@ -1998,9 +1288,9 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.get("aprvPsId", ""),
-                    "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                    "ordr": approver.get("ordr", 1),
+                    "aprvPslId": approver.aprvPsId,
+                    "aprvDvTy": approver.aprvDvTy,
+                    "ordr": approver.ordr,
                 }
             )
 

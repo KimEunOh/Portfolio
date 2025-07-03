@@ -2,6 +2,8 @@
 
 from typing import Dict, Any, List
 from .base_processor import BaseFormProcessor
+import logging
+import json
 
 
 class InventoryPurchaseProcessor(BaseFormProcessor):
@@ -25,7 +27,10 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """아이템 날짜 변환: 비품 구입내역서는 개별 아이템 날짜가 없으므로 기본 처리"""
+        """비품구입 아이템 날짜 변환
+
+        비품구입은 아이템이 없으므로 날짜 변환하지 않습니다.
+        """
         return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
@@ -76,3 +81,57 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
             processed["notes"] = ""
 
         return processed
+
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """비품/소모품 구입내역서 폼 데이터를 API Payload로 변환"""
+        logging.info("InventoryPurchaseProcessor: Converting form data to API payload")
+
+        payload = {
+            "mstPid": "6",  # API 명세에 맞게 string 형태로 수정
+            "aprvNm": form_data.get("title", "비품/소모품 구입내역서"),
+            "drafterId": form_data.get("drafterId", "00009"),
+            "docCn": form_data.get("purpose", "비품/소모품 구입내역서"),
+            "apdInfo": json.dumps(
+                {
+                    "request_date": form_data.get("request_date", ""),
+                    "purpose": form_data.get("purpose", ""),
+                    "total_amount": form_data.get("total_amount", 0),
+                },
+                ensure_ascii=False,
+            ),
+            "lineList": [],
+            "dayList": [],
+            "amountList": [],
+        }
+
+        # amountList 구성 (구입 내역)
+        for i in range(1, 7):  # 최대 6개 항목
+            item_name = form_data.get(f"item_name_{i}", "")
+            item_quantity = form_data.get(f"item_quantity_{i}", "")
+            item_unit_price = form_data.get(f"item_unit_price_{i}", 0)
+            item_total_price = form_data.get(f"item_total_price_{i}", 0)
+            item_purpose = form_data.get(f"item_purpose_{i}", "")
+
+            if item_name and item_total_price:
+                payload["amountList"].append(
+                    {
+                        "useYmd": form_data.get("request_date", ""),
+                        "dvNm": f"{item_name} ({item_quantity}개)",
+                        "useRsn": item_purpose,
+                        "amount": int(item_total_price) if item_total_price else 0,
+                    }
+                )
+
+        # 결재라인 정보 추가
+        if "approvers" in form_data and form_data["approvers"]:
+            for approver in form_data["approvers"]:
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.get("aprvPsId", ""),
+                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                        "ordr": approver.get("ordr", 1),
+                    }
+                )
+
+        logging.info("InventoryPurchaseProcessor: API payload conversion completed")
+        return payload

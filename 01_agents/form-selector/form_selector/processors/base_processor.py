@@ -170,6 +170,11 @@ class BaseFormProcessor(ABC):
         """아이템 내 날짜 변환 - 양식별 구현"""
         pass
 
+    @abstractmethod
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """HTML 폼 데이터를 API 페이로드로 변환 - 양식별 구현"""
+        pass
+
 
 class DefaultFormProcessor(BaseFormProcessor):
     """기본 양식 처리기 (특별한 처리가 필요 없는 양식용)"""
@@ -187,3 +192,7 @@ class DefaultFormProcessor(BaseFormProcessor):
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
         return slots
+
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """기본 API 페이로드 변환 (특별한 처리가 필요 없는 양식용)"""
+        return form_data

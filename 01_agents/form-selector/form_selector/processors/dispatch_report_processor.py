@@ -4,6 +4,8 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from .base_processor import BaseFormProcessor
+import json
+import logging
 
 
 class DispatchReportProcessor(BaseFormProcessor):
@@ -39,26 +41,11 @@ class DispatchReportProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """날짜 변환: start_date, end_date 처리"""
-        from ..utils import parse_relative_date_to_iso
+        """파견/출장 보고서 아이템 날짜 변환
 
-        result = slots.copy()
-
-        # start_date 변환
-        if "start_date" in result and result["start_date"]:
-            start_date = parse_relative_date_to_iso(
-                result["start_date"], current_date_iso
-            )
-            if start_date:
-                result["start_date"] = start_date
-
-        # end_date 변환
-        if "end_date" in result and result["end_date"]:
-            end_date = parse_relative_date_to_iso(result["end_date"], current_date_iso)
-            if end_date:
-                result["end_date"] = end_date
-
-        return result
+        파견/출장 보고서는 아이템이 없으므로 날짜 변환하지 않습니다.
+        """
+        return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """아이템 처리: 파견 및 출장보고서는 아이템 분해가 없음"""
@@ -144,3 +131,66 @@ class DispatchReportProcessor(BaseFormProcessor):
                 processed[field] = default_value
 
         return processed
+
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """파견/출장 보고서 폼 데이터를 API Payload로 변환"""
+        logging.info("DispatchReportProcessor: Converting form data to API payload")
+
+        payload = {
+            "mstPid": "5",  # API 명세에 맞게 string 형태로 수정
+            "aprvNm": form_data.get("title", "파견/출장 보고서"),
+            "drafterId": form_data.get("drafterId", "00009"),
+            "docCn": form_data.get("report_content", "파견/출장 보고서"),
+            "apdInfo": json.dumps(
+                {
+                    "destination": form_data.get("destination", ""),
+                    "period_days": form_data.get("period_days", ""),
+                    "purpose": form_data.get("purpose", ""),
+                    "accomplishments": form_data.get("accomplishments", ""),
+                    "challenges": form_data.get("challenges", ""),
+                    "next_actions": form_data.get("next_actions", ""),
+                },
+                ensure_ascii=False,
+            ),
+            "lineList": [],
+            "dayList": [],
+            "amountList": [],
+        }
+
+        # dayList 구성 (파견/출장 날짜 정보)
+        start_date = form_data.get("start_date", "")
+        end_date = form_data.get("end_date", "")
+
+        if start_date and end_date:
+            try:
+                from datetime import datetime, timedelta
+
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+                if start_dt <= end_dt:
+                    current_date = start_dt
+                    while current_date <= end_dt:
+                        payload["dayList"].append(
+                            {
+                                "reqYmd": current_date.isoformat(),
+                                "dvType": "BUSINESS_TRIP",
+                            }
+                        )
+                        current_date += timedelta(days=1)
+            except ValueError as e:
+                logging.error(f"파견/출장 보고서 날짜 파싱 오류: {e}")
+
+        # 결재라인 정보 추가
+        if "approvers" in form_data and form_data["approvers"]:
+            for approver in form_data["approvers"]:
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.get("aprvPsId", ""),
+                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                        "ordr": approver.get("ordr", 1),
+                    }
+                )
+
+        logging.info("DispatchReportProcessor: API payload conversion completed")
+        return payload

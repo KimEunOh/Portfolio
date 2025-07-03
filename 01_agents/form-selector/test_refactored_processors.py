@@ -17,7 +17,7 @@ from form_selector.processors.personal_expense_processor import PersonalExpenseP
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from form_selector.processors import get_form_processor, ProcessorFactory
-from form_selector.service import fill_slots_in_template_v2
+from form_selector.service import fill_slots_in_template
 
 
 class TestRefactoredProcessors(unittest.TestCase):

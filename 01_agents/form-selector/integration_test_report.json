@@ -1,0 +1,14 @@
+{
+  "test_date": "2025-07-03T14:36:47.759928",
+  "total_test_forms": 3,
+  "server_url": "http://localhost:8000",
+  "processors_tested": 8,
+  "test_categories": [
+    "전체 플로우 테스트",
+    "API 통합 테스트",
+    "성능 테스트",
+    "에러 처리 테스트",
+    "프로세서 테스트"
+  ],
+  "status": "Form Selector 리팩토링 프로젝트 통합 테스트 완료"
+}

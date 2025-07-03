@@ -9,6 +9,8 @@
 
 from typing import Dict, Any
 from .base_processor import BaseFormProcessor
+import logging
+import json
 
 
 class DinnerExpenseProcessor(BaseFormProcessor):
@@ -52,7 +54,11 @@ class DinnerExpenseProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """야근 식대는 아이템이 없으므로 기본 반환"""
+        """야근 식대 아이템 날짜 변환
+
+        야근 식대는 아이템이 없으므로 날짜 변환하지 않습니다.
+        """
+        logging.debug("DinnerExpenseProcessor: No item dates to convert")
         return slots
 
     def convert_fields(self, slots: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,3 +187,59 @@ class DinnerExpenseProcessor(BaseFormProcessor):
             pass  # 그대로 유지
 
         return f"{hour:02d}:{minute:02d}"
+
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """야근 식대 신청서 폼 데이터를 API Payload로 변환 (Legacy 형식과 동일)"""
+        logger.info("DinnerExpenseProcessor: Converting form data to API payload")
+
+        # 기존 Legacy API 형식과 동일한 구조 사용
+        payload = {
+            "mstPid": "3",  # API 명세에 맞게 string 형태로 수정
+            "aprvNm": form_data.get("title", "야근 식대 신청"),
+            "drafterId": form_data.get("drafterId", "00009"),
+            "docCn": form_data.get(
+                "work_details", form_data.get("notes", "야근 식대 신청")
+            ),
+            "apdInfo": json.dumps(
+                {
+                    "work_location": form_data.get("work_location", ""),
+                    "overtime_time": form_data.get("overtime_time", ""),
+                    "bank_account_for_deposit": form_data.get(
+                        "bank_account_for_deposit", ""
+                    ),
+                },
+                ensure_ascii=False,
+            ),
+            "lineList": [],
+            "dayList": [],
+            "amountList": [],
+        }
+
+        # amountList 구성 (비용 정산 정보)
+        work_date = form_data.get("work_date", "")
+        dinner_amount = form_data.get("dinner_expense_amount", 0)
+        work_details = form_data.get("work_details", form_data.get("notes", ""))
+
+        if work_date and dinner_amount:
+            payload["amountList"].append(
+                {
+                    "useYmd": work_date,
+                    "dvNm": "식대",
+                    "useRsn": work_details,
+                    "amount": int(dinner_amount) if dinner_amount else 0,
+                }
+            )
+
+        # 결재라인 정보 추가 (Legacy와 동일하게 aprvPslId 사용)
+        if "approvers" in form_data and form_data["approvers"]:
+            for approver in form_data["approvers"]:
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.aprvPsId,  # Legacy 형식: aprvPslId
+                        "aprvDvTy": approver.aprvDvTy,
+                        "ordr": approver.ordr,
+                    }
+                )
+
+        logger.info("DinnerExpenseProcessor: API payload conversion completed")
+        return payload

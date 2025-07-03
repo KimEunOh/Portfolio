@@ -7,9 +7,100 @@ service.py에서 분산되어 있던 아이템 리스트 처리 로직을 통합
 import logging
 from typing import Dict, Any, List
 
+from ..utils import parse_relative_date_to_iso
+
 
 class ItemConverter:
     """아이템 리스트 변환을 전담하는 클래스"""
+
+    def convert_card_usage_item_dates(
+        self, slots: Dict[str, Any], current_date_iso: str
+    ) -> Dict[str, Any]:
+        """법인카드 사용 내역 아이템 날짜 변환"""
+        if "card_usage_items" not in slots or not isinstance(
+            slots["card_usage_items"], list
+        ):
+            return slots
+
+        result = slots.copy()
+
+        for item in result["card_usage_items"]:
+            if isinstance(item, dict) and "usage_date" in item and item["usage_date"]:
+                original_date = item["usage_date"]
+                parsed_date = parse_relative_date_to_iso(
+                    original_date, current_date_iso
+                )
+                if parsed_date:
+                    item["usage_date"] = parsed_date
+                    logging.debug(
+                        f"Card usage date converted: '{original_date}' -> '{parsed_date}'"
+                    )
+
+        logging.info(
+            f"Converted dates in {len(result['card_usage_items'])} card usage items"
+        )
+        return result
+
+    def convert_expense_item_dates(
+        self, slots: Dict[str, Any], current_date_iso: str
+    ) -> Dict[str, Any]:
+        """개인 경비 아이템 날짜 변환"""
+        if "expense_items" not in slots or not isinstance(slots["expense_items"], list):
+            return slots
+
+        result = slots.copy()
+
+        for item in result["expense_items"]:
+            if (
+                isinstance(item, dict)
+                and "expense_date" in item
+                and item["expense_date"]
+            ):
+                original_date = item["expense_date"]
+                parsed_date = parse_relative_date_to_iso(
+                    original_date, current_date_iso
+                )
+                if parsed_date:
+                    item["expense_date"] = parsed_date
+                    logging.debug(
+                        f"Expense date converted: '{original_date}' -> '{parsed_date}'"
+                    )
+
+        logging.info(f"Converted dates in {len(result['expense_items'])} expense items")
+        return result
+
+    def convert_item_delivery_dates(
+        self, slots: Dict[str, Any], current_date_iso: str
+    ) -> Dict[str, Any]:
+        """구매 품의서 아이템 납기일 변환"""
+        if "items" not in slots or not isinstance(slots["items"], list):
+            return slots
+
+        result = slots.copy()
+
+        for item in result["items"]:
+            if isinstance(item, dict):
+                # item_delivery_request_date를 item_delivery_date로 변환
+                if (
+                    "item_delivery_request_date" in item
+                    and item["item_delivery_request_date"]
+                ):
+                    original_date = item["item_delivery_request_date"]
+                    parsed_date = parse_relative_date_to_iso(
+                        original_date, current_date_iso
+                    )
+                    if parsed_date:
+                        item["item_delivery_date"] = parsed_date
+                        logging.debug(
+                            f"Item delivery date converted: '{original_date}' -> '{parsed_date}'"
+                        )
+                        # 원본 키 삭제 (변환 완료 후)
+                        del item["item_delivery_request_date"]
+
+        logging.info(
+            f"Converted delivery dates in {len(result['items'])} purchase items"
+        )
+        return result
 
     def decompose_to_html_fields(
         self,

@@ -9,6 +9,7 @@
 
 import logging
 from typing import Dict, Any
+import json
 
 from .base_processor import BaseFormProcessor
 
@@ -63,18 +64,62 @@ class PersonalExpenseProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """개인 경비 아이템 내 날짜 변환"""
+        """개인 경비 아이템 날짜 변환"""
         if "expense_items" not in slots or not isinstance(slots["expense_items"], list):
             return slots
 
-        logging.info(
-            f"PersonalExpenseProcessor: Converting dates in {len(slots['expense_items'])} expense items"
-        )
+        return self.item_converter.convert_expense_item_dates(slots, current_date_iso)
 
-        # expense_date 필드 변환
-        updated_items = self.date_converter.convert_item_dates(
-            slots["expense_items"], "expense_date", current_date_iso
-        )
-        slots["expense_items"] = updated_items
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """개인 경비 신청서 폼 데이터를 API Payload로 변환"""
+        logging.info("PersonalExpenseProcessor: Converting form data to API payload")
 
-        return slots
+        payload = {
+            "mstPid": "8",  # API 명세에 맞게 string 형태로 수정 (개인경비는 8번)
+            "aprvNm": form_data.get("title", "개인 경비 사용 신청"),
+            "drafterId": form_data.get("drafterId", "00009"),
+            "docCn": form_data.get("purpose", "개인 경비 사용 신청"),
+            "apdInfo": json.dumps(
+                {
+                    "purpose": form_data.get("purpose", ""),
+                    "bank_account_for_deposit": form_data.get(
+                        "bank_account_for_deposit", ""
+                    ),
+                },
+                ensure_ascii=False,
+            ),
+            "lineList": [],
+            "dayList": [],
+            "amountList": [],
+        }
+
+        # amountList 구성 (비용 정산 정보)
+        for i in range(1, 4):  # 최대 3개 항목
+            expense_date = form_data.get(f"expense_date_{i}", "")
+            expense_category = form_data.get(f"expense_category_{i}", "")
+            expense_description = form_data.get(f"expense_description_{i}", "")
+            expense_amount = form_data.get(f"expense_amount_{i}", 0)
+
+            if expense_date and expense_amount:
+                payload["amountList"].append(
+                    {
+                        "useYmd": expense_date,
+                        "dvNm": expense_category or "기타",
+                        "useRsn": expense_description,
+                        "amount": int(expense_amount) if expense_amount else 0,
+                    }
+                )
+
+        # 결재라인 정보 추가
+        if "approvers" in form_data and form_data["approvers"]:
+            for approver in form_data["approvers"]:
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.get("aprvPsId", ""),
+                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                        "ordr": approver.get("ordr", 1),
+                    }
+                )
+
+        logging.info("PersonalExpenseProcessor: API payload conversion completed")
+        return payload

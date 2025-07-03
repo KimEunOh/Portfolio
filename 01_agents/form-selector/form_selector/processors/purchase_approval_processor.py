@@ -2,6 +2,8 @@
 
 from typing import Dict, Any, List
 from .base_processor import BaseFormProcessor
+import logging
+import json
 
 
 class PurchaseApprovalProcessor(BaseFormProcessor):
@@ -26,26 +28,11 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """아이템 내 납기일 변환"""
-        from ..utils import parse_relative_date_to_iso
+        """구매 품의서 아이템 날짜 변환"""
+        if "items" not in slots or not isinstance(slots["items"], list):
+            return slots
 
-        result = slots.copy()
-
-        # items 배열 내의 납기일 변환
-        if "items" in result and result["items"]:
-            for item in result["items"]:
-                # item_delivery_request_date를 item_delivery_date로 변환
-                if (
-                    "item_delivery_request_date" in item
-                    and item["item_delivery_request_date"]
-                ):
-                    delivery_date = parse_relative_date_to_iso(
-                        item["item_delivery_request_date"], current_date_iso
-                    )
-                    if delivery_date:
-                        item["item_delivery_date"] = delivery_date
-
-        return result
+        return self.item_converter.convert_item_delivery_dates(slots, current_date_iso)
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """아이템 처리: items 배열을 HTML 필드로 분해하고 총액 계산"""
@@ -114,3 +101,65 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
             processed["special_notes"] = ""
 
         return processed
+
+    def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """구매 품의서 폼 데이터를 API Payload로 변환"""
+        logging.info("PurchaseApprovalProcessor: Converting form data to API payload")
+
+        payload = {
+            "mstPid": "7",  # API 명세에 맞게 string 형태로 수정
+            "aprvNm": form_data.get("title", "구매 품의서"),
+            "drafterId": form_data.get("drafterId", "00009"),
+            "docCn": form_data.get("purpose", "구매 품의서"),
+            "apdInfo": json.dumps(
+                {
+                    "delivery_location": form_data.get("delivery_location", ""),
+                    "payment_terms": form_data.get("payment_terms", ""),
+                    "attached_files_description": form_data.get(
+                        "attached_files_description", ""
+                    ),
+                    "total_purchase_amount": form_data.get("total_purchase_amount", 0),
+                },
+                ensure_ascii=False,
+            ),
+            "lineList": [],
+            "dayList": [],
+            "amountList": [],
+        }
+
+        # amountList 구성 (구매 품목)
+        for i in range(1, 4):  # 최대 3개 항목
+            item_name = form_data.get(f"item_name_{i}", "")
+            item_spec = form_data.get(f"item_spec_{i}", "")
+            item_quantity = form_data.get(f"item_quantity_{i}", "")
+            item_unit_price = form_data.get(f"item_unit_price_{i}", 0)
+            item_total_price = form_data.get(f"item_total_price_{i}", 0)
+            item_supplier = form_data.get(f"item_supplier_{i}", "")
+            item_notes = form_data.get(f"item_notes_{i}", "")
+            item_delivery_date = form_data.get(f"item_delivery_date_{i}", "")
+
+            if item_name and item_total_price:
+                payload["amountList"].append(
+                    {
+                        "useYmd": item_delivery_date or form_data.get("draft_date", ""),
+                        "dvNm": f"{item_name} - {item_spec}".strip(" -"),
+                        "useRsn": f"수량: {item_quantity}, 공급업체: {item_supplier}, 비고: {item_notes}".strip(
+                            ", 비고: "
+                        ),
+                        "amount": int(item_total_price) if item_total_price else 0,
+                    }
+                )
+
+        # 결재라인 정보 추가
+        if "approvers" in form_data and form_data["approvers"]:
+            for approver in form_data["approvers"]:
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.get("aprvPsId", ""),
+                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
+                        "ordr": approver.get("ordr", 1),
+                    }
+                )
+
+        logging.info("PurchaseApprovalProcessor: API payload conversion completed")
+        return payload
