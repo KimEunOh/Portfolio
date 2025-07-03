@@ -433,7 +433,11 @@
         </div>
     </div>
 
+    <!-- 리팩토링된 JavaScript 모듈들 -->
+    <script src="/ui/js/base-form-processor.js"></script>
+    <script src="/ui/js/form-configs.js"></script>
     <script src="/ui/js/drafter_list.js"></script>
+    
     <script>
     // DRAFTER_LIST를 외부 파일에서 로드하고, sessionStorage를 활용하여 로그인 상태를 유지합니다.
     let selectedDrafter = null;
@@ -697,17 +701,26 @@
                         existingScript.remove();
                     }
 
+                    // 리팩토링된 v2 스크립트 로딩
                     let scriptSrc = '';
                     const formType = data.form_type;
 
-                    if (formType === '비품/소모품 구입내역서') {
-                        scriptSrc = 'js/inventory_scripts.js';
-                    } else if (formType === '구매 품의서') {
-                        scriptSrc = 'js/purchase_approval_scripts.js';
-                    } else if (formType === '개인 경비 사용 내역서') { // '개인경비 사용내역서' -> '개인 경비 사용 내역서' (띄어쓰기 원복)
-                        scriptSrc = 'js/personal_expense_scripts.js';
+                    if (formType === '연차 신청서') {
+                        scriptSrc = 'js/annual_leave_scripts_v2.js';
+                    } else if (formType === '야근 식대 신청서') {
+                        scriptSrc = 'js/dinner_expense_scripts_v2.js';
+                    } else if (formType === '교통비 신청서') {
+                        scriptSrc = 'js/transportation_expense_scripts_v2.js';
+                    } else if (formType === '파견 및 출장 보고서') {
+                        scriptSrc = 'js/dispatch_report_scripts_v2.js';
+                    } else if (formType === '개인 경비 사용 내역서') {
+                        scriptSrc = 'js/personal_expense_scripts_v2.js';
                     } else if (formType === '법인카드 지출내역서') {
-                        scriptSrc = 'js/corporate_card_scripts.js';
+                        scriptSrc = 'js/corporate_card_scripts_v2.js';
+                    } else if (formType === '비품/소모품 구입내역서') {
+                        scriptSrc = 'js/inventory_scripts_v2.js';
+                    } else if (formType === '구매 품의서') {
+                        scriptSrc = 'js/purchase_approval_scripts_v2.js';
                     }
                     
                     const processCommonFunctions = () => {
