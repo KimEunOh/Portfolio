@@ -5,7 +5,7 @@
 - **프로젝트명**: Form Selector 리팩토링 V2
 - **시작일**: 2025-07-02
 - **현재 Phase**: Phase 2 진행중 🚧
-- **전체 진행률**: 45% (Phase 1 완료, Phase 2 33% 진행) 🆕
+- **전체 진행률**: 50% (Phase 1 완료, Phase 2 50% 진행) 🆕
 
 ## 🎯 전체 목표
 
@@ -73,23 +73,36 @@
 ### ✅ 완료된 작업들
 
 #### ✅ 구현된 프로세서들
-- [x] **DinnerExpenseProcessor**: 야근 식대 신청서 ✅
+- [x] **AnnualLeaveProcessor**: 연차 신청서 ✅ (Phase 1에서 구현)
+  - [x] 휴가 종류 매핑 (연차, 반차, 반반차)
+  - [x] 날짜 범위 처리
+  - [x] 기본 템플릿 처리
+- [x] **PersonalExpenseProcessor**: 개인 경비 사용내역서 ✅ (Phase 1에서 구현)
+  - [x] expense_items 처리 
+  - [x] 분류 매핑 ("교통비" → "traffic", "식대" → "meals")
+  - [x] HTML 필드 분해 (최대 3개 항목)
+  - [x] 총액 계산
+- [x] **DinnerExpenseProcessor**: 야근 식대 신청서 ✅ (Phase 2에서 구현)
   - [x] 야근 시간 처리 로직
   - [x] 자연어 시간 변환 (HH:MM 형식): "밤 10시 30분" → "22:30"
   - [x] 6가지 시간 표현 패턴 지원
   - [x] 날짜 처리: "오늘", "어제" → ISO 형식
-- [x] **TransportationExpenseProcessor**: 교통비 신청서 ✅ 🆕
+- [x] **TransportationExpenseProcessor**: 교통비 신청서 ✅ 🆕 (Phase 2에서 구현)
   - [x] 출발지/목적지 처리
   - [x] 금액 변환 (문자열 → 숫자)
   - [x] None 값 및 빈 문자열 처리
   - [x] 교통 내역 상세 처리
 
 #### 🏭 ProcessorFactory 확장
+- [x] AnnualLeaveProcessor 등록 완료 ✅
+- [x] PersonalExpenseProcessor 등록 완료 ✅
 - [x] DinnerExpenseProcessor 등록 완료 ✅
 - [x] TransportationExpenseProcessor 등록 완료 ✅ 🆕
 - [x] 한국어↔영어 양식명 매핑 지원
 
 #### 🧪 통합 테스트
+- [x] AnnualLeaveProcessor 테스트 완료 ✅
+- [x] PersonalExpenseProcessor 테스트 완료 ✅
 - [x] DinnerExpenseProcessor 테스트 완료 ✅
 - [x] TransportationExpenseProcessor 테스트 완료 ✅ 🆕
 - [x] 10개 테스트 케이스 모두 통과 🆕
@@ -104,7 +117,7 @@
   - [ ] 복잡한 아이템 구조 처리
   - [ ] 납기일 변환
   - [ ] 공급업체 매핑
-- [ ] **CorporateCardProcessor**: 법인카드 사용내역서
+- [ ] **CorporateCardProcessor**: 법인카드 지출내역서
   - [ ] 카드 사용 내역 처리 (최대 6개)
   - [ ] 분류 매핑
 - [ ] **DispatchReportProcessor**: 파견 및 출장 보고서
@@ -123,13 +136,14 @@
 ### 📅 Phase 2 예상 일정
 - **시작 예정**: 2025-07-02
 - **완료 목표**: 2025-07-05
-- **현재 진행률**: 33% (2/6 프로세서 완료) 🆕
+- **현재 진행률**: 50% (4/8 프로세서 완료) 🆕
 - **소요 시간**: 3일
 
 ### 🎯 다음 우선순위
 1. **InventoryPurchaseProcessor** (비품/소모품 구입내역서) - 다음 목표 🆕
 2. **PurchaseApprovalProcessor** (구매 품의서)
-3. **CorporateCardProcessor** (법인카드 사용내역서)
+3. **CorporateCardProcessor** (법인카드 지출내역서)
+4. **DispatchReportProcessor** (파견 및 출장 보고서)
 
 ---
 
@@ -168,10 +182,10 @@
 
 ```
 Phase 1: 백엔드 모듈 분리     ████████████████████ 100% ✅
-Phase 2: 추가 프로세서 구현   ██████░░░░░░░░░░░░░░  33% 🆕
+Phase 2: 추가 프로세서 구현   ██████████░░░░░░░░░░  50% 🆕
 Phase 3: JavaScript 리팩토링  ░░░░░░░░░░░░░░░░░░░░   0%
 
-전체 프로젝트 진행률:         █████████░░░░░░░░░░░  45% 🆕
+전체 프로젝트 진행률:         ██████████░░░░░░░░░░  50% 🆕
 ```
 
 ---
