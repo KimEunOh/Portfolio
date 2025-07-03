@@ -432,6 +432,170 @@ class TestRefactoredProcessors(unittest.TestCase):
         # 총액 확인
         self.assertEqual(result["total_amount"], 25000)
 
+    def test_purchase_approval_processor_creation(self):
+        """구매 품의서 프로세서 생성 테스트"""
+        processor = ProcessorFactory.create_processor("purchase_approval_form")
+        self.assertIsNotNone(processor)
+        self.assertEqual(processor.__class__.__name__, "PurchaseApprovalProcessor")
+
+        # 한국어 양식명으로도 생성 가능한지 테스트
+        processor_korean = ProcessorFactory.create_processor("구매 품의서")
+        self.assertIsNotNone(processor_korean)
+        self.assertEqual(
+            processor_korean.__class__.__name__, "PurchaseApprovalProcessor"
+        )
+
+    def test_purchase_approval_item_processing(self):
+        """구매 품의서 아이템 처리 테스트 (복잡한 구조)"""
+        processor = ProcessorFactory.create_processor("purchase_approval_form")
+
+        slots = {
+            "title": "IT 장비 구매 품의서",
+            "draft_date": "오늘",
+            "items": [
+                {
+                    "item_name": "노트북",
+                    "item_spec": "16인치 맥북프로",
+                    "item_quantity": 2,
+                    "item_unit_price": 2500000,
+                    "item_total_price": 5000000,
+                    "item_delivery_request_date": "다음 주 금요일",
+                    "item_purpose": "신규 입사자용",
+                    "item_supplier": "애플코리아",
+                },
+                {
+                    "item_name": "모니터",
+                    "item_spec": "27인치 4K",
+                    "item_quantity": 3,
+                    "item_unit_price": 800000,
+                    "item_total_price": 2400000,
+                    "item_delivery_request_date": "다음 달 5일",
+                    "item_purpose": "개발팀 업무환경 개선",
+                    "item_supplier": "LG전자",
+                },
+            ],
+            "payment_terms": "선금 30% 후 잔금",
+            "delivery_location": "본사 3층 개발팀",
+            "special_notes": "긴급 구매 건",
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 아이템 필드 확인 (최대 3개까지 지원)
+        self.assertEqual(result["item_name_1"], "노트북")
+        self.assertEqual(result["item_spec_1"], "16인치 맥북프로")
+        self.assertEqual(result["item_quantity_1"], 2)
+        self.assertEqual(result["item_unit_price_1"], 2500000)
+        self.assertEqual(result["item_total_price_1"], 5000000)
+        self.assertEqual(result["item_supplier_1"], "애플코리아")
+        self.assertEqual(result["item_notes_1"], "신규 입사자용")
+
+        self.assertEqual(result["item_name_2"], "모니터")
+        self.assertEqual(result["item_spec_2"], "27인치 4K")
+        self.assertEqual(result["item_quantity_2"], 3)
+        self.assertEqual(result["item_unit_price_2"], 800000)
+        self.assertEqual(result["item_total_price_2"], 2400000)
+        self.assertEqual(result["item_supplier_2"], "LG전자")
+        self.assertEqual(result["item_notes_2"], "개발팀 업무환경 개선")
+
+        # 총액 계산 확인
+        self.assertEqual(result["total_purchase_amount"], 7400000)  # 5000000 + 2400000
+
+    def test_purchase_approval_delivery_date_conversion(self):
+        """구매 품의서 납기일 변환 테스트"""
+        processor = ProcessorFactory.create_processor("purchase_approval_form")
+
+        slots = {
+            "items": [
+                {
+                    "item_name": "테스트 상품",
+                    "item_delivery_request_date": "다음 주 월요일",
+                    "item_total_price": 100000,
+                }
+            ]
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 납기일 변환 확인 (다음 주 월요일 -> 2025-07-07)
+        self.assertEqual(result["item_delivery_date_1"], "2025-07-07")
+
+    def test_purchase_approval_total_calculation(self):
+        """구매 품의서 총액 계산 테스트"""
+        processor = ProcessorFactory.create_processor("purchase_approval_form")
+
+        # 1. items 배열에서 총액 계산
+        slots_with_items = {
+            "items": [
+                {"item_total_price": 1000000},
+                {"item_total_price": 2000000},
+                {"item_total_price": 1500000},
+            ]
+        }
+
+        result = processor.convert_items(slots_with_items)
+        self.assertEqual(result["total_purchase_amount"], 4500000)
+
+        # 2. 직접 total_purchase_amount가 제공된 경우
+        slots_with_direct_total = {
+            "total_purchase_amount": 10000000,
+            "items": [{"item_total_price": 3000000}],
+        }
+
+        result = processor.convert_items(slots_with_direct_total)
+        self.assertEqual(
+            result["total_purchase_amount"], 10000000
+        )  # 직접 제공된 값 우선
+
+    def test_purchase_approval_template_filling(self):
+        """구매 품의서 템플릿 채우기 테스트"""
+        processor = ProcessorFactory.create_processor("purchase_approval_form")
+
+        slots = {
+            "title": "디자인 도구 구매 품의서",
+            "draft_date": "오늘",
+            "items": [
+                {
+                    "item_name": "Adobe CC 라이선스",
+                    "item_spec": "1년 구독",
+                    "item_quantity": 5,
+                    "item_unit_price": 600000,
+                    "item_total_price": 3000000,
+                    "item_delivery_request_date": "내일",
+                    "item_purpose": "디자인팀 업무용",
+                    "item_supplier": "Adobe 공식리셀러",
+                }
+            ],
+            "total_purchase_amount": 3000000,
+            "payment_terms": "일시불 카드결제",
+            "delivery_location": "디자인팀 사무실",
+            "attached_files_description": "견적서 및 사양서",
+            "special_notes": "라이선스 즉시 활성화 필요",
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 기본 필드 확인
+        self.assertEqual(result["title"], "디자인 도구 구매 품의서")
+        self.assertEqual(result["draft_date"], "2025-07-02")  # 오늘
+        self.assertEqual(result["payment_terms"], "일시불 카드결제")
+        self.assertEqual(result["delivery_location"], "디자인팀 사무실")
+        self.assertEqual(result["attached_files_description"], "견적서 및 사양서")
+        self.assertEqual(result["special_notes"], "라이선스 즉시 활성화 필요")
+
+        # 아이템 필드 확인
+        self.assertEqual(result["item_name_1"], "Adobe CC 라이선스")
+        self.assertEqual(result["item_spec_1"], "1년 구독")
+        self.assertEqual(result["item_quantity_1"], 5)
+        self.assertEqual(result["item_unit_price_1"], 600000)
+        self.assertEqual(result["item_total_price_1"], 3000000)
+        self.assertEqual(result["item_delivery_date_1"], "2025-07-03")  # 내일
+        self.assertEqual(result["item_supplier_1"], "Adobe 공식리셀러")
+        self.assertEqual(result["item_notes_1"], "디자인팀 업무용")
+
+        # 총액 확인
+        self.assertEqual(result["total_purchase_amount"], 3000000)
+
 
 if __name__ == "__main__":
     print("새로운 모듈 구조 테스트 시작...")

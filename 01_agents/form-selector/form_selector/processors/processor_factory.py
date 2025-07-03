@@ -13,6 +13,7 @@ from .personal_expense_processor import PersonalExpenseProcessor
 from .dinner_expense_processor import DinnerExpenseProcessor
 from .transportation_expense_processor import TransportationExpenseProcessor
 from .inventory_purchase_processor import InventoryPurchaseProcessor
+from .purchase_approval_processor import PurchaseApprovalProcessor
 
 
 class ProcessorFactory:
@@ -30,6 +31,8 @@ class ProcessorFactory:
         "transportation_expense": TransportationExpenseProcessor,
         "비품/소모품 구입내역서": InventoryPurchaseProcessor,
         "inventory_purchase_report": InventoryPurchaseProcessor,
+        "구매 품의서": PurchaseApprovalProcessor,
+        "purchase_approval_form": PurchaseApprovalProcessor,
     }
 
     @classmethod
