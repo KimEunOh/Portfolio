@@ -15,6 +15,7 @@ from .transportation_expense_processor import TransportationExpenseProcessor
 from .inventory_purchase_processor import InventoryPurchaseProcessor
 from .purchase_approval_processor import PurchaseApprovalProcessor
 from .corporate_card_processor import CorporateCardProcessor
+from .dispatch_report_processor import DispatchReportProcessor
 
 
 class ProcessorFactory:
@@ -36,6 +37,8 @@ class ProcessorFactory:
         "purchase_approval_form": PurchaseApprovalProcessor,
         "법인카드 지출내역서": CorporateCardProcessor,
         "corporate_card_statement": CorporateCardProcessor,
+        "파견 및 출장 보고서": DispatchReportProcessor,
+        "dispatch_businesstrip_report": DispatchReportProcessor,
     }
 
     @classmethod

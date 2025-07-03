@@ -790,6 +790,144 @@ class TestRefactoredProcessors(unittest.TestCase):
         self.assertEqual(result["total_amount_header"], 70000)  # 45000 + 25000
         self.assertEqual(result["total_usage_amount"], 70000)
 
+    def test_dispatch_report_processor_creation(self):
+        """파견 및 출장보고서 프로세서 생성 테스트"""
+        processor = ProcessorFactory.create_processor("dispatch_businesstrip_report")
+        self.assertIsNotNone(processor)
+        self.assertEqual(processor.__class__.__name__, "DispatchReportProcessor")
+
+        # 한국어 양식명으로도 생성 가능한지 테스트
+        processor_korean = ProcessorFactory.create_processor("파견 및 출장 보고서")
+        self.assertIsNotNone(processor_korean)
+        self.assertEqual(processor_korean.__class__.__name__, "DispatchReportProcessor")
+
+    def test_dispatch_report_date_range_processing(self):
+        """파견 및 출장보고서 날짜 범위 처리 테스트"""
+        processor = ProcessorFactory.create_processor("dispatch_businesstrip_report")
+
+        slots = {
+            "title": "부산 지사 파견 보고",
+            "start_date": "지난 주 월요일",
+            "end_date": "지난 주 금요일",
+            "duration_days": "5",
+            "origin": "서울 본사",
+            "destination": "부산 지사",
+            "purpose": "신규 시스템 오픈 지원",
+            "report_details": "시스템 안정적으로 오픈했고, 사용자 교육도 잘 마쳤습니다.",
+            "notes": "현지 기상 악화로 일정 일부 변경",
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 기본 필드 확인
+        self.assertEqual(result["title"], "부산 지사 파견 보고")
+        self.assertEqual(
+            result["start_date"], "2025-06-23"
+        )  # 지난 주 월요일 (LLM 변환 결과)
+        self.assertEqual(
+            result["end_date"], "2025-06-27"
+        )  # 지난 주 금요일 (LLM 변환 결과)
+        self.assertEqual(result["duration_days"], 5)  # 문자열 → 숫자 변환
+        self.assertEqual(result["origin"], "서울 본사")
+        self.assertEqual(result["destination"], "부산 지사")
+        self.assertEqual(result["purpose"], "신규 시스템 오픈 지원")
+        self.assertEqual(
+            result["report_details"],
+            "시스템 안정적으로 오픈했고, 사용자 교육도 잘 마쳤습니다.",
+        )
+        self.assertEqual(result["notes"], "현지 기상 악화로 일정 일부 변경")
+
+    def test_dispatch_report_duration_calculation(self):
+        """파견 및 출장보고서 기간 계산 테스트"""
+        processor = ProcessorFactory.create_processor("dispatch_businesstrip_report")
+
+        # 1. duration_days 직접 제공된 경우
+        slots_with_duration = {
+            "start_date": "2025-07-01",
+            "end_date": "2025-07-05",
+            "duration_days": "5",
+        }
+
+        result = processor.convert_fields(slots_with_duration)
+        self.assertEqual(result["duration_days"], 5)  # 직접 제공된 값 사용
+
+        # 2. duration_days가 없고 시작일/종료일만 있는 경우 (계산)
+        slots_without_duration = {"start_date": "2025-07-01", "end_date": "2025-07-03"}
+
+        result = processor.convert_fields(slots_without_duration)
+        self.assertEqual(result["duration_days"], 3)  # 2025-07-01 to 2025-07-03 = 3일
+
+    def test_dispatch_report_natural_language_processing(self):
+        """파견 및 출장보고서 자연어 처리 테스트"""
+        processor = ProcessorFactory.create_processor("dispatch_businesstrip_report")
+
+        # 자연어 기간 표현 변환
+        test_cases = [
+            ("2박 3일", 3),
+            ("1박 2일", 2),
+            ("3박 4일", 4),
+            ("5일간", 5),
+            ("일주일", 7),
+            ("10", 10),
+        ]
+
+        for input_duration, expected_days in test_cases:
+            result = processor.convert_duration_days(input_duration)
+            self.assertEqual(
+                result,
+                expected_days,
+                f"'{input_duration}' should convert to {expected_days} days",
+            )
+
+    def test_dispatch_report_template_filling(self):
+        """파견 및 출장보고서 템플릿 채우기 테스트"""
+        processor = ProcessorFactory.create_processor("dispatch_businesstrip_report")
+
+        slots = {
+            "title": "한국통신학회 출장 보고서",
+            "start_date": "어제",
+            "end_date": "오늘",
+            "duration_days": "2",
+            "origin": "서울 본사",
+            "destination": "부산 해운대구 센텀시티",
+            "purpose": "해외 컨퍼런스 참가",
+            "report_details": "CES 2023 컨퍼런스 주요 기술 동향 파악 및 경쟁사 분석 보고 완료.",
+            "notes": "추가 지원 인력 필요성 제기",
+        }
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 기본 필드 확인
+        self.assertEqual(result["title"], "한국통신학회 출장 보고서")
+        self.assertEqual(result["start_date"], "2025-07-01")  # 어제
+        self.assertEqual(result["end_date"], "2025-07-02")  # 오늘
+        self.assertEqual(result["duration_days"], 2)
+        self.assertEqual(result["origin"], "서울 본사")
+        self.assertEqual(result["destination"], "부산 해운대구 센텀시티")
+        self.assertEqual(result["purpose"], "해외 컨퍼런스 참가")
+        self.assertEqual(
+            result["report_details"],
+            "CES 2023 컨퍼런스 주요 기술 동향 파악 및 경쟁사 분석 보고 완료.",
+        )
+        self.assertEqual(result["notes"], "추가 지원 인력 필요성 제기")
+
+    def test_dispatch_report_empty_fields(self):
+        """파견 및 출장보고서 빈 필드 처리 테스트"""
+        processor = ProcessorFactory.create_processor("dispatch_businesstrip_report")
+
+        # 최소한의 필드만 제공
+        slots = {"purpose": "업무 지원"}
+
+        result = processor.process_slots(slots, "2025-07-02")
+
+        # 기본값 확인
+        self.assertEqual(result["title"], "파견 및 출장 보고서")  # 기본 제목
+        self.assertEqual(result["origin"], "")
+        self.assertEqual(result["destination"], "")
+        self.assertEqual(result["purpose"], "업무 지원")
+        self.assertEqual(result["report_details"], "")
+        self.assertEqual(result["notes"], "")
+
 
 if __name__ == "__main__":
     print("새로운 모듈 구조 테스트 시작...")
