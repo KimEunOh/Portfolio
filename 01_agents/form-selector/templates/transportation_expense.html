@@ -13,19 +13,17 @@
             <label for="title">제목:</label>
             <input type="text" id="title" name="title" class="form-control" value="{title}">
         </div>
+        
+        <div class="form-group">
+            <label for="drafter_info">기안자 정보:</label>
+            <input type="text" id="drafter_info" name="drafter_info" readonly class="form-control" value="{drafter_name} ({draft_department})">
+            <input type="hidden" id="draft_date" name="draft_date" value="{draft_date}">
+        </div>
 
         <div class="form-group">
             <label for="departure_date">출발일 (사용일):</label>
             <input type="date" id="departure_date" name="departure_date" class="form-control" value="{departure_date}">
         </div>
-
-        <!-- 필요시 도착일 추가 -->
-        <!--
-        <div class="form-group">
-            <label for="arrival_date">도착일:</label>
-            <input type="date" id="arrival_date" name="arrival_date" class="form-control">
-        </div>
-        -->
 
         <div class="form-group">
             <label for="origin">출발지:</label>
@@ -49,7 +47,7 @@
 
         <div class="form-group">
             <label for="total_amount">총 금액 (원):</label>
-            <input type="number" id="total_amount" name="total_amount" min="0" class="form-control" value="{total_amount}">
+            <input type="text" id="total_amount" name="total_amount" class="form-control" value="{total_amount}" readonly>
         </div>
 
         <div class="form-group">
@@ -57,8 +55,16 @@
             <textarea id="notes" name="notes" rows="3" class="form-control">{notes}</textarea>
         </div>
 
+        <div id="approval_line_container">
+            <h3>결재 라인</h3>
+            <div id="approval-line" class="approval-line">
+                <!-- Approvers will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">결재요청</button>
+        </div>
     </form>
 </div>
-<!-- 필요한 경우 JavaScript 파일 연결 -->
-<!-- <script src="../static/scripts.js"></script> -->
-</html> 
+<script id="approvers-data" type="application/json">{approvers_json}</script>

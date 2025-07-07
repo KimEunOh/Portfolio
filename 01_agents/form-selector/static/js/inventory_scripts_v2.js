@@ -49,6 +49,18 @@
             setupInventorySpecificFeatures() {
                 // 비품 관리 특화 로직 (필요시 추가)
                 console.log('[InventoryProcessor] Inventory-specific features initialized');
+                
+                const init = () => {
+                    if (window.initializeDynamicTable) {
+                        window.initializeDynamicTable('inventory_table', 'add_row_btn', 'remove_row_btn');
+                    }
+                };
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
             }
         }
 

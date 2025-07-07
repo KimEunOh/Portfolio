@@ -8,8 +8,10 @@ import logging
 import json
 from typing import Dict, Any
 from datetime import datetime, timedelta
+import re
 
 from .base_processor import BaseFormProcessor
+from ..utils import parse_duration_to_days  # 새로운 유틸리티 함수 임포트
 
 
 class AnnualLeaveProcessor(BaseFormProcessor):
@@ -37,10 +39,85 @@ class AnnualLeaveProcessor(BaseFormProcessor):
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """연차 신청서 후처리
-
-        연차 신청서는 특별한 후처리가 필요하지 않습니다.
+        - end_date 또는 duration에 기간이 명시된 경우, 이를 leave_days로 변환합니다.
+        - 시작일과 leave_days를 기반으로 종료일을 계산합니다.
         """
-        logging.debug("AnnualLeaveProcessor: No special postprocessing needed")
+        # 1. 기간 정보가 다른 슬롯에 잘못 들어갔는지 확인하고 leave_days로 이동
+        duration_source_slots = ["end_date", "duration", "leave_days"]
+        parsed_days = None
+
+        if not slots.get("leave_days"):  # leave_days가 비어있을 때만 시도
+            for slot_name in duration_source_slots:
+                source_value = slots.get(slot_name)
+                if isinstance(source_value, str):
+                    days = parse_duration_to_days(source_value)
+                    if days is not None:
+                        parsed_days = days
+                        slots["leave_days"] = parsed_days
+                        logging.info(
+                            f"Moved duration from '{slot_name}' ({source_value}) to 'leave_days' ({parsed_days} days)."
+                        )
+                        # 기간을 찾았으면, 원래 슬롯은 비워주어 혼동을 방지
+                        if slot_name == "end_date":
+                            slots["end_date"] = None
+                        break  # 첫 번째로 찾은 기간 정보를 사용
+
+        # 2. 시작일과 기간(leave_days)으로 종료일 계산
+        start_date_str = slots.get("start_date")
+        leave_days = slots.get("leave_days")
+        end_date_str = slots.get("end_date")
+
+        # 종료일이 없거나, 유효한 날짜 형식이 아닐 때만 계산 시도
+        is_end_date_invalid = not end_date_str or not re.match(
+            r"\d{4}-\d{2}-\d{2}", str(end_date_str)
+        )
+
+        if start_date_str and leave_days and is_end_date_invalid:
+            try:
+                # leave_days가 "3"과 같이 문자열일 수 있으므로 float으로 변환
+                days_to_add = float(leave_days)
+                # '3일간'은 시작일 포함 3일이므로 (3 - 1)일을 더해야 함
+                # 반차(0.5) 등 1일 미만은 날짜를 더하지 않음
+                delta = days_to_add - 1 if days_to_add >= 1 else 0
+
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = start_date + timedelta(days=int(delta))
+                slots["end_date"] = end_date.isoformat()
+                logging.info(
+                    f"Calculated end_date: {slots['end_date']} from start_date: {start_date_str} and leave_days: {leave_days}"
+                )
+            except (ValueError, TypeError) as e:
+                logging.warning(
+                    f"Could not calculate end_date from start_date='{start_date_str}' and leave_days='{leave_days}'. Error: {e}"
+                )
+
+        # 3. 시작일과 종료일이 있는데 연차일수가 없으면 역으로 계산
+        start_date_str = slots.get("start_date")
+        end_date_str = slots.get("end_date")
+        leave_days = slots.get("leave_days")
+
+        if (
+            start_date_str
+            and end_date_str
+            and not leave_days
+            and re.match(r"\d{4}-\d{2}-\d{2}", str(start_date_str))
+            and re.match(r"\d{4}-\d{2}-\d{2}", str(end_date_str))
+        ):
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+
+                if end_date >= start_date:
+                    calculated_days = (end_date - start_date).days + 1
+                    slots["leave_days"] = float(calculated_days)
+                    logging.info(
+                        f"Calculated leave_days: {slots['leave_days']} from start_date: {start_date_str} and end_date: {end_date_str}"
+                    )
+            except (ValueError, TypeError) as e:
+                logging.warning(
+                    f"Could not calculate leave_days from start_date='{start_date_str}' and end_date='{end_date_str}'. Error: {e}"
+                )
+
         return slots
 
     def convert_item_dates(
@@ -136,7 +213,7 @@ class AnnualLeaveProcessor(BaseFormProcessor):
                     {
                         "aprvPslId": approver.aprvPsId,  # Legacy 형식: aprvPslId
                         "aprvDvTy": approver.aprvDvTy,
-                        "ordr": approver.ordr,
+                        "ordr": int(approver.ordr),
                     }
                 )
 

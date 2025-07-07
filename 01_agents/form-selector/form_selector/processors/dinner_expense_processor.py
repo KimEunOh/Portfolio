@@ -189,17 +189,14 @@ class DinnerExpenseProcessor(BaseFormProcessor):
         return f"{hour:02d}:{minute:02d}"
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """야근 식대 신청서 폼 데이터를 API Payload로 변환 (Legacy 형식과 동일)"""
-        logger.info("DinnerExpenseProcessor: Converting form data to API payload")
+        """야근 식대 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
+        logging.info("DinnerExpenseProcessor: Converting form data to API payload")
 
-        # 기존 Legacy API 형식과 동일한 구조 사용
         payload = {
-            "mstPid": "3",  # API 명세에 맞게 string 형태로 수정
+            "mstPid": "3",
             "aprvNm": form_data.get("title", "야근 식대 신청"),
-            "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get(
-                "work_details", form_data.get("notes", "야근 식대 신청")
-            ),
+            "drafterId": form_data.get("drafterId", ""),
+            "docCn": form_data.get("work_details", "야근 식대 신청"),
             "apdInfo": json.dumps(
                 {
                     "work_location": form_data.get("work_location", ""),
@@ -218,28 +215,29 @@ class DinnerExpenseProcessor(BaseFormProcessor):
         # amountList 구성 (비용 정산 정보)
         work_date = form_data.get("work_date", "")
         dinner_amount = form_data.get("dinner_expense_amount", 0)
-        work_details = form_data.get("work_details", form_data.get("notes", ""))
 
         if work_date and dinner_amount:
             payload["amountList"].append(
                 {
                     "useYmd": work_date,
                     "dvNm": "식대",
-                    "useRsn": work_details,
-                    "amount": int(dinner_amount) if dinner_amount else 0,
+                    "useRsn": form_data.get("work_details", ""),
+                    "qnty": 1,
+                    "amt": int(dinner_amount) if str(dinner_amount).isdigit() else 0,
+                    "aditInfo": json.dumps({}, ensure_ascii=False),
                 }
             )
 
-        # 결재라인 정보 추가 (Legacy와 동일하게 aprvPslId 사용)
+        # 결재라인 정보 추가 (service.py에서 이미 ApproverDetail 객체로 변환됨)
         if "approvers" in form_data and form_data["approvers"]:
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.aprvPsId,  # Legacy 형식: aprvPslId
+                        "aprvPslId": approver.aprvPsId,
                         "aprvDvTy": approver.aprvDvTy,
-                        "ordr": approver.ordr,
+                        "ordr": int(approver.ordr),
                     }
                 )
 
-        logger.info("DinnerExpenseProcessor: API payload conversion completed")
+        logging.info("DinnerExpenseProcessor: API payload conversion completed")
         return payload

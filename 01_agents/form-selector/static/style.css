@@ -492,4 +492,99 @@ textarea#user_input { /* Specific to the main textarea in index.html if it exist
 
 .item-fields-grid .form-group {
   margin-bottom: 0; /* Grid gap handles spacing */
+}
+
+/* ================== Item Table Styles ================== */
+.item-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--spacing-md);
+}
+
+.item-table th, .item-table td {
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-sm);
+    text-align: left;
+    vertical-align: top;
+}
+
+.item-table td strong {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.9em;
+    color: var(--text-color-light);
+}
+
+.two-row-table tr:not(.item-row-divider) td {
+    border-bottom: none;
+}
+
+.two-row-table .item-row-divider td {
+    border-top: 1px dashed var(--border-color);
+    border-bottom: 2px solid var(--border-color-dark);
+}
+
+.two-row-table .item-row-divider:last-child td {
+     border-bottom: 1px solid var(--border-color);
+}
+
+.item-table th {
+    background-color: var(--background-color-light);
+    font-weight: bold;
+    text-align: center;
+}
+
+.item-table td .form-control {
+    width: 100%;
+    box-sizing: border-box; /* padding and border do not increase width */
+}
+
+/* --- Field-specific widths --- */
+.item-table .col-date { width: 13%; }
+.item-table .col-quantity, .item-table .col-amount { width: 8%; }
+.item-table .col-category { width: 12%; }
+.item-table .col-spec { width: 15%; }
+.item-table .col-name, .item-table .col-description { width: 22%; }
+.item-table .col-notes { width: auto; } /* Takes remaining space */
+
+
+/* ================== Table Action Buttons ================== */
+.table-actions {
+/* ... existing code ... */
+}
+
+/* New Container-based table styles */
+.item-container-table {
+    border: none;
+    border-collapse: separate;
+    border-spacing: 0 var(--spacing-md);
+}
+
+.item-container-table > tbody {
+    display: table; /* Ensure tbody behaves like a block for layout purposes */
+    width: 100%;
+    background-color: var(--background-color-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    /* padding is unreliable on tbody, so we remove it */
+}
+
+.item-container-table td {
+    border: none;
+    padding: var(--spacing-sm); /* Increased padding for better spacing inside the container */
+    vertical-align: top;
+}
+
+.item-table td strong {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+}
+
+.two-row-table .item-row-divider td {
+    border-top: 1px dashed var(--border-color);
+    padding-top: var(--spacing-sm); /* Add space between two rows of an item */
+}
+
+.two-row-table .item-row-divider:last-child td {
+     border-bottom: 1px solid var(--border-color);
 } 

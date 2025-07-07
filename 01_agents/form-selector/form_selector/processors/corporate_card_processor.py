@@ -190,12 +190,14 @@ class CorporateCardProcessor(BaseFormProcessor):
         logging.info("CorporateCardProcessor: Converting form data to API payload")
 
         payload = {
-            "mstPid": "9",  # API 명세에 맞게 string 형태로 수정 (법인카드는 9번)
+            "mstPid": "9",
             "aprvNm": form_data.get("title", "법인카드 사용 내역서"),
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "법인카드 사용 내역서"),
             "apdInfo": json.dumps(
                 {
+                    "card_number": form_data.get("card_number", ""),
+                    "card_user_name": form_data.get("card_user_name", ""),
                     "statement_date": form_data.get("statement_date", ""),
                     "total_amount": form_data.get("total_usage_amount", 0),
                 },
@@ -207,20 +209,51 @@ class CorporateCardProcessor(BaseFormProcessor):
         }
 
         # amountList 구성 (카드 사용 내역)
-        for i in range(1, 7):  # 최대 6개 항목
-            usage_date = form_data.get(f"usage_date_{i}", "")
-            usage_category = form_data.get(f"usage_category_{i}", "")
-            merchant_name = form_data.get(f"merchant_name_{i}", "")
-            usage_amount = form_data.get(f"usage_amount_{i}", 0)
-            usage_notes = form_data.get(f"usage_notes_{i}", "")
+        if "card_usage_items" in form_data and isinstance(
+            form_data["card_usage_items"], list
+        ):
+            for item in form_data["card_usage_items"]:
+                usage_date = item.get("usage_date")
+                if not usage_date:
+                    continue
 
-            if usage_date and usage_amount:
+                usage_amount = item.get("usage_amount", 0)
+
+                # 카테고리 매핑 적용
+                raw_category = item.get("usage_category", "기타")
+                mapped_category = self.convert_category(raw_category)
+
+                adit_info = {"notes": item.get("usage_notes", "")}
+
                 payload["amountList"].append(
                     {
                         "useYmd": usage_date,
-                        "dvNm": usage_category or "기타",
-                        "useRsn": f"{merchant_name} - {usage_notes}".strip(" -"),
-                        "amount": int(usage_amount) if usage_amount else 0,
+                        "dvNm": mapped_category,
+                        "useRsn": item.get("usage_description", ""),  # 상점명
+                        "qnty": 1,
+                        "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                    }
+                )
+        else:
+            # Fallback for older format
+            for i in range(1, 7):  # 최대 6개 항목
+                usage_date = form_data.get(f"usage_date_{i}")
+                if not usage_date:
+                    continue
+
+                usage_amount = form_data.get(f"usage_amount_{i}", 0)
+
+                adit_info = {"notes": form_data.get(f"usage_notes_{i}", "")}
+
+                payload["amountList"].append(
+                    {
+                        "useYmd": usage_date,
+                        "dvNm": form_data.get(f"usage_category_{i}", "기타"),
+                        "useRsn": form_data.get(f"merchant_name_{i}", ""),
+                        "qnty": 1,
+                        "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
 
@@ -229,9 +262,9 @@ class CorporateCardProcessor(BaseFormProcessor):
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.get("aprvPsId", ""),
-                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                        "ordr": approver.get("ordr", 1),
+                        "aprvPslId": approver.aprvPsId,
+                        "aprvDvTy": approver.aprvDvTy,
+                        "ordr": int(approver.ordr),
                     }
                 )
 

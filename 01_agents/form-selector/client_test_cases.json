@@ -1,0 +1,183 @@
+{
+  "description": "8가지 양식의 클라이언트 테스트 케이스 모음",
+  "test_cases": {
+    "annual_leave": [
+      {
+        "case_name": "연차 신청 - 기본 케이스",
+        "input": "다음 주 금요일부터 3일간 연차 신청합니다. 7월 4일부터 7월 6일까지 개인 용무로 휴가를 사용하겠습니다.",
+        "drafterId": "01240006",
+        "expected_form": "annual_leave"
+      },
+      {
+        "case_name": "연차 신청 - 반차 케이스",
+        "input": "내일 오후 반차 신청합니다. 병원 예약이 있어서 오후 2시부터 반차 사용하겠습니다.",
+        "drafterId": "01240007",
+        "expected_form": "annual_leave"
+      },
+      {
+        "case_name": "연차 신청 - 장기 휴가",
+        "input": "8월 10일부터 8월 17일까지 1주일간 여름 휴가를 신청합니다. 가족 여행으로 연차 사용 예정입니다.",
+        "drafterId": "01240008",
+        "expected_form": "annual_leave"
+      }
+    ],
+    "dinner_expense": [
+      {
+        "case_name": "야근식대 - 기본 케이스",
+        "input": "어제 늦게까지 야근했습니다. 서버 점검 작업으로 밤 10시까지 일했고 야근 식대 15000원 신청합니다. 회사에서 치킨 시켜 먹었습니다.",
+        "drafterId": "01240006",
+        "expected_form": "dinner_expense"
+      },
+      {
+        "case_name": "야근식대 - 긴급 작업",
+        "input": "오늘 긴급 버그 수정으로 새벽 2시까지 야근했습니다. 개발팀 전체가 출근해서 핫픽스 작업했고 식대 20000원 신청합니다.",
+        "drafterId": "01240007",
+        "expected_form": "dinner_expense"
+      },
+      {
+        "case_name": "야근식대 - 프로젝트 마감",
+        "input": "프로젝트 마감 준비로 지난주 금요일 밤 11시까지 야근했습니다. 팀원들과 함께 회의실에서 일했고 저녁 도시락 12000원 사용했습니다.",
+        "drafterId": "01240008",
+        "expected_form": "dinner_expense"
+      }
+    ],
+    "transportation_expense": [
+      {
+        "case_name": "교통비 - 지하철 이용",
+        "input": "어제 출장 다녀왔습니다. 강남역에서 여의도역까지 지하철 이용했고 왕복 2900원 사용했습니다. 고객사 미팅 참석이 목적이었습니다.",
+        "drafterId": "01240006",
+        "expected_form": "transportation_expense"
+      },
+      {
+        "case_name": "교통비 - 택시 이용",
+        "input": "긴급 미팅으로 회사에서 강남역까지 택시 이용했습니다. 15000원 사용했고 파트너사 계약 체결 건으로 출장 다녀왔습니다.",
+        "drafterId": "01240007",
+        "expected_form": "transportation_expense"
+      },
+      {
+        "case_name": "교통비 - 버스 + 지하철",
+        "input": "수원 본사 방문으로 버스와 지하철을 이용했습니다. 왕복 교통비 총 8500원 사용했고 분기 회의 참석이 목적이었습니다.",
+        "drafterId": "01240008",
+        "expected_form": "transportation_expense"
+      }
+    ],
+    "dispatch_business_trip": [
+      {
+        "case_name": "출장 보고 - 국내 출장",
+        "input": "부산 출장 보고서 작성합니다. 3월 15일부터 17일까지 2박 3일 출장 다녀왔습니다. 신규 고객사 방문 및 계약 체결이 목적이었고 성공적으로 마무리했습니다.",
+        "drafterId": "01240006",
+        "expected_form": "dispatch_business_trip"
+      },
+      {
+        "case_name": "출장 보고 - 기술 교육",
+        "input": "대구 기술 교육 출장 보고입니다. 5월 20일부터 22일까지 3일간 AI 기술 세미나 참석했습니다. 최신 기술 동향을 파악하고 팀에 공유할 예정입니다.",
+        "drafterId": "01240007",
+        "expected_form": "dispatch_business_trip"
+      },
+      {
+        "case_name": "출장 보고 - 프로젝트 점검",
+        "input": "광주 프로젝트 현장 점검 다녀왔습니다. 6월 1일부터 3일까지 현장 방문하여 진행 상황을 점검했고 일정대로 진행되고 있음을 확인했습니다.",
+        "drafterId": "01240008",
+        "expected_form": "dispatch_business_trip"
+      }
+    ],
+    "inventory_purchase": [
+      {
+        "case_name": "비품 구입 - 사무용품",
+        "input": "사무용품 구입 요청합니다. A4 용지 10박스 단가 5000원, 볼펜 50개 단가 800원, 포스트잇 20개 단가 1200원 구입 예정입니다. 총 114000원이고 현금 결제 예정입니다.",
+        "drafterId": "01240006",
+        "expected_form": "inventory_purchase"
+      },
+      {
+        "case_name": "비품 구입 - IT 장비",
+        "input": "개발팀 장비 구입 요청드립니다. 무선 마우스 5개 각 35000원, 키보드 5개 각 45000원, 모니터 받침대 5개 각 25000원 구입하려고 합니다. 총 525000원입니다.",
+        "drafterId": "01240007",
+        "expected_form": "inventory_purchase"
+      },
+      {
+        "case_name": "비품 구입 - 소모품",
+        "input": "사무실 소모품 구입 신청합니다. 토너 카트리지 3개 단가 80000원, 청소용품 세트 2개 단가 15000원, 화장지 20팩 단가 3000원 구입 예정입니다.",
+        "drafterId": "01240008",
+        "expected_form": "inventory_purchase"
+      }
+    ],
+    "purchase_approval": [
+      {
+        "case_name": "구매 승인 - 노트북",
+        "input": "개발용 노트북 2대를 구매하고자 합니다. 맥북 프로 16인치 M3 Max 모델이고 대당 350만원, 총 700만원입니다. 다음 주까지 납품 요청하며 회사로 배송 부탁드립니다. 신입 개발자 장비 지급 목적입니다.",
+        "drafterId": "01240006",
+        "expected_form": "purchase_approval"
+      },
+      {
+        "case_name": "구매 승인 - 서버 장비",
+        "input": "서버 증설을 위한 장비 구매 승인 요청합니다. Dell 서버 2대 각 500만원, SSD 10개 각 30만원 구입 예정입니다. 총 1300만원이고 현금 결제 조건으로 데이터센터 직배송 요청합니다.",
+        "drafterId": "01240007",
+        "expected_form": "purchase_approval"
+      },
+      {
+        "case_name": "구매 승인 - 소프트웨어",
+        "input": "개발 도구 라이선스 구매 승인 요청드립니다. IntelliJ IDEA 라이선스 10개 각 30만원, Adobe Creative Suite 5개 각 50만원 구입 예정입니다. 총 550만원입니다.",
+        "drafterId": "01240008",
+        "expected_form": "purchase_approval"
+      }
+    ],
+    "personal_expense": [
+      {
+        "case_name": "개인경비 - 현금 사용",
+        "input": "이번 달 개인 경비 정산합니다. 7월 5일 점심 식대 15000원, 7월 10일 택시비 8000원, 7월 15일 커피 구입 5000원 사용했습니다. 총 28000원이고 현금으로 지출했습니다. 업무 관련 필요 경비였습니다.",
+        "drafterId": "01240006",
+        "expected_form": "personal_expense"
+      },
+      {
+        "case_name": "개인경비 - 카드 사용",
+        "input": "개인 카드로 업무 경비 사용 정산합니다. 6월 20일 고객 접대비 45000원, 6월 25일 주차비 5000원, 6월 30일 교통비 12000원 사용했습니다. 총 62000원 카드 결제했습니다.",
+        "drafterId": "01240007",
+        "expected_form": "personal_expense"
+      },
+      {
+        "case_name": "개인경비 - 혼합 사용",
+        "input": "개인 경비 정산 신청합니다. 현금으로 8월 3일 식비 18000원, 8월 7일 교통비 6000원 사용했고, 카드로 8월 10일 숙박비 80000원 사용했습니다. 총 104000원입니다.",
+        "drafterId": "01240008",
+        "expected_form": "personal_expense"
+      }
+    ],
+    "corporate_card": [
+      {
+        "case_name": "법인카드 - 월 정산",
+        "input": "법인카드 7월 사용 내역 정산합니다. 카드번호 1234-56**-****-7890로 7월 한 달간 사용했습니다. 7월 5일 고객 접대비 85000원, 7월 12일 출장 숙박비 120000원, 7월 20일 교통비 15000원 사용했습니다. 총 220000원입니다.",
+        "drafterId": "01240006",
+        "expected_form": "corporate_card"
+      },
+      {
+        "case_name": "법인카드 - 프로젝트 관련",
+        "input": "프로젝트 관련 법인카드 사용 내역 보고합니다. 6월 15일 고객사 미팅 식비 65000원, 6월 18일 프로젝트 용품 구매 45000원, 6월 25일 팀 회식비 95000원 사용했습니다. 총 205000원입니다.",
+        "drafterId": "01240007",
+        "expected_form": "corporate_card"
+      },
+      {
+        "case_name": "법인카드 - 출장 관련",
+        "input": "부산 출장 관련 법인카드 사용 내역입니다. 8월 10일 KTX 교통비 59000원, 8월 10일 호텔 숙박비 89000원, 8월 11일 고객 접대비 120000원 사용했습니다. 총 268000원입니다.",
+        "drafterId": "01240008",
+        "expected_form": "corporate_card"
+      }
+    ]
+  },
+  "usage_instructions": {
+    "api_endpoint": "/api/form-recommendation",
+    "method": "POST",
+    "sample_request": {
+      "input": "어제 출장 다녀왔습니다. 강남역에서 여의도역까지 지하철 이용했고 왕복 2900원 사용했습니다.",
+      "drafterId": "01240006"
+    },
+    "forms_available": [
+      "annual_leave - 연차 신청서",
+      "dinner_expense - 야근식대비용 신청서",
+      "transportation_expense - 교통비 신청서",
+      "dispatch_business_trip - 파견 및 출장 보고서",
+      "inventory_purchase - 비품/소모품 구입내역서",
+      "purchase_approval - 구매 품의서",
+      "personal_expense - 개인경비 사용내역서",
+      "corporate_card - 법인카드 지출내역서"
+    ]
+  }
+} 

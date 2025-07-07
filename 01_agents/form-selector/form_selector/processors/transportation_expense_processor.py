@@ -131,22 +131,15 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         return 0
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """교통비 신청서 폼 데이터를 API Payload로 변환 (Legacy 형식과 동일)"""
-        logger.info(
-            "TransportationExpenseProcessor: Converting form data to API payload"
-        )
+        """교통비 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
 
-        # 기존 Legacy API 형식과 동일한 구조 사용
         payload = {
-            "mstPid": "4",  # API 명세에 맞게 string 형태로 수정
+            "mstPid": "4",
             "aprvNm": form_data.get("title", "교통비 신청"),
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "교통비 신청"),
             "apdInfo": json.dumps(
                 {
-                    "origin": form_data.get("origin", ""),
-                    "destination": form_data.get("destination", ""),
-                    "transport_details": form_data.get("transport_details", ""),
                     "notes": form_data.get("notes", ""),
                 },
                 ensure_ascii=False,
@@ -159,28 +152,32 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         # amountList 구성 (비용 정산 정보)
         departure_date = form_data.get("departure_date", "")
         total_amount = form_data.get("total_amount", 0)
-        transport_details = form_data.get("transport_details", "")
 
         if departure_date and total_amount:
+            adit_info = {
+                "origin": form_data.get("origin", ""),
+                "destination": form_data.get("destination", ""),
+                "transport_details": form_data.get("transport_details", ""),
+            }
             payload["amountList"].append(
                 {
                     "useYmd": departure_date,
                     "dvNm": "교통비",
-                    "useRsn": transport_details,
-                    "amount": int(total_amount) if total_amount else 0,
+                    "useRsn": form_data.get("purpose", ""),
+                    "qnty": 1,
+                    "amt": int(total_amount) if str(total_amount).isdigit() else 0,
+                    "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                 }
             )
 
-        # 결재라인 정보 추가 (Legacy와 동일하게 aprvPslId 사용)
+        # 결재라인 정보 추가 (service.py에서 이미 ApproverDetail 객체로 변환됨)
         if "approvers" in form_data and form_data["approvers"]:
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.aprvPsId,  # Legacy 형식: aprvPslId
+                        "aprvPslId": approver.aprvPsId,
                         "aprvDvTy": approver.aprvDvTy,
-                        "ordr": approver.ordr,
+                        "ordr": int(approver.ordr),
                     }
                 )
-
-        logger.info("TransportationExpenseProcessor: API payload conversion completed")
         return payload

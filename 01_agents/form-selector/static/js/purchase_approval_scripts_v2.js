@@ -47,8 +47,19 @@
              * 구매 품의서 특화 기능
              */
             setupPurchaseSpecificFeatures() {
-                // 구매 품의서 특화 로직 (필요시 추가)
                 console.log('[PurchaseApprovalProcessor] Purchase approval-specific features initialized');
+                
+                const init = () => {
+                    if (window.initializeDynamicTable) {
+                        window.initializeDynamicTable('purchase_table', 'add_row_btn', 'remove_row_btn');
+                    }
+                };
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
             }
         }
 

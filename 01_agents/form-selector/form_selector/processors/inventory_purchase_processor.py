@@ -87,7 +87,7 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
         logging.info("InventoryPurchaseProcessor: Converting form data to API payload")
 
         payload = {
-            "mstPid": "6",  # API 명세에 맞게 string 형태로 수정
+            "mstPid": "6",
             "aprvNm": form_data.get("title", "비품/소모품 구입내역서"),
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "비품/소모품 구입내역서"),
@@ -105,20 +105,69 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
         }
 
         # amountList 구성 (구입 내역)
-        for i in range(1, 7):  # 최대 6개 항목
-            item_name = form_data.get(f"item_name_{i}", "")
-            item_quantity = form_data.get(f"item_quantity_{i}", "")
-            item_unit_price = form_data.get(f"item_unit_price_{i}", 0)
-            item_total_price = form_data.get(f"item_total_price_{i}", 0)
-            item_purpose = form_data.get(f"item_purpose_{i}", "")
+        if "items" in form_data and isinstance(form_data["items"], list):
+            for item in form_data["items"]:
+                item_name = item.get("item_name")
+                if not item_name:
+                    continue
 
-            if item_name and item_total_price:
+                item_quantity = item.get("item_quantity", 0)
+                item_unit_price = item.get("item_unit_price", 0)
+                item_total_price = item.get("item_total_price", 0)
+
+                adit_info = {
+                    "unitPrice": (
+                        int(item_unit_price) if str(item_unit_price).isdigit() else 0
+                    )
+                }
+
                 payload["amountList"].append(
                     {
                         "useYmd": form_data.get("request_date", ""),
-                        "dvNm": f"{item_name} ({item_quantity}개)",
-                        "useRsn": item_purpose,
-                        "amount": int(item_total_price) if item_total_price else 0,
+                        "dvNm": item_name,
+                        "useRsn": item.get("item_purpose", ""),
+                        "qnty": (
+                            int(item_quantity) if str(item_quantity).isdigit() else 0
+                        ),
+                        "amt": (
+                            int(item_total_price)
+                            if str(item_total_price).isdigit()
+                            else 0
+                        ),
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                    }
+                )
+        else:
+            # Fallback for older format if "items" list is not present
+            for i in range(1, 7):  # 최대 6개 항목
+                item_name = form_data.get(f"item_name_{i}")
+                if not item_name:
+                    continue
+
+                item_quantity = form_data.get(f"item_quantity_{i}", 0)
+                item_unit_price = form_data.get(f"item_unit_price_{i}", 0)
+                item_total_price = form_data.get(f"item_total_price_{i}", 0)
+
+                adit_info = {
+                    "unitPrice": (
+                        int(item_unit_price) if str(item_unit_price).isdigit() else 0
+                    )
+                }
+
+                payload["amountList"].append(
+                    {
+                        "useYmd": form_data.get("request_date", ""),
+                        "dvNm": item_name,
+                        "useRsn": form_data.get(f"item_purpose_{i}", ""),
+                        "qnty": (
+                            int(item_quantity) if str(item_quantity).isdigit() else 0
+                        ),
+                        "amt": (
+                            int(item_total_price)
+                            if str(item_total_price).isdigit()
+                            else 0
+                        ),
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
 
@@ -127,9 +176,9 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.get("aprvPsId", ""),
-                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                        "ordr": approver.get("ordr", 1),
+                        "aprvPslId": approver.aprvPsId,
+                        "aprvDvTy": approver.aprvDvTy,
+                        "ordr": int(approver.ordr),
                     }
                 )
 

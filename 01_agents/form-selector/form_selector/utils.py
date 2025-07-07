@@ -5,6 +5,7 @@ import re  # 정규표현식 모듈 임포트
 from typing import Optional, Dict, Any, Literal, Union
 from pydantic import BaseModel, Field
 import json
+import logging
 
 from .llm import llm  # llm.py 에서 공유 LLM 객체 가져오기
 from langchain_core.messages import HumanMessage, AIMessage
@@ -559,6 +560,72 @@ def parse_date_range_with_context(
         parsed_end = parse_relative_date_to_iso(end_date_str, current_date_iso)
 
     return parsed_start, parsed_end
+
+
+def parse_duration_to_days(text: str) -> Optional[float]:
+    """문자열에서 기간을 추출하여 '일' 단위로 변환합니다.
+    'X월 Y일' 같은 날짜 표현을 기간으로 오인하지 않도록 주의합니다.
+
+    Args:
+        text: 기간을 나타내는 문자열 (예: "3일", "일주일", "2주간", "반나절")
+
+    Returns:
+        변환된 일수(float) 또는 변환 실패 시 None
+    """
+    if not isinstance(text, str):
+        return None
+
+    text = text.strip()
+    value = None
+
+    # 1. 'X월 Y일' 형식의 날짜 패턴인지 먼저 확인. 날짜면 기간이 아님.
+    if re.search(r"\d{1,2}\s*월\s*\d{1,2}\s*일", text):
+        logging.info(f"'{text}' is considered a date, not a duration. Skipping.")
+        return None
+
+    # 2. 날짜가 아닐 경우, 기간 파싱 시도
+    # 숫자 기반 기간 (예: 3일, 2주, 1개월)
+    match = re.search(r"(\d+(\.\d+)?)\s*(시간|일|주|달|개월|년)", text)
+    if match:
+        num = float(match.group(1))
+        unit = match.group(3)
+
+        if unit == "시간":
+            value = num / 24  # 시간은 일로 변환
+        elif unit == "일":
+            value = num
+        elif unit == "주":
+            value = num * 7
+        elif unit in ["달", "개월"]:
+            value = num * 30  # 근사치
+        elif unit == "년":
+            value = num * 365  # 근사치
+    else:
+        # 텍스트 기반 기간 (예: 하루, 일주일, 반나절)
+        duration_map = {
+            "하루": 1,
+            "이틀": 2,
+            "사흘": 3,
+            "나흘": 4,
+            "닷새": 5,
+            "엿새": 6,
+            "일주일": 7,
+            "한달": 30,
+            "두달": 60,
+            "반나절": 0.5,
+            "반차": 0.5,
+        }
+        for key, days in duration_map.items():
+            if key in text:
+                value = float(days)
+                break
+
+    if value is not None:
+        logging.info(f"Parsed duration '{text}' to {value} days.")
+    else:
+        logging.warning(f"Failed to parse duration from '{text}'.")
+
+    return value
 
 
 if __name__ == "__main__":

@@ -704,7 +704,9 @@ def _convert_dinner_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
                 "useYmd": work_date,
                 "dvNm": "식대",
                 "useRsn": work_details,
-                "amount": int(dinner_amount) if dinner_amount else 0,
+                "amt": int(dinner_amount) if dinner_amount else 0,
+                "qnty": 1,
+                "aditInfo": json.dumps({}, ensure_ascii=False),
             }
         )
 
@@ -758,7 +760,9 @@ def _convert_transportation_expense_to_payload(
                 "useYmd": departure_date,
                 "dvNm": "교통비",
                 "useRsn": transport_details,
-                "amount": int(total_amount) if total_amount else 0,
+                "amt": int(total_amount) if total_amount else 0,
+                "qnty": 1,
+                "aditInfo": json.dumps({}, ensure_ascii=False),
             }
         )
 
@@ -910,27 +914,30 @@ def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str,
                 )
 
     for item in items_to_process:
+        adit_info = {
+            "unitPrice": (
+                int(item.get("item_unit_price", 0))
+                if item.get("item_unit_price")
+                else 0
+            ),
+            "unit": "개",
+        }
         payload["amountList"].append(
             {
                 "useYmd": form_data.get("request_date", ""),
                 "dvNm": item.get("item_name", ""),
                 "useRsn": item.get("item_purpose", ""),
-                "amount": (
+                "amt": (
                     int(item.get("item_total_price", 0))
                     if item.get("item_total_price")
                     else 0
                 ),
-                "unit": "개",  # 기본 단위
-                "quantity": (
+                "qnty": (
                     int(item.get("item_quantity", 0))
                     if item.get("item_quantity")
                     else 0
                 ),
-                "unitPrice": (
-                    int(item.get("item_unit_price", 0))
-                    if item.get("item_unit_price")
-                    else 0
-                ),
+                "aditInfo": json.dumps(adit_info, ensure_ascii=False),
             }
         )
 
@@ -1039,27 +1046,35 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
 
         dvNm_combined = " - ".join(filter(None, dvNm_parts))
 
+        adit_info = {
+            "unitPrice": (
+                int(item.get("item_unit_price", 0))
+                if item.get("item_unit_price")
+                else 0
+            ),
+            "unit": "개",
+            "item_spec": item.get("item_spec", ""),
+            "item_supplier": item.get("item_supplier", ""),
+            "item_delivery_request_date": item.get("item_delivery_request_date")
+            or item.get("item_delivery_date"),
+        }
+
         payload["amountList"].append(
             {
                 "useYmd": use_date,
                 "dvNm": dvNm_combined or "품목",  # 빈 값이면 기본값 사용
                 "useRsn": item.get("item_purpose", ""),
-                "amount": (
+                "amt": (
                     int(item.get("item_total_price", 0))
                     if item.get("item_total_price")
                     else 0
                 ),
-                "unit": "개",  # 기본 단위
-                "quantity": (
+                "qnty": (
                     int(item.get("item_quantity", 0))
                     if item.get("item_quantity")
                     else 0
                 ),
-                "unitPrice": (
-                    int(item.get("item_unit_price", 0))
-                    if item.get("item_unit_price")
-                    else 0
-                ),
+                "aditInfo": json.dumps(adit_info, ensure_ascii=False),
             }
         )
 
@@ -1153,11 +1168,13 @@ def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str,
                 "useYmd": expense.get("expense_date", ""),
                 "dvNm": dvNm,
                 "useRsn": useRsn,
-                "amount": (
+                "amt": (
                     int(expense.get("expense_amount", 0))
                     if expense.get("expense_amount")
                     else 0
                 ),
+                "qnty": 1,
+                "aditInfo": json.dumps({}, ensure_ascii=False),
             }
         )
 
@@ -1234,11 +1251,13 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
                     "useYmd": usage.get("usage_date", ""),
                     "dvNm": dvNm,
                     "useRsn": useRsn,
-                    "amount": (
+                    "amt": (
                         int(usage.get("usage_amount", 0))
                         if usage.get("usage_amount")
                         else 0
                     ),
+                    "qnty": 1,
+                    "aditInfo": json.dumps({}, ensure_ascii=False),
                 }
             )
     # 방법 2: HTML 폼에서 온 개별 필드들 처리 (2단계에서 변환)
@@ -1277,9 +1296,11 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
                         "useYmd": usage_date,
                         "dvNm": dvNm,
                         "useRsn": useRsn,
-                        "amount": (
+                        "amt": (
                             int(usage_amount) if str(usage_amount).isdigit() else 0
                         ),
+                        "qnty": 1,
+                        "aditInfo": json.dumps({}, ensure_ascii=False),
                     }
                 )
 

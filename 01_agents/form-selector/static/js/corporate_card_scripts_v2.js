@@ -49,6 +49,18 @@
             setupCardSpecificFeatures() {
                 // 법인카드 특화 로직이 필요한 경우 여기에 추가
                 console.log('[CorporateCardProcessor] Card-specific features initialized');
+
+                const init = () => {
+                    if (window.initializeDynamicTable) {
+                        window.initializeDynamicTable('corporate_card_table', 'add_row_btn', 'remove_row_btn');
+                    }
+                };
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
             }
         }
 

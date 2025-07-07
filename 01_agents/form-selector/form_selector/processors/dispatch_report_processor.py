@@ -140,13 +140,12 @@ class DispatchReportProcessor(BaseFormProcessor):
             "mstPid": "5",  # API 명세에 맞게 string 형태로 수정
             "aprvNm": form_data.get("title", "파견/출장 보고서"),
             "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("report_content", "파견/출장 보고서"),
+            "docCn": form_data.get("purpose", "파견/출장 보고서"),
             "apdInfo": json.dumps(
                 {
                     "destination": form_data.get("destination", ""),
-                    "period_days": form_data.get("period_days", ""),
-                    "purpose": form_data.get("purpose", ""),
-                    "accomplishments": form_data.get("accomplishments", ""),
+                    "period_days": int(form_data.get("duration_days", 0)),
+                    "accomplishments": form_data.get("report_details", ""),
                     "challenges": form_data.get("challenges", ""),
                     "next_actions": form_data.get("next_actions", ""),
                 },
@@ -174,7 +173,7 @@ class DispatchReportProcessor(BaseFormProcessor):
                         payload["dayList"].append(
                             {
                                 "reqYmd": current_date.isoformat(),
-                                "dvType": "BUSINESS_TRIP",
+                                "dvType": "DAY",
                             }
                         )
                         current_date += timedelta(days=1)
@@ -186,9 +185,9 @@ class DispatchReportProcessor(BaseFormProcessor):
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.get("aprvPsId", ""),
-                        "aprvDvTy": approver.get("aprvDvTy", "AGREEMENT"),
-                        "ordr": approver.get("ordr", 1),
+                        "aprvPslId": approver.aprvPsId,
+                        "aprvDvTy": approver.aprvDvTy,
+                        "ordr": int(approver.ordr),
                     }
                 )
 

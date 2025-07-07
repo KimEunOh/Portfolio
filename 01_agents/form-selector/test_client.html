@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Selector - 클라이언트 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        
+        .form-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .form-title {
+            color: #2c3e50;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .case-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        
+        .input-text {
+            background: #ecf0f1;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 3px;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .metadata {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin: 5px 0;
+        }
+        
+        .test-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        
+        .test-button:hover {
+            background: #2980b9;
+        }
+        
+        .test-button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .api-info {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Form Selector - 클라이언트 테스트</h1>
+        <p>8가지 양식의 테스트 케이스를 선택하여 API를 테스트할 수 있습니다.</p>
+    </div>
+    
+    <div class="api-info">
+        <h3>API 정보</h3>
+        <p><strong>엔드포인트:</strong> /api/form-recommendation</p>
+        <p><strong>메서드:</strong> POST</p>
+        <p><strong>요청 형식:</strong> { "input": "자연어 입력", "drafterId": "기안자ID" }</p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-item">
+            <div class="stat-number" id="totalCases">24</div>
+            <div class="stat-label">총 테스트 케이스</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="successCount">0</div>
+            <div class="stat-label">성공</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="errorCount">0</div>
+            <div class="stat-label">실패</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="testingCount">0</div>
+            <div class="stat-label">테스트 중</div>
+        </div>
+    </div>
+    
+    <div id="testCases"></div>
+    
+    <script>
+        // 각 양식별 테스트 케이스 로딩 스크립트
+        async function loadTestCases() {
+            // client_test_cases.json 파일에서 테스트 케이스를 로드
+            // 실제 사용 시에는 fetch로 JSON 파일을 로드하면 됩니다
+            console.log('클라이언트 테스트 케이스 로드 완료');
+        }
+        
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTestCases();
+        });
+    </script>
+</body>
+</html> 
