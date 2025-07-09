@@ -78,7 +78,9 @@ class PersonalExpenseProcessor(BaseFormProcessor):
             "mstPid": "8",
             "aprvNm": form_data.get("title", "개인 경비 사용 신청"),
             "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("purpose", "개인 경비 사용 신청"),
+            "docCn": form_data.get(
+                "expense_reason", form_data.get("purpose", "개인 경비 사용 신청")
+            ),
             "apdInfo": json.dumps(
                 {
                     "usage_status": form_data.get("usage_status", ""),
@@ -91,31 +93,81 @@ class PersonalExpenseProcessor(BaseFormProcessor):
             "amountList": [],
         }
 
-        # amountList 구성 (비용 정산 정보)
-        for i in range(1, 4):  # 최대 3개 항목
-            expense_date = form_data.get(f"expense_date_{i}")
-            if not expense_date:
+        # ---------------------
+        # amountList 구성
+        # ---------------------
+        expenses_to_process = []
+
+        # 1) expense_items 배열 우선 사용
+        if form_data.get("expense_items"):
+            expenses_to_process = form_data["expense_items"]
+        # 2) HTML 개별 필드 fallback
+        else:
+            idx = 1
+            while True:
+                expense_date = form_data.get(f"expense_date_{idx}")
+                expense_amount = form_data.get(f"expense_amount_{idx}")
+                if not expense_date and not expense_amount:
+                    break  # 더 이상 항목 없음
+                expenses_to_process.append(
+                    {
+                        "expense_date": expense_date,
+                        "expense_category": form_data.get(
+                            f"expense_category_{idx}", ""
+                        ),
+                        "expense_description": form_data.get(
+                            f"expense_description_{idx}", ""
+                        ),
+                        "expense_amount": expense_amount,
+                        "expense_notes": form_data.get(f"expense_notes_{idx}", ""),
+                    }
+                )
+                idx += 1
+
+        category_mapping = {
+            "traffic": "교통비",
+            "accommodation": "숙박비",
+            "meals": "식대",
+            "entertainment": "접대비",
+            "education": "교육훈련비",
+            "supplies": "소모품비",
+            "other": "기타",
+        }
+
+        invalid_dates = {None, "", "SLOT_NOT_FOUND_OR_UNDEFINED"}
+
+        for expense in expenses_to_process:
+            if expense.get("expense_date") in invalid_dates:
+                # placeholder or empty row → 건너뜀
                 continue
-
-            expense_amount = form_data.get(f"expense_amount_{i}", 0)
-
-            adit_info = {
-                "notes": form_data.get(f"expense_notes_{i}", ""),
-            }
+            dvNm = category_mapping.get(expense.get("expense_category", ""), "기타")
+            # useRsn: description만 (notes는 aditInfo로 이동)
+            desc = expense.get("expense_description", "")
+            notes = expense.get("expense_notes", "")
+            use_rsn = desc  # notes 제거
+            adit_info = {"notes": notes} if notes and notes.strip() else {}
 
             payload["amountList"].append(
                 {
-                    "useYmd": expense_date,
-                    "dvNm": form_data.get(f"expense_category_{i}", "기타"),
-                    "useRsn": form_data.get(f"expense_description_{i}", ""),
+                    "useYmd": expense.get("expense_date", ""),
+                    "dvNm": dvNm,
+                    "useRsn": use_rsn,
                     "qnty": 1,
-                    "amt": int(expense_amount) if str(expense_amount).isdigit() else 0,
+                    "amt": (
+                        int(expense.get("expense_amount", 0))
+                        if str(expense.get("expense_amount", ""))
+                        .replace(",", "")
+                        .isdigit()
+                        else 0
+                    ),
                     "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                 }
             )
 
-        # 결재라인 정보 추가 (service.py에서 이미 ApproverDetail 객체로 변환됨)
-        if "approvers" in form_data and form_data["approvers"]:
+        # ---------------------
+        # 결재라인 추가
+        # ---------------------
+        if form_data.get("approvers"):
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {

@@ -550,41 +550,116 @@ textarea#user_input { /* Specific to the main textarea in index.html if it exist
 
 /* ================== Table Action Buttons ================== */
 .table-actions {
-/* ... existing code ... */
+    text-align: right;
+    margin-top: 10px;
 }
 
-/* New Container-based table styles */
-.item-container-table {
+/* New Container-based table styles with higher specificity */
+#resultArea .item-container-table {
     border: none;
-    border-collapse: separate;
-    border-spacing: 0 var(--spacing-md);
-}
-
-.item-container-table > tbody {
-    display: table; /* Ensure tbody behaves like a block for layout purposes */
     width: 100%;
-    background-color: var(--background-color-light);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    /* padding is unreliable on tbody, so we remove it */
+    border-collapse: separate;
+    border-spacing: 0 15px; /* 세로 간격만 적용 */
 }
 
-.item-container-table td {
-    border: none;
-    padding: var(--spacing-sm); /* Increased padding for better spacing inside the container */
+#resultArea .item-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    /* padding은 tbody에 직접 적용하기보다, 내부 td에 적용하는 것이 더 안정적입니다. */
+}
+
+#resultArea .item-container td {
+    padding: 12px 15px; /* 내부 여백 증가 */
     vertical-align: top;
+    border: none;
 }
 
-.item-table td strong {
-    display: block;
-    margin-bottom: var(--spacing-xs);
+#resultArea .item-row-divider {
+    border-top: none; /* 점선 제거 */
 }
 
-.two-row-table .item-row-divider td {
-    border-top: 1px dashed var(--border-color);
-    padding-top: var(--spacing-sm); /* Add space between two rows of an item */
+#resultArea .item-row-divider td {
+    padding-top: 0;
 }
 
-.two-row-table .item-row-divider:last-child td {
-     border-bottom: 1px solid var(--border-color);
+/* --- New Grid Layout for Inventory Form --- */
+#resultArea .item-container tr:first-child {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr; /* 품명, 수량, 단가 비율 */
+    gap: 5px; /* 필드 사이 간격 */
+    padding-bottom: 15px;
+}
+
+#resultArea .item-container tr.item-row-divider {
+    display: grid;
+    grid-template-columns: 1fr 2fr; /* 금액, 용도 비율 */
+    gap: 5px;
+}
+
+#resultArea .item-container td {
+    padding: 0; /* td의 기존 패딩 제거 */
+    display: flex;
+    flex-direction: column;
+}
+/* --- End New Grid Layout --- */
+
+/* ================== Forms ================== */
+form {
+    width: 100%;
+}
+
+/* ... existing code ... */
+
+/* ... rest of the file remains unchanged ... */
+
+/* --- Transportation Expense Table Styles --- */
+#transportation_table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#transportation_table th,
+#transportation_table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--stroke);
+}
+
+#transportation_table th {
+    text-align: left;
+    background-color: var(--primarylight);
+    color: var(--title-color);
+    font-weight: 600;
+}
+
+#transportation_table td input,
+#transportation_table td select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--stroke);
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+}
+
+#transportation_table td input:focus,
+#transportation_table td select:focus {
+    border-color: var(--primaryhigh);
+    box-shadow: var(--input-focus-shadow);
+    outline: none;
+}
+
+/* Delete button style tweaks */
+#transportation_table .remove-row-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background-color: #dc3545;
+    color: #fff;
+}
+#transportation_table .remove-row-btn:hover {
+    background-color: #c82333;
 } 

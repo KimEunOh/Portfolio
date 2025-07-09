@@ -9,62 +9,58 @@
 <div class="card">
     <h2 class="form-title">교통비 신청서</h2>
     <form id="transportation_expense_form">
-        <div class="form-group">
-            <label for="title">제목:</label>
-            <input type="text" id="title" name="title" class="form-control" value="{title}">
+        <div class="form-section">
+            <h3>교통비 사용 내역</h3>
+            <table class="table" id="transportation_table">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">분류</th>
+                        <th style="width: 20%;">출발지</th>
+                        <th style="width: 20%;">도착지</th>
+                        <th style="width: 20%;">탑승일</th>
+                        <th style="width: 15%;">금액</th>
+                        <th style="width: 10%;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dynamic rows will be inserted here -->
+                </tbody>
+            </table>
+            <div class="button-container">
+                <button type="button" id="add_transport_row_btn" class="btn-add">항목 추가</button>
+            </div>
         </div>
-        
-        <div class="form-group">
-            <label for="drafter_info">기안자 정보:</label>
-            <input type="text" id="drafter_info" name="drafter_info" readonly class="form-control" value="{drafter_name} ({draft_department})">
-            <input type="hidden" id="draft_date" name="draft_date" value="{draft_date}">
-        </div>
-
-        <div class="form-group">
-            <label for="departure_date">출발일 (사용일):</label>
-            <input type="date" id="departure_date" name="departure_date" class="form-control" value="{departure_date}">
-        </div>
-
-        <div class="form-group">
-            <label for="origin">출발지:</label>
-            <input type="text" id="origin" name="origin" class="form-control" value="{origin}">
-        </div>
-
-        <div class="form-group">
-            <label for="destination">목적지:</label>
-            <input type="text" id="destination" name="destination" class="form-control" value="{destination}">
-        </div>
-
-        <div class="form-group">
-            <label for="purpose">목적 (용무):</label>
-            <input type="text" id="purpose" name="purpose" class="form-control" value="{purpose}">
-        </div>
-
-        <div class="form-group">
-            <label for="transport_details">교통 내역 상세:</label>
-            <textarea id="transport_details" name="transport_details" rows="4" placeholder="예: 지하철 (강남역 -> 시청역) 1,450원, 택시 (시청역 -> 본사) 5,800원" class="form-control">{transport_details}</textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="total_amount">총 금액 (원):</label>
-            <input type="text" id="total_amount" name="total_amount" class="form-control" value="{total_amount}" readonly>
-        </div>
-
-        <div class="form-group">
-            <label for="notes">기타 보고 사항 (비고):</label>
-            <textarea id="notes" name="notes" rows="3" class="form-control">{notes}</textarea>
-        </div>
-
-        <div id="approval_line_container">
-            <h3>결재 라인</h3>
-            <div id="approval-line" class="approval-line">
-                <!-- Approvers will be dynamically inserted here -->
+        <div class="form-section">
+            <div class="total-amount-container">
+                <label for="total_amount">총 합계 금액:</label>
+                <input type="text" id="total_amount" name="total_amount" class="form-control" readonly>
             </div>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">결재요청</button>
+        <div class="form-group">
+            <label for="title">문서 제목:</label>
+            <input type="text" id="title" name="title" value="{title}" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label for="request_date">요청일:</label>
+            <input type="date" id="request_date" name="request_date" class="form-control" readonly>
+        </div>
+
+        <div class="form-group">
+            <label for="purpose">목적:</label>
+            <input type="text" id="purpose" name="purpose" class="form-control" placeholder="(예: 고객사 미팅 참석)">
+        </div>
+
+        <div class="form-group">
+            <label for="notes">특이사항:</label>
+            <textarea id="notes" name="notes" rows="3" class="form-control">{notes}</textarea>
         </div>
     </form>
 </div>
+<script id="form-slots-data" type="application/json">{form_slots}</script>
+<script id="items-data" type="application/json">{items_json}</script>
 <script id="approvers-data" type="application/json">{approvers_json}</script>
+<script src="/ui/js/form-configs.js"></script>
+<script src="/ui/js/base-form-processor.js"></script>
+<script src="/ui/js/transportation_expense_scripts_v2.js"></script>

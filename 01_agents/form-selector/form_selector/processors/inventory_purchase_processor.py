@@ -94,7 +94,7 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
             "apdInfo": json.dumps(
                 {
                     "request_date": form_data.get("request_date", ""),
-                    "purpose": form_data.get("purpose", ""),
+                    "notes": form_data.get("notes", ""),
                     "total_amount": form_data.get("total_amount", 0),
                 },
                 ensure_ascii=False,
@@ -108,7 +108,9 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
         if "items" in form_data and isinstance(form_data["items"], list):
             for item in form_data["items"]:
                 item_name = item.get("item_name")
-                if not item_name:
+
+                # LLM이 채운 기본값이나 빈 아이템은 건너뛰기
+                if not item_name or item_name == "SLOT_NOT_FOUND_OR_UNDEFINED":
                     continue
 
                 item_quantity = item.get("item_quantity", 0)
@@ -125,7 +127,9 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
                     {
                         "useYmd": form_data.get("request_date", ""),
                         "dvNm": item_name,
-                        "useRsn": item.get("item_purpose", ""),
+                        "useRsn": item.get(
+                            "item_purpose", item.get("item_notes", "")
+                        ),  # item_purpose 또는 item_notes
                         "qnty": (
                             int(item_quantity) if str(item_quantity).isdigit() else 0
                         ),
@@ -138,10 +142,20 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
                     }
                 )
         else:
-            # Fallback for older format if "items" list is not present
-            for i in range(1, 7):  # 최대 6개 항목
-                item_name = form_data.get(f"item_name_{i}")
+            # Fallback for form submission data if "items" list is not present
+            i = 1
+            while True:
+                item_name_key = f"item_name_{i}"
+
+                # 더 이상 순차적인 품명 필드가 없으면 중단
+                if item_name_key not in form_data:
+                    break
+
+                item_name = form_data.get(item_name_key)
+
+                # 품명이 비어있으면 해당 항목은 건너뛰기
                 if not item_name:
+                    i += 1
                     continue
 
                 item_quantity = form_data.get(f"item_quantity_{i}", 0)
@@ -170,6 +184,7 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
+                i += 1
 
         # 결재라인 정보 추가
         if "approvers" in form_data and form_data["approvers"]:

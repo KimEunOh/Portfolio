@@ -53,6 +53,17 @@
                     if (window.initializeDynamicTable) {
                         window.initializeDynamicTable('purchase_table', 'add_row_btn', 'remove_row_btn');
                     }
+
+                    // draft_date 자동 설정 (오늘 날짜, YYYY-MM-DD)
+                    const draftDateInput = document.getElementById('draft_date');
+                    if (draftDateInput && !draftDateInput.value) {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        draftDateInput.value = `${yyyy}-${mm}-${dd}`;
+                        console.log('[PurchaseApprovalProcessor] draft_date set to today:', draftDateInput.value);
+                    }
                 };
 
                 if (document.readyState === 'loading') {

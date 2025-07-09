@@ -180,9 +180,6 @@ class CorporateCardProcessor(BaseFormProcessor):
         if not processed.get("expense_reason"):
             processed["expense_reason"] = ""
 
-        if not processed.get("statement_date"):
-            processed["statement_date"] = ""
-
         return processed
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -198,7 +195,6 @@ class CorporateCardProcessor(BaseFormProcessor):
                 {
                     "card_number": form_data.get("card_number", ""),
                     "card_user_name": form_data.get("card_user_name", ""),
-                    "statement_date": form_data.get("statement_date", ""),
                     "total_amount": form_data.get("total_usage_amount", 0),
                 },
                 ensure_ascii=False,
@@ -209,53 +205,92 @@ class CorporateCardProcessor(BaseFormProcessor):
         }
 
         # amountList 구성 (카드 사용 내역)
+        # 카테고리 한글 매핑 (API 표준)
+        korean_category_map = {
+            "meals": "식대/회식비",
+            "traffic_transport": "교통/운반비",
+            "supplies": "사무용품비",
+            "entertainment": "접대비",
+            "utility": "공과금",
+            "welfare": "복리후생비",
+            "education": "교육훈련비",
+            "other": "기타",
+        }
+
+        invalid_dates = {None, "", "SLOT_NOT_FOUND_OR_UNDEFINED"}
+
         if "card_usage_items" in form_data and isinstance(
             form_data["card_usage_items"], list
         ):
             for item in form_data["card_usage_items"]:
                 usage_date = item.get("usage_date")
-                if not usage_date:
+                if usage_date in invalid_dates:
                     continue
 
                 usage_amount = item.get("usage_amount", 0)
 
-                # 카테고리 매핑 적용
-                raw_category = item.get("usage_category", "기타")
-                mapped_category = self.convert_category(raw_category)
+                # 카테고리 매핑 적용 (영어 → 한글)
+                raw_category = item.get("usage_category", "other")
+                eng_category = self.convert_category(raw_category)
+                dvNm = korean_category_map.get(eng_category, "기타")
 
-                adit_info = {"notes": item.get("usage_notes", "")}
+                adit_info = (
+                    {"notes": item.get("usage_notes", "")}
+                    if item.get("usage_notes")
+                    else {}
+                )
 
                 payload["amountList"].append(
                     {
                         "useYmd": usage_date,
-                        "dvNm": mapped_category,
-                        "useRsn": item.get("usage_description", ""),  # 상점명
+                        "dvNm": dvNm,
+                        "useRsn": item.get("usage_description", ""),  # 가맹점명
                         "qnty": 1,
-                        "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
+                        "amt": (
+                            int(usage_amount)
+                            if str(usage_amount).replace(",", "").isdigit()
+                            else 0
+                        ),
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
         else:
-            # Fallback for older format
-            for i in range(1, 7):  # 최대 6개 항목
+            i = 1
+            while True:
                 usage_date = form_data.get(f"usage_date_{i}")
-                if not usage_date:
+                usage_amount = form_data.get(f"usage_amount_{i}")
+                if usage_date in invalid_dates and (
+                    usage_amount is None or usage_amount == ""
+                ):
+                    break
+                if usage_date in invalid_dates:
+                    i += 1
                     continue
 
-                usage_amount = form_data.get(f"usage_amount_{i}", 0)
+                raw_category = form_data.get(f"usage_category_{i}", "other")
+                eng_category = self.convert_category(raw_category)
+                dvNm = korean_category_map.get(eng_category, "기타")
 
-                adit_info = {"notes": form_data.get(f"usage_notes_{i}", "")}
+                adit_info = {}
+                notes_val = form_data.get(f"usage_notes_{i}")
+                if notes_val:
+                    adit_info["notes"] = notes_val
 
                 payload["amountList"].append(
                     {
-                        "useYmd": usage_date,
-                        "dvNm": form_data.get(f"usage_category_{i}", "기타"),
+                        "useYmd": usage_date or "",
+                        "dvNm": dvNm,
                         "useRsn": form_data.get(f"merchant_name_{i}", ""),
                         "qnty": 1,
-                        "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
+                        "amt": (
+                            int(usage_amount)
+                            if str(usage_amount or "").replace(",", "").isdigit()
+                            else 0
+                        ),
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
+                i += 1
 
         # 결재라인 정보 추가
         if "approvers" in form_data and form_data["approvers"]:

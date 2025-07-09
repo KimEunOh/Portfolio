@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>전자결재 양식 추천봇</title>
-    <link rel="stylesheet" href="/ui/style.css">
+    <link rel="stylesheet" href="/ui/style.css?v=1.1">
     <style>
         @import url("https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css");
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap');
@@ -379,6 +379,47 @@
             color: var(--title-color); /* Ensure these headers are dark */
         }
 
+        /* ... existing code ... */
+        #resultArea .item-row-divider td {
+            padding-top: 0;
+        }
+
+        /* --- Final Item Layout Adjustments --- */
+        #resultArea .item-container-table {
+            border-spacing: 0; /* display:block on tbody voids this, so reset it. */
+        }
+
+        #resultArea .item-container {
+            display: block;
+            padding: 15px;
+            margin-bottom: 15px; /* 2. 박스 끼리의 간격 추가 */
+        }
+
+        #resultArea .item-container td strong {
+            font-weight: 700;     /* 3. 텍스트 볼드 처리 */
+            margin-bottom: 4px;   /* 1. 텍스트와 박스 사이 거리 축소 */
+        }
+
+        #resultArea .item-container tr:first-child {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 5px;
+            padding-bottom: 5px;
+        }
+
+        #resultArea .item-container tr.item-row-divider {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 5px;
+        }
+
+        #resultArea .item-container td {
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        /* --- End Final Item Layout --- */
+
     </style>
 </head>
 <body>
@@ -436,6 +477,7 @@
     <!-- 리팩토링된 JavaScript 모듈들 -->
     <script src="/ui/js/base-form-processor.js"></script>
     <script src="/ui/js/form-configs.js"></script>
+    <script src="/ui/js/dynamic-table-handler.js"></script>
     <script src="/ui/js/drafter_list.js"></script>
     
     <script>
@@ -485,10 +527,158 @@
 
         // Functions from the primary index.html (debugged version)
         function fillFormFields(slots) {
-            console.trace("fillFormFields called"); // 호출 스택 추적
-            if (!slots) return;
+            if (!slots) {
+                console.warn("[fillFormFields] No slots provided to fill.");
+                return;
+            }
+
+            // 교통비 신청서 특별 처리
+            if (currentFormResponse && currentFormResponse.form_type === '교통비 신청서') {
+                console.log("[fillFormFields] Applying special logic for '교통비 신청서'");
+
+                const fieldMappings = {
+                    departure_date: 'boarding_date_1',
+                    origin: 'origin_1',
+                    destination: 'destination_1',
+                    total_amount: 'amount_1'
+                };
+
+                Object.keys(fieldMappings).forEach(slotKey => {
+                    if (slots[slotKey] !== undefined && slots[slotKey] !== null) {
+                        const elementId = fieldMappings[slotKey];
+                        const element = document.getElementById(elementId);
+                        if (element) {
+                            // .value에는 항상 문자열을 할당하는 것이 안전합니다.
+                            element.value = String(slots[slotKey]);
+                            console.log(`[fillFormFields] Set '${elementId}' to '${slots[slotKey]}'`);
+                        } else {
+                            console.warn(`[fillFormFields] Element '${elementId}' not found for slot '${slotKey}'.`);
+                        }
+                        delete slots[slotKey];
+                    }
+                });
+
+                if (slots.transport_details) {
+                    const details = slots.transport_details;
+                    const typeSelectElement = document.getElementById('transport_type_1');
+                    if (typeSelectElement) {
+                        let selectedType = 'other';
+                        if (details.includes('지하철')) selectedType = 'subway';
+                        else if (details.includes('버스')) selectedType = 'bus';
+                        else if (details.includes('기차') || details.includes('KTX')) selectedType = 'train';
+                        else if (details.includes('비행기') || details.includes('항공')) selectedType = 'airplane';
+                        
+                        typeSelectElement.value = selectedType;
+                        console.log(`[fillFormFields] Inferred transport type: '${selectedType}'`);
+                    }
+                    delete slots.transport_details;
+                }
+
+                // 목적과 특이사항을 각 입력 필드에 구분해서 채웁니다.
+                if (slots.purpose) {
+                    const purposeElement = document.getElementById('purpose');
+                    if (purposeElement) {
+                        purposeElement.value = String(slots.purpose);
+                        console.log(`[fillFormFields] Set 'purpose' to '${slots.purpose}'`);
+                    }
+                    delete slots.purpose;
+                }
+
+                if (slots.notes) {
+                    const notesElement = document.getElementById('notes');
+                    if (notesElement) {
+                        notesElement.value = String(slots.notes);
+                        console.log(`[fillFormFields] Set 'notes' to '${slots.notes}'`);
+                    }
+                    delete slots.notes;
+                }
+
+                const amountInput = document.getElementById('amount_1');
+                if (amountInput) {
+                    amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
+            // 개인 경비 사용 내역서 특별 처리 로직
+            if (currentFormResponse && currentFormResponse.form_type === '개인 경비 사용 내역서') {
+                console.log('[fillFormFields] Applying special logic for 개인 경비 사용 내역서');
+
+                // 단일 필드 매핑
+                const singleFieldMap = {
+                    statement_date: 'statement_date',
+                    total_expense_amount: 'total_expense_amount',
+                    expense_reason: 'expense_reason',
+                };
+
+                Object.keys(singleFieldMap).forEach(key => {
+                    if (slots[key] !== undefined) {
+                        const el = document.getElementById(singleFieldMap[key]);
+                        if (el) {
+                            el.value = String(slots[key]);
+                        }
+                        delete slots[key];
+                    }
+                });
+
+                // usage_status select 처리
+                if (slots.usage_status) {
+                    const statusSelect = document.getElementById('usage_status');
+                    if (statusSelect) statusSelect.value = String(slots.usage_status);
+                    delete slots.usage_status;
+                }
+
+                // expense_items 배열 처리 (최대 3개)
+                if (Array.isArray(slots.expense_items)) {
+                    const categoryMap = {
+                        '교통비': 'traffic',
+                        '숙박비': 'accommodation',
+                        '식대': 'meals',
+                        '접대비': 'entertainment',
+                        '교육훈련비': 'education',
+                        '소모품비': 'supplies',
+                        '기타': 'other'
+                    };
+
+                    slots.expense_items.slice(0,3).forEach((item, idx) => {
+                        const i = idx + 1;
+                        const id = suffix => `${suffix}_${i}`;
+
+                        const descEl = document.getElementById(id('expense_description'));
+                        if (descEl && item.expense_description) descEl.value = item.expense_description;
+
+                        const catEl = document.getElementById(id('expense_category'));
+                        if (catEl && item.expense_category) {
+                            catEl.value = categoryMap[item.expense_category] || categoryMap['기타'];
+                        }
+
+                        const dateEl = document.getElementById(id('expense_date'));
+                        if (dateEl && item.expense_date) {
+                            let dateVal = item.expense_date;
+                            if (!/\d{4}-\d{2}-\d{2}/.test(dateVal)) {
+                                const m = dateVal.match(/(\d{1,2})월\s*(\d{1,2})일/);
+                                if (m) {
+                                    const yyyy = (slots.statement_date && /^(\d{4})-/.test(slots.statement_date)) ? slots.statement_date.slice(0,4) : new Date().getFullYear();
+                                    const mm = m[1].padStart(2,'0');
+                                    const dd = m[2].padStart(2,'0');
+                                    dateVal = `${yyyy}-${mm}-${dd}`;
+                                }
+                            }
+                            dateEl.value = dateVal;
+                        }
+
+                        const amtEl = document.getElementById(id('expense_amount'));
+                        if (amtEl && item.expense_amount) amtEl.value = item.expense_amount;
+
+                        const noteEl = document.getElementById(id('expense_notes'));
+                        if (noteEl && item.expense_notes) noteEl.value = item.expense_notes;
+                    });
+                    delete slots.expense_items;
+                }
+            }
+
+            // 기존의 일반 필드 채우기 로직
             for (const key in slots) {
-                if (slots.hasOwnProperty(key)) {
+                if (Object.prototype.hasOwnProperty.call(slots, key)) {
                     const value = slots[key];
                     
                     // Handle 'items', 'expense_items', 'card_usage_items' separately
@@ -594,20 +784,26 @@
         }
 
         function setTodayToDraftDate() {
-            const draftDateElement = document.getElementById('header_draft_date'); // Assuming this ID exists in the new templates
-            if (draftDateElement) {
-                const today = new Date();
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                const formattedDate = `${year}-${month}-${day}`;
+            const dateElements = [
+                document.getElementById('header_draft_date'),
+                document.getElementById('request_date')
+            ];
+            
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
 
-                if (draftDateElement.tagName === 'INPUT') {
-                    draftDateElement.value = formattedDate;
-                } else if (draftDateElement.tagName === 'SPAN') {
-                    draftDateElement.textContent = formattedDate;
+            dateElements.forEach(element => {
+                if (element) {
+                    if (element.tagName === 'INPUT' && element.type === 'date') {
+                        element.value = formattedDate;
+                    } else if (element.tagName === 'SPAN') {
+                        element.textContent = formattedDate;
+                    }
                 }
-            }
+            });
         }
 
         async function submitRequest() {
@@ -692,36 +888,6 @@
                     updateApproverInfoUI(null); 
                 } else {
                     resultArea.innerHTML = data.html_template;
-                    console.log("[submitRequest] Received html_template (first 500 chars):", data.html_template.substring(0, 500) + "...");
-                    console.log("[submitRequest] Attempting to set resultArea.innerHTML.");
-                    console.log("[submitRequest] SUCCESSFULLY SET resultArea.innerHTML.");
-
-                    const existingScript = document.getElementById('dynamic-form-script');
-                    if (existingScript) {
-                        existingScript.remove();
-                    }
-
-                    // 리팩토링된 v2 스크립트 로딩
-                    let scriptSrc = '';
-                    const formType = data.form_type;
-
-                    if (formType === '연차 신청서') {
-                        scriptSrc = 'js/annual_leave_scripts_v2.js';
-                    } else if (formType === '야근 식대 신청서') {
-                        scriptSrc = 'js/dinner_expense_scripts_v2.js';
-                    } else if (formType === '교통비 신청서') {
-                        scriptSrc = 'js/transportation_expense_scripts_v2.js';
-                    } else if (formType === '파견 및 출장 보고서') {
-                        scriptSrc = 'js/dispatch_report_scripts_v2.js';
-                    } else if (formType === '개인 경비 사용 내역서') {
-                        scriptSrc = 'js/personal_expense_scripts_v2.js';
-                    } else if (formType === '법인카드 지출내역서') {
-                        scriptSrc = 'js/corporate_card_scripts_v2.js';
-                    } else if (formType === '비품/소모품 구입내역서') {
-                        scriptSrc = 'js/inventory_scripts_v2.js';
-                    } else if (formType === '구매 품의서') {
-                        scriptSrc = 'js/purchase_approval_scripts_v2.js';
-                    }
                     
                     const processCommonFunctions = () => {
                         requestAnimationFrame(() => {
@@ -733,6 +899,32 @@
                         });
                     };
 
+                    const existingScript = document.getElementById('dynamic-form-script');
+                    if (existingScript) {
+                        existingScript.remove();
+                    }
+
+                    let scriptSrc = '';
+                    const formType = data.form_type;
+
+                    if (formType === '연차 신청서') {
+                        scriptSrc = '/ui/js/annual_leave_scripts_v2.js';
+                    } else if (formType === '야근 식대 신청서') {
+                        scriptSrc = '/ui/js/dinner_expense_scripts_v2.js';
+                    } else if (formType === '교통비 신청서') {
+                        scriptSrc = '/ui/js/transportation_expense_scripts_v2.js';
+                    } else if (formType === '파견 및 출장 보고서') {
+                        scriptSrc = '/ui/js/dispatch_report_scripts_v2.js';
+                    } else if (formType === '개인 경비 사용 내역서') {
+                        scriptSrc = '/ui/js/personal_expense_scripts_v2.js';
+                    } else if (formType === '법인카드 지출내역서') {
+                        scriptSrc = '/ui/js/corporate_card_scripts_v2.js';
+                    } else if (formType === '비품/소모품 구입내역서') {
+                        scriptSrc = '/ui/js/inventory_scripts_v2.js';
+                    } else if (formType === '구매 품의서') {
+                        scriptSrc = '/ui/js/purchase_approval_scripts_v2.js';
+                    }
+                    
                     if (scriptSrc) {
                         const scriptElement = document.createElement('script');
                         scriptElement.id = 'dynamic-form-script';
@@ -746,17 +938,16 @@
                         };
                         scriptElement.onerror = () => {
                             console.error(`[submitRequest] ERROR loading script: ${scriptSrc}`);
-                            processCommonFunctions(); // 스크립트 로드 실패해도 공통 함수는 시도
+                            processCommonFunctions();
                         };
+                        
                         document.body.appendChild(scriptElement);
-                        console.log(`[submitRequest] Attempting to load script: ${scriptSrc}`);
                     } else {
-                        console.log(`[submitRequest] No specific script to load for form_type: ${formType}`);
                         processCommonFunctions();
                     }
                     
                     updateApproverInfoUI(data.approver_info);
-                    submitBtn.style.display = 'block'; // 성공 시 제출 버튼 표시
+                    submitBtn.style.display = 'block';
                 }
                 
                 const debugOutput = {
@@ -1309,57 +1500,43 @@
                     formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
-            "교통비 신청서": function(activeForm, slots, getElementValueOrSlotFunc) { // activeForm 인자 추가
-                console.log("%c[교통비 신청서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
+            "교통비 신청서": function(formElement, slots, getElementValueOrSlot) {
+                const amountList = [];
+                const tableRows = formElement.querySelectorAll('#transportation_table tbody tr');
                 
-                // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
-                const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
-                const purposeValue = getElementValueOrSlotFunc(activeForm, 'purpose', 'purpose', slots);
-                const departureDateValue = getElementValueOrSlotFunc(activeForm, 'departure_date', 'departure_date', slots);
-                const originValue = getElementValueOrSlotFunc(activeForm, 'origin', 'origin', slots);
-                const destinationValue = getElementValueOrSlotFunc(activeForm, 'destination', 'destination', slots);
-                const transportDetailsValue = getElementValueOrSlotFunc(activeForm, 'transport_details', 'transport_details', slots);
-                const notesValue = getElementValueOrSlotFunc(activeForm, 'notes', 'notes', slots);
-                const totalAmountValue = getElementValueOrSlotFunc(activeForm, 'total_amount', 'total_amount', slots);
+                tableRows.forEach((row, index) => {
+                    const transportType = row.querySelector(`select[name^="transport_type_"]`)?.value;
+                    const boardingDate = row.querySelector(`input[name^="boarding_date_"]`)?.value;
+                    const origin = row.querySelector(`input[name^="origin_"]`)?.value;
+                    const destination = row.querySelector(`input[name^="destination_"]`)?.value;
+                    const amount = row.querySelector(`input[name^="amount_"]`)?.value;
 
-                // 필수값 검증
-                if (!departureDateValue || !purposeValue || !totalAmountValue || !transportDetailsValue) {
-                    let missingFields = [];
-                    if (!departureDateValue) missingFields.push("출발일(사용일)");
-                    if (!purposeValue) missingFields.push("목적(용무)");
-                    if (!totalAmountValue) missingFields.push("총 금액");
-                    if (!transportDetailsValue) missingFields.push("교통 내역 상세");
-                    return { error: true, message: `필수 항목을 입력해주세요: ${missingFields.join(', ')}` };
-                }
-                
-                // 백엔드 API에 바로 전송 가능한 완전한 form_data 구성
-                const formData = {
-                    title: titleValue || "교통비 신청서",
-                    purpose: purposeValue,
-                    departure_date: departureDateValue,
-                    origin: originValue || "",
-                    destination: destinationValue || "",
-                    transport_details: transportDetailsValue,
-                    notes: notesValue || "",
-                    total_amount: totalAmountValue
-                };
-                
-                // itemList 구성 (호환성 유지)
-                const itemList = [];
-                if (departureDateValue && totalAmountValue && transportDetailsValue) {
-                    itemList.push({
-                        itemNm: purposeValue || "교통비",
-                        reqYmd: departureDateValue,
-                        useAmt: parseFloat(totalAmountValue) || 0,
-                        docCn: transportDetailsValue
-                    });
-                }
+                    if (boardingDate && amount) { // 날짜와 금액이 모두 있는 경우에만 추가
+                        amountList.push({
+                            transportType,
+                            boardingDate,
+                            origin,
+                            destination,
+                            amount: parseFloat(amount) || 0
+                        });
+                    }
+                });
+
+                const notes = formElement.querySelector('#notes')?.value || slots.notes || '';
+                const purpose = formElement.querySelector('#purpose')?.value || slots.purpose || '';
+
+                // dayList는 탑승일 중 가장 빠른 날짜로 설정하거나, 별도 로직 적용 가능
+                const dayList = amountList.length > 0 ? [{ reqYmd: amountList[0].boardingDate, dvType: "TRANSPORTATION" }] : [];
 
                 return { 
-                    docCn: transportDetailsValue,
-                    dayList: departureDateValue ? [{ reqYmd: departureDateValue, dvType: "TRANSPORTATION" }] : [],
-                    itemList,
-                    formData // 백엔드로 바로 전송 가능한 완전한 데이터
+                    formData: {
+                        notes: notes,
+                        purpose: purpose,
+                        amountList: amountList
+                    },
+                    docCn: purpose || notes,
+                    dayList: dayList,
+                    itemList: [] // 기존 itemList는 사용하지 않으므로 빈 배열로 설정
                 };
             }
         };
@@ -1439,7 +1616,7 @@
             const formIdPattern = `${formType.replace(/\s+|\/|\(|\)|:|\./g, '' )}Form`; // 공백 및 특수문자 제거 + Form 접미사
 
             if (formType === "연차 신청서") {
-                activeFormElement = resultArea.querySelector('form#annualLeaveForm');
+                activeFormElement = resultArea.querySelector('form#annual_leave_form');
             } else if (formType === "야근식대비용 신청서") {
                 activeFormElement = resultArea.querySelector('form#dinner_expense_form'); // dinner_expense.html의 form ID
             } else if (formType === "파견 및 출장 보고서") {
@@ -1637,6 +1814,60 @@
             } finally {
                 submitBtn.disabled = false; // 성공하든 실패하든 버튼은 다시 활성화 (성공 시에는 display:none 처리됨)
             }
+        }
+
+        function displayForm(formType, slots, form_slots) {
+            console.log("displayForm 호출됨:", { formType, slots, form_slots });
+            fetch(`/ui/templates/${formType}.html?v=1.2`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`양식 템플릿 로드 실패: ${formType}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    let finalHtml = html;
+                    if (form_slots) {
+                        finalHtml = finalHtml.replace('{form_slots}', form_slots);
+                    }
+
+                    // 기존 폼 컨텐츠 제거 및 새 폼 삽입
+                    const resultArea = document.getElementById('resultArea');
+                    resultArea.innerHTML = finalHtml;
+
+                    // 폼 표시 후 필드 채우기
+                    fillFormFields(formType, slots);
+
+                    // 폼에 맞는 스크립트 실행 또는 이벤트 리스너 연결
+                    // 예: setupEventListenersForForm(formType);
+                })
+                .catch(error => {
+                    console.error(`Error loading form template: ${error}`);
+                    resultArea.innerHTML = `<p class="error-message">양식 템플릿을 로드하는데 실패했습니다: ${error.message}</p>`;
+                });
+        }
+
+        function processAndDisplayForm(userInput) {
+            // ... (loading indicator)
+
+            fetch('/form-selector', {
+                // ... (fetch options)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // ... (error handling)
+                
+                console.log("서버 응답:", data);
+                const formType = data.form_type;
+                const slots = data.slots;
+                const form_slots = data.form_slots; // 추가된 데이터
+
+                // displayForm 호출 시 form_slots 전달
+                displayForm(formType, slots, form_slots);
+            })
+            .catch(error => {
+                // ... (error handling)
+            });
         }
     </script>
 </body>

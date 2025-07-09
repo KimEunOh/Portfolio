@@ -59,6 +59,9 @@ async def form_selector_endpoint(user_input: UserInput):
             elif error_type == "UNEXPECTED_PROCESSING_ERROR":
                 raise HTTPException(status_code=500, detail=result)
 
+        # 성공적인 결과에 form_slots 추가
+        result["form_slots"] = json.dumps(result.get("slots", {}))
+
         # 성공적인 결과 반환
         return result
     except HTTPException as http_exc:

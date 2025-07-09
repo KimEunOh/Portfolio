@@ -729,49 +729,72 @@ def _convert_transportation_expense_to_payload(
 ) -> Dict[str, Any]:
     """교통비 신청서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
 
-    # 기존 Legacy API 형식과 동일한 구조 사용
-    payload = {
-        "mstPid": "4",  # API 명세에 맞게 string 형태로 수정
-        "aprvNm": form_data.get("title", "교통비 신청"),
-        "drafterId": form_data.get("drafterId", "00009"),
-        "docCn": form_data.get("purpose", "교통비 신청"),
-        "apdInfo": json.dumps(
-            {
-                "origin": form_data.get("origin", ""),
-                "destination": form_data.get("destination", ""),
-                "transport_details": form_data.get("transport_details", ""),
-                "notes": form_data.get("notes", ""),
-            },
-            ensure_ascii=False,
-        ),
-        "lineList": [],
-        "dayList": [],
-        "amountList": [],
+    purpose = form_data.get("purpose", "")
+    notes = form_data.get("notes", "")
+    amount_list = form_data.get("amountList", [])
+
+    converted_amount_list = []
+    earliest_date = None
+    first_origin = ""
+    first_destination = ""
+
+    # 영문 타입을 한글표기로 매핑
+    type_map = {
+        "subway": "지하철",
+        "bus": "버스",
+        "train": "기차",
+        "airplane": "항공",
+        "other": "기타",
     }
 
-    # amountList 구성 (교통비 정산 정보)
-    departure_date = form_data.get("departure_date", "")
-    total_amount = form_data.get("total_amount", 0)
-    transport_details = form_data.get("transport_details", "")
+    for idx, item in enumerate(amount_list):
+        transport_type = item.get("transportType", "other")
+        origin = item.get("origin", "")
+        destination = item.get("destination", "")
+        boarding_date = item.get("boardingDate", "")
+        amount = int(item.get("amount", 0))
 
-    if departure_date and total_amount:
-        payload["amountList"].append(
+        if idx == 0:
+            first_origin = origin
+            first_destination = destination
+        if boarding_date:
+            if earliest_date is None or boarding_date < earliest_date:
+                earliest_date = boarding_date
+
+        converted_amount_list.append(
             {
-                "useYmd": departure_date,
-                "dvNm": "교통비",
-                "useRsn": transport_details,
-                "amt": int(total_amount) if total_amount else 0,
-                "qnty": 1,
+                "useYmd": boarding_date,
+                "dvNm": type_map.get(transport_type, "기타"),
+                "useRsn": f"{origin} -> {destination}",
+                "amt": amount,
                 "aditInfo": json.dumps({}, ensure_ascii=False),
             }
         )
 
-    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    day_list = []  # 교통비 신청서에서는 dayList 사용하지 않음
+
+    apd_info_obj = {
+        "origin": first_origin,
+        "destination": first_destination,
+        "notes": notes,
+    }
+
+    payload = {
+        "mstPid": "4",
+        "aprvNm": form_data.get("title", "교통비 신청서"),
+        "drafterId": form_data.get("drafterId", "00009"),
+        "docCn": purpose or notes,
+        "apdInfo": json.dumps(apd_info_obj, ensure_ascii=False),
+        "lineList": [],
+        "dayList": [],
+        "amountList": converted_amount_list,
+    }
+
     if "approvers" in form_data and form_data["approvers"]:
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvPslId": approver.aprvPsId,
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }

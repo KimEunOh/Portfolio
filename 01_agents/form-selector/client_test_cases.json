@@ -4,7 +4,7 @@
     "annual_leave": [
       {
         "case_name": "연차 신청 - 기본 케이스",
-        "input": "다음 주 금요일부터 3일간 연차 신청합니다. 7월 4일부터 7월 6일까지 개인 용무로 휴가를 사용하겠습니다.",
+        "input": "다음 주 금요일부터 3일간 연차 신청합니다. ",
         "drafterId": "01240006",
         "expected_form": "annual_leave"
       },
