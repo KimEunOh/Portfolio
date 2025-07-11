@@ -1439,7 +1439,7 @@
             const formIdPattern = `${formType.replace(/\s+|\/|\(|\)|:|\./g, '' )}Form`; // 공백 및 특수문자 제거 + Form 접미사
 
             if (formType === "연차 신청서") {
-                activeFormElement = resultArea.querySelector('form#annualLeaveForm');
+                activeFormElement = resultArea.querySelector('form#annual_leave_form');
             } else if (formType === "야근식대비용 신청서") {
                 activeFormElement = resultArea.querySelector('form#dinner_expense_form'); // dinner_expense.html의 form ID
             } else if (formType === "파견 및 출장 보고서") {
