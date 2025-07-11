@@ -127,31 +127,9 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
             "amountList": [],
         }
 
-        # --- amountList 구성 (구매 품목) ---
-        items_source = []
-        if "purchase_items" in form_data and isinstance(
-            form_data["purchase_items"], list
-        ):
-            # 최신 프론트엔드에서는 purchase_items 배열을 사용
-            for p in form_data["purchase_items"]:
-                # 프론트엔드 구조를 items 구조로 맞춰 변환
-                items_source.append(
-                    {
-                        "item_name": p.get("item_name"),
-                        "item_spec": p.get("item_spec"),
-                        "item_quantity": p.get("item_quantity"),
-                        "item_unit_price": p.get("item_unit_price"),
-                        "item_total_price": p.get("item_total_price"),
-                        "item_delivery_date": p.get("item_delivery_date"),
-                        "item_supplier": p.get("item_supplier"),
-                        "item_notes": p.get("item_notes"),
-                    }
-                )
-        elif "items" in form_data and isinstance(form_data["items"], list):
-            items_source = form_data["items"]
-
-        if items_source:
-            for item in items_source:
+        # amountList 구성 (구매 품목)
+        if "items" in form_data and isinstance(form_data["items"], list):
+            for item in form_data["items"]:
                 item_name = item.get("item_name")
                 if not item_name:
                     continue
@@ -171,6 +149,39 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
                         or form_data.get("draft_date", ""),
                         "dvNm": item_name,
                         "useRsn": item.get("item_notes", ""),
+                        "qnty": (
+                            int(item_quantity) if str(item_quantity).isdigit() else 0
+                        ),
+                        "amt": (
+                            int(item_total_price)
+                            if str(item_total_price).isdigit()
+                            else 0
+                        ),
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                    }
+                )
+        else:
+            # Fallback for older format
+            for i in range(1, 4):  # 최대 3개 항목
+                item_name = form_data.get(f"item_name_{i}")
+                if not item_name:
+                    continue
+
+                item_total_price = form_data.get(f"item_total_price_{i}", 0)
+                item_quantity = form_data.get(f"item_quantity_{i}", 0)
+
+                adit_info = {
+                    "spec": form_data.get(f"item_spec_{i}", ""),
+                    "unitPrice": form_data.get(f"item_unit_price_{i}", 0),
+                    "supplier": form_data.get(f"item_supplier_{i}", ""),
+                }
+
+                payload["amountList"].append(
+                    {
+                        "useYmd": form_data.get(f"item_delivery_date_{i}")
+                        or form_data.get("draft_date", ""),
+                        "dvNm": item_name,
+                        "useRsn": form_data.get(f"item_notes_{i}", ""),
                         "qnty": (
                             int(item_quantity) if str(item_quantity).isdigit() else 0
                         ),

@@ -14,6 +14,11 @@
             <input type="text" id="title" name="title" value="{title}" class="form-control">
         </div>
 
+        <div class="form-group">
+            <label for="drafter_info">기안자 정보:</label>
+            <input type="text" id="drafter_info" name="drafter_info" readonly class="form-control" value="{drafter_name} ({draft_department})">
+            <input type="hidden" id="draft_date" name="draft_date" value="{draft_date}">
+        </div>
 
         <div class="form-group">
             <label for="usage_status">사용 현황:</label>
@@ -119,6 +124,16 @@
 
         <p><strong>* 영수증 별도 제출</strong></p>
 
+        <div id="approval_line_container">
+            <h3>결재 라인</h3>
+            <div id="approval-line" class="approval-line">
+                <!-- Approvers will be dynamically inserted here -->
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">결재요청</button>
+        </div>
     </form>
 </div>
 <script id="items-data" type="application/json">{items_json}</script>

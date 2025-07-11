@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>비품/소모품 구입내역서</title>
+    <link rel="stylesheet" href="../static/style.css">
 </head>
 <body>
 <div class="card">
@@ -14,8 +15,9 @@
         </div>
 
         <div class="form-group">
-            <label for="request_date">요청일:</label>
-            <input type="date" id="request_date" name="request_date" class="form-control" readonly>
+            <label for="drafter_info">기안자 정보:</label>
+            <input type="text" id="drafter_info" name="drafter_info" readonly class="form-control" value="{drafter_name} ({draft_department})">
+            <input type="hidden" id="request_date" name="request_date" value="{request_date}">
         </div>
 
         <h3 class="form-section-title">구입 내역</h3>
@@ -23,37 +25,37 @@
             <tbody class="item-container">
                 <!-- Item 1 -->
                 <tr>
-                    <td><strong>품명:</strong><input type="text" id="item_name_1" name="item_name_1" class="form-control"></td>
-                    <td><strong>수량:</strong><input type="number" id="item_quantity_1" name="item_quantity_1" class="form-control item-calc"></td>
-                    <td><strong>단가:</strong><input type="number" id="item_unit_price_1" name="item_unit_price_1" class="form-control item-calc"></td>
+                    <td><strong>품명:</strong><br><input type="text" id="item_name_1" name="item_name_1" class="form-control"></td>
+                    <td><strong>수량:</strong><br><input type="number" id="item_quantity_1" name="item_quantity_1" class="form-control item-calc"></td>
+                    <td><strong>단가:</strong><br><input type="number" id="item_unit_price_1" name="item_unit_price_1" class="form-control item-calc"></td>
                 </tr>
                 <tr class="item-row-divider">
-                    <td><strong>금액:</strong><input type="number" id="item_total_price_1" name="item_total_price_1" class="form-control" readonly></td>
-                    <td colspan="2"><strong>용도:</strong><input type="text" id="item_purpose_1" name="item_purpose_1" class="form-control"></td>
+                    <td><strong>금액:</strong><br><input type="number" id="item_total_price_1" name="item_total_price_1" class="form-control" readonly></td>
+                    <td colspan="2"><strong>용도:</strong><br><input type="text" id="item_purpose_1" name="item_purpose_1" class="form-control"></td>
                 </tr>
             </tbody>
             <tbody class="item-container">
                 <!-- Item 2 -->
                 <tr>
-                    <td><strong>품명:</strong><input type="text" id="item_name_2" name="item_name_2" class="form-control"></td>
-                    <td><strong>수량:</strong><input type="number" id="item_quantity_2" name="item_quantity_2" class="form-control item-calc"></td>
-                    <td><strong>단가:</strong><input type="number" id="item_unit_price_2" name="item_unit_price_2" class="form-control item-calc"></td>
+                    <td><strong>품명:</strong><br><input type="text" id="item_name_2" name="item_name_2" class="form-control"></td>
+                    <td><strong>수량:</strong><br><input type="number" id="item_quantity_2" name="item_quantity_2" class="form-control item-calc"></td>
+                    <td><strong>단가:</strong><br><input type="number" id="item_unit_price_2" name="item_unit_price_2" class="form-control item-calc"></td>
                 </tr>
                 <tr class="item-row-divider">
-                    <td><strong>금액:</strong><input type="number" id="item_total_price_2" name="item_total_price_2" class="form-control" readonly></td>
-                    <td colspan="2"><strong>용도:</strong><input type="text" id="item_purpose_2" name="item_purpose_2" class="form-control"></td>
+                    <td><strong>금액:</strong><br><input type="number" id="item_total_price_2" name="item_total_price_2" class="form-control" readonly></td>
+                    <td colspan="2"><strong>용도:</strong><br><input type="text" id="item_purpose_2" name="item_purpose_2" class="form-control"></td>
                 </tr>
             </tbody>
             <tbody class="item-container">
                 <!-- Item 3 -->
                 <tr>
-                    <td><strong>품명:</strong><input type="text" id="item_name_3" name="item_name_3" class="form-control"></td>
-                    <td><strong>수량:</strong><input type="number" id="item_quantity_3" name="item_quantity_3" class="form-control item-calc"></td>
-                    <td><strong>단가:</strong><input type="number" id="item_unit_price_3" name="item_unit_price_3" class="form-control item-calc"></td>
+                    <td><strong>품명:</strong><br><input type="text" id="item_name_3" name="item_name_3" class="form-control"></td>
+                    <td><strong>수량:</strong><br><input type="number" id="item_quantity_3" name="item_quantity_3" class="form-control item-calc"></td>
+                    <td><strong>단가:</strong><br><input type="number" id="item_unit_price_3" name="item_unit_price_3" class="form-control item-calc"></td>
                 </tr>
                 <tr class="item-row-divider">
-                    <td><strong>금액:</strong><input type="number" id="item_total_price_3" name="item_total_price_3" class="form-control" readonly></td>
-                    <td colspan="2"><strong>용도:</strong><input type="text" id="item_purpose_3" name="item_purpose_3" class="form-control"></td>
+                    <td><strong>금액:</strong><br><input type="number" id="item_total_price_3" name="item_total_price_3" class="form-control" readonly></td>
+                    <td colspan="2"><strong>용도:</strong><br><input type="text" id="item_purpose_3" name="item_purpose_3" class="form-control"></td>
                 </tr>
             </tbody>
         </table>
@@ -77,13 +79,19 @@
             <textarea id="notes" name="notes" rows="4" class="form-control">{notes}</textarea>
         </div>
 
+        <div id="approval_line_container">
+            <h3>결재 라인</h3>
+            <div id="approval-line" class="approval-line">
+                <!-- Approvers will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">결재요청</button>
+        </div>
     </form>
 </div>
 <script id="items-data" type="application/json">{items_json}</script>
 <script id="approvers-data" type="application/json">{approvers_json}</script>
-<script src="/ui/js/form-configs.js"></script>
-<script src="/ui/js/base-form-processor.js"></script>
-<script src="/ui/js/dynamic-table-handler.js"></script>
-<script src="/ui/js/inventory_scripts_v2.js"></script>
 </body>
 </html>

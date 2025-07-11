@@ -26,7 +26,6 @@ class ProcessorFactory:
         "연차 신청서": AnnualLeaveProcessor,
         "annual_leave": AnnualLeaveProcessor,
         "개인 경비 사용내역서": PersonalExpenseProcessor,
-        "개인 경비 사용 내역서": PersonalExpenseProcessor,
         "personal_expense_report": PersonalExpenseProcessor,
         "야근식대비용 신청서": DinnerExpenseProcessor,
         "dinner_expense": DinnerExpenseProcessor,

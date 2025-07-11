@@ -6,6 +6,11 @@
             <input type="text" id="title" name="title" value="{title}" class="form-control">
         </div>
 
+        <div class="form-group">
+            <label for="drafter_info">기안자 정보:</label>
+            <input type="text" id="drafter_info" name="drafter_info" readonly class="form-control" value="{drafter_name} ({draft_department})">
+            <input type="hidden" id="draft_date" name="draft_date" value="{draft_date}">
+        </div>
         
         <h3 class="form-section-title">품의 요청 항목</h3>
         
@@ -85,10 +90,12 @@
             <label for="special_notes">특이 사항:</label>
             <textarea id="special_notes" name="special_notes" class="form-control">{special_notes}</textarea>
         </div>
-
-        <div class="form-group">
-            <label for="draft_date">기안일:</label>
-            <input type="date" id="draft_date" name="draft_date" class="form-control" value="{draft_date}" readonly>
+        
+        <div id="approval_line_container">
+            <h3>결재 라인</h3>
+            <div id="approval-line" class="approval-line">
+                <!-- Approvers will be dynamically inserted here -->
+            </div>
         </div>
 
     </form>
