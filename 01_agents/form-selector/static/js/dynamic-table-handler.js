@@ -36,14 +36,14 @@
 
         addButton.addEventListener('click', () => {
             console.log(`[Debug] Add button clicked.`);
-            const lastItem = table.querySelector('tbody:last-of-type');
-            if (!lastItem) {
+            const templateItem = table.querySelector('tbody'); // 마지막 아이템 대신 첫번째 아이템을 템플릿으로 사용
+            if (!templateItem) {
                 console.error('[Debug] No item container (tbody) found to clone.');
                 return;
             }
-            console.log(`[Debug] Cloning item:`, lastItem);
+            console.log(`[Debug] Cloning item:`, templateItem);
 
-            const newItem = lastItem.cloneNode(true);
+            const newItem = templateItem.cloneNode(true);
             const newItemIndex = table.querySelectorAll('tbody').length + 1;
             console.log(`[Debug] New item index will be: ${newItemIndex}`);
 
@@ -51,8 +51,9 @@
                 const id = input.id || '';
                 const name = input.name || '';
                 
-                if (id) input.id = id.replace(/_\\d+$/, `_${newItemIndex}`);
-                if (name) input.name = name.replace(/_\\d+$/, `_${newItemIndex}`);
+                // 정규표현식 오류 수정: _\\d+ -> _\d+
+                if (id) input.id = id.replace(/_\d+$/, `_${newItemIndex}`);
+                if (name) input.name = name.replace(/_\d+$/, `_${newItemIndex}`);
 
                 if (input.tagName === 'SELECT') {
                     input.selectedIndex = 0;
