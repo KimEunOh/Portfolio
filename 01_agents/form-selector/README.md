@@ -4,13 +4,13 @@
 
 본 프로젝트는 사용자의 자연어 입력을 이해하여, 다양한 전자결재 양식 중 가장 적합한 것을 추천하고, 입력 내용에서 주요 정보를 추출하여 해당 양식에 자동으로 채워주는 시스템입니다. 이를 통해 사용자는 반복적인 문서 작성 시간을 줄이고 업무 효율성을 높일 수 있습니다.
 
-주요 기능:
-- 자연어 기반 전자결재 양식 추천
-- LLM을 활용한 정보 추출 (슬롯 필링)
-- 추출된 정보의 동적 HTML 양식 자동 완성
-- 상대적/절대적 날짜 표현 자동 변환 (예: "내일", "다음 주 월요일" -> "YYYY-MM-DD")
-- 다중 항목 입력 지원 (예: 구매 품의서의 여러 품목)
-- 양식 기반 결재자 정보 자동 조회 및 표시
+**주요 기능:**
+- **자연어 기반 양식 추천**: 사용자의 요청을 분석하여 가장 적절한 전자결재 양식을 자동으로 분류합니다.
+- **LLM 기반 정보 추출 (Slot Filling)**: 입력된 내용에서 날짜, 금액, 사유 등 주요 정보를 지능적으로 추출합니다.
+- **RAG 기반 템플릿 검색**: FAISS 벡터 DB에 저장된 HTML 템플릿 중 사용자의 요청과 가장 관련성 높은 양식을 검색하여 제공합니다.
+- **동적 템플릿 완성**: 추출된 정보를 HTML 템플릿에 동적으로 채워넣어 완성된 문서를 생성합니다.
+- **외부 API 연동**: 결재자 정보 조회, 최종 결재 상신 등 외부 시스템과 연동하여 동작합니다.
+- **상대적/절대적 날짜 표현 자동 변환** (예: "내일", "다음 주 월요일" -> "YYYY-MM-DD")
 
 ### 예시 화면
 
@@ -18,149 +18,143 @@
 
 1.  **양식 선택 및 내용 입력 UI**
     *   사용자가 자연어로 "다음 주 월요일부터 3일간 연차 쓰고 싶어요. 사유는 가족 여행입니다."와 같이 특정 업무(예: 연차 신청)를 요청하면, 시스템은 해당 요청의 의도를 파악하여 '연차 신청서' 양식을 자동으로 선택합니다. 동시에 대화 내용에서 "다음 주 월요일" (시작일), "3일간" (기간), "가족 여행" (사유) 등의 핵심 정보를 추출하여, 아래 그림과 같이 해당 양식의 각 항목을 자동으로 완성된 형태로 사용자에게 제공합니다.
-    ![양식 선택 및 내용 입력 UI](assets/스크린샷%202025-05-23%20132023.png)
+    <img src="assets/스크린샷 2025-05-23 132023.png" alt="양식 선택 및 내용 입력 UI" width="700"/>
 
 2.  **LLM 기반 양식 추천 및 슬롯 필링 결과**
     *   사용자의 요청이 특정 양식(예: 연차)에 국한되지 않고, 다양한 업무 관련 요청일 경우에도 LLM은 요청의 맥락(예: "구매")을 이해하고 키워드 기반의 RAG 검색을 통해 가장 적합한 전자결재 양식(예: '비품/소모품 구매 요청서')을 지능적으로 추천합니다. 또한, 입력된 자연어에서 "A4용지 10박스", "네임펜 20개"(구매 품목 및 수량), "연구실 사용"(사용 목적) 등의 필요한 정보를 입력한 경우에도 정확히 추출(Slot Filling)하여 해당 양식의 필드를 자동으로 채워줍니다.
-    ![LLM 기반 양식 추천 및 슬롯 필링 결과](assets/스크린샷%202025-05-23%20132503.png)
+    <img src="assets/스크린샷 2025-05-23 132503.png" alt="LLM 기반 양식 추천 및 슬롯 필링 결과" width="700"/>
 
 3.  **결재자 정보 표시**
     *   시스템에서 양식이 추천되고 내용이 채워지면, 해당 양식의 종류(예: '연차 신청서', '비품/소모품 구매 요청서')와 내부 식별자(Form ID), 그리고 기안자 정보를 기반으로, 사전에 정의된 결재 규칙 또는 외부 API 연동을 통해 결재 라인(기안자 정보, 결재자 목록, 결재 구분, 순서)이 자동으로 조회됩니다. 이 정보는 화면 상단에 명확하게 표시되어, 사용자가 해당 문서의 결재 흐름을 한눈에 파악할 수 있도록 지원합니다.
-    ![결재자 정보 표시](assets/스크린샷%202025-05-23%20132035.png)
+    <img src="assets/스크린샷 2025-05-23 132035.png" alt="결재자 정보 표시" width="700"/>
+
 
 ## 2. 기술 스택 (Tech Stack)
 
-- **백엔드:**
-    - Python 3.10+
-    - FastAPI: 고성능 웹 프레임워크
-    - LangChain: LLM 애플리케이션 개발 프레임워크
-    - Pydantic: 데이터 유효성 검사 및 설정 관리
-    - Uvicorn: ASGI 서버
-- **프론트엔드:**
-    - HTML5
-    - CSS3
-    - JavaScript (ES6+)
-- **LLM:**
-    - OpenAI GPT-4o (또는 호환 가능한 모델)
-- **벡터 스토어 (RAG):**
-    - FAISS: 유사도 검색을 위한 라이브러리
+- **Backend**: Python 3.10+, FastAPI, LangChain, Pydantic, Uvicorn
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **LLM**: OpenAI GPT-4o (또는 호환 모델)
+- **Vector Store (RAG)**: FAISS
 
-## 2.1. 시스템 아키텍처 (System Architecture)
+## 3. 시스템 아키텍처 (System Architecture)
 
 ```mermaid
 graph TD
-    A["사용자 입력 (UI/자연어)"] --> B("FastAPI: /form-selector");
-    B --> C{"양식 결정, 정보 추출 및 결재 정보 통합 (service.py)"};
+    A["사용자 입력 (UI/자연어)"] --> B[("FastAPI<br>/form-selector")];
     
-    C -- "1a. LLM 기반 양식 분류 및 키워드 추출" --> D["양식 분류 LLM (llm.py)"];
-    D -- "분류 결과, 키워드" --> C;
+    subgraph "Application Layer (service.py)"
+        B --> C{"<div style='font-weight:bold'>양식 분류 및 슬롯 추출</div><br>classify_and_extract_slots_for_template"};
+        C -- "1. 양식 분류" --> D["LLM: 양식 분류기<br>(llm.py)"];
+        D -- "분류 결과 (form_type)" --> C;
+        
+        C -- "2. RAG 기반<br>템플릿 검색" --> E["RAG: 템플릿 검색<br>(rag.py + FAISS)"];
+        E -- "HTML 템플릿" --> C;
+        
+        C -- "3. LLM 기반<br>슬롯 추출" --> F["LLM: 슬롯 추출기<br>(llm.py)"];
+        F -- "추출된 슬롯 (raw_slots)" --> C;
+        
+        C -- "4. 슬롯 처리 및<br>템플릿 채우기" --> P["<div style='font-weight:bold'>양식 프로세서</div><br>Form Processor<br>(processors)"];
+        P -- "데이터 변환" --> CV["Converter<br>(converters)"];
+        CV -- "변환된 데이터" --> P;
+        P -- "처리된 슬롯" --> C;
+    end
     
-    C -- "1b. 키워드 기반 템플릿 검색 (RAG)" --> E["HTML 템플릿 유사도 검색 (rag.py + FAISS)"];
-    E -- "유사 템플릿 후보" --> C; 
-    %% C에서 D와 E의 결과를 종합하여 최종 양식(템플릿) 결정
-
-    C -- "2. (결정된 양식 기반) 슬롯 추출 요청" --> F["슬롯 추출 LLM 체인 (llm.py)"];
-    F -- "슬롯 Pydantic 모델" --> C;
-    
-    C -- "3. 날짜/시간 등 변환" --> G["유틸리티 함수 (utils.py)"];
-    G -- "변환된 슬롯 값" --> C;
-    
-    C -- "4. 결재 정보 조회" --> C_approver{"결재 정보 조회 로직"};
-    C_approver -- "내부 로직/서비스 호출" --> S_approver["service.py 내 get_approval_info (호출)"];
-    S_approver --> C_approver;
-    C_approver -- "외부 API 직접 호출 (필요시)" --> ExtAPI["외부 결재 API"];
-    ExtAPI -- "결재 정보" --> C_approver;
-    C_approver -- "조회된 결재 정보" --> C;
-    
-    C -- "5. HTML 템플릿 채우기 및 최종 응답 생성" --> H["최종 HTML 및 데이터 통합"];
-    H --> B;
-    
-    B --> I["API 응답 (JSON: HTML, 슬롯 정보, 결재 정보 등)"];
-    I --> A;
-    
-    subgraph "리소스: LLM 설정 및 프롬프트"
-        J["프롬프트 템플릿 (prompts/)"]
-        K["양식별 설정 (form_configs.py)"]
-        LLM_Core["LLM 실행환경/공유객체 (llm.py)"]
+    subgraph "Presentation Layer"
+      B --> I["API 응답 (JSON)<br>HTML, 슬롯, 결재 정보 등"];
+      I --> A;
     end
 
-    subgraph "리소스: 데이터 저장소 및 스키마"
-        L["Pydantic 모델 (schema.py)"]
-        M["HTML 템플릿 (templates/)"]
-        N["FAISS 인덱스 (faiss_index/)"]
+    subgraph "External/Infrastructure"
+      ExtAPI["외부 결재 API"];
+      APPROVAL_SVC[("결재 정보 서비스<br>get_approval_info")];
+      APPROVAL_SVC --> ExtAPI;
     end
 
-    %% Connections to Resources
-    D -.-> J;
-    D -.-> LLM_Core;
+    subgraph "Resources"
+        Prompts["프롬프트<br>(prompts/)"];
+        Configs["양식 설정<br>(form_configs.py)"];
+        Schemas["Pydantic 스키마<br>(schema.py)"];
+        Templates["HTML 템플릿<br>(templates/)"];
+        FAISS["FAISS 인덱스<br>(faiss_index/)"];
+    end
 
-    F -.-> J;
-    F -.-> K;
-    F -.-> L; 
-    F -.-> LLM_Core;
-    
-    E -.-> M; 
-    E -.-> N;
-    
-    G -.-> LLM_Core; 
+    %% Resource Connections
+    D --> Prompts;
+    F --> Prompts;
+    F --> Schemas;
+    E --> Templates;
+    E --> FAISS;
+    C --> Configs;
+    P --> Configs;
 
-    C -.-> L; 
-    S_approver -.-> L; 
-    C_approver -.-> L; 
+    %% Approval Flow
+    subgraph "결재 라인 조회"
+        UI_APPROVER["UI 요청<br>(/approver-info)"] --> API_APPROVER[("FastAPI<br>/approver-info")];
+        API_APPROVER --> APPROVAL_SVC;
+        APPROVAL_SVC --> UI_APPROVER_RES["JSON 응답"];
+    end
 ```
 
-**결재자 정보 조회 흐름:**
+**아키텍처 흐름 설명:**
 
-- 사용자가 UI에서 특정 양식에 대한 결재 정보 조회를 요청하면 (일반적으로 양식 로드 후), UI는 기안자 ID와 양식 ID를 FastAPI 백엔드의 `/approver-info` 또는 `/myLine` 엔드포인트로 전송합니다.
-- `/approver-info`는 내부 로직이나 `service.py`의 `get_approval_info` 함수를 통해, `/myLine`은 외부 결재 시스템 API를 직접 호출하여 결재 라인 정보를 가져옵니다.
-- 조회된 결재 정보(기안자, 결재자 목록 등)는 UI로 반환되어 화면에 표시됩니다.
+1.  **입력 및 라우팅**: 사용자의 자연어 입력은 FastAPI 엔드포인트 (`/form-selector`)로 전달됩니다.
+2.  **양식 분류 (Classification)**: `service.py`의 `classify_and_extract_slots_for_template` 함수가 호출됩니다. LangChain으로 구현된 '양식 분류기'(`llm.py`)가 입력 텍스트를 분석하여 가장 적합한 양식 타입(`form_type`)을 결정합니다.
+3.  **템플릿 검색 (RAG)**: 결정된 `form_type`을 기반으로 `rag.py`가 FAISS 벡터 스토어에서 가장 유사한 HTML 템플릿을 검색합니다.
+4.  **정보 추출 (Slot Filling)**: 해당 `form_type`에 맞는 '슬롯 추출기'(`llm.py`)가 사용자 입력에서 필요한 데이터(날짜, 금액 등)를 추출하여 Pydantic 모델(`schema.py`)에 담습니다.
+5.  **데이터 처리 (Processing)**: 추출된 원본 슬롯 데이터는 `form_type`에 맞는 `Processor`(`form_selector/processors/`)로 전달됩니다. `Processor`는 내부 `Converter`(`form_selector/converters/`)를 사용하여 날짜, 숫자 등을 표준 형식으로 변환하고, 비즈니스 로직에 따라 데이터를 가공합니다.
+6.  **템플릿 완성 및 응답**: 처리된 최종 슬롯 데이터가 검색된 HTML 템플릿에 채워지고, 완성된 HTML과 함께 JSON 형식으로 클라이언트에 반환됩니다.
+7.  **결재 라인 조회**: UI에서 `/approver-info` 엔드포인트를 호출하면, `service.py`의 `get_approval_info` 함수가 외부 결재 API와 통신하여 결재자 정보를 가져와 UI에 표시합니다.
 
-## 3. 디렉토리 구조 (Directory Structure)
+## 4. 디렉토리 구조 (Directory Structure)
 
 ```
-01_agents/form-selector/
-├── .venv/                  # 가상 환경
+form-selector/
 ├── form_selector/          # 핵심 백엔드 애플리케이션 패키지
 │   ├── __init__.py
-│   ├── service.py          # 핵심 서비스 로직 (양식 분류, 슬롯 추출, 템플릿 채우기)
+│   ├── application/        # 애플리케이션 서비스 계층 (미래 확장용)
+│   ├── domain/             # 도메인 모델 및 비즈니스 로직 (미래 확장용)
+│   ├── infrastructure/     # 외부 시스템 연동 (미래 확장용)
+│   ├── presentation/       # API 엔드포인트, 요청/응답 처리 (미래 확장용)
+│   │
+│   ├── processors/         # 양식별 데이터 처리기
+│   │   ├── base_processor.py
+│   │   └── ... (각 양식별 Processor)
+│   ├── converters/         # 데이터 타입 변환기 (날짜, 필드명 등)
+│   │   ├── base_converter.py
+│   │   └── ...
+│   ├── prompts/            # LLM 프롬프트 템플릿
+│   ├── validators/         # 데이터 유효성 검증 (미래 확장용)
+│   │
+│   ├── service.py          # 핵심 서비스 로직 (양식 분류, 슬롯 추출, API 연동)
 │   ├── llm.py              # LangChain LLM 체인 구성
 │   ├── schema.py           # Pydantic 모델 (데이터 스키마 정의)
 │   ├── rag.py              # RAG 로직 (FAISS 기반 HTML 템플릿 검색)
-│   ├── utils.py            # 유틸리티 함수 (날짜 파싱 등)
-│   └── prompts/            # LLM 프롬프트 템플릿 저장 디렉토리
-│       ├── form_classifier_prompt.txt
-│       └── ... (각 양식별 슬롯 추출 프롬프트)
-├── static/                 # 정적 파일 (CSS, JavaScript, 메인 HTML)
-│   ├── css/                # CSS 파일 저장 폴더
-│   │   └── style.css
-│   ├── js/                 # JavaScript 파일 저장 폴더
-│   │   ├── purchase_approval_scripts.js
-│   │   └── ... (각 양식별 JS 파일)
-│   └── index.html          # 메인 사용자 인터페이스 HTML
-├── templates/              # 서버에서 처리되어 클라이언트로 전달될 HTML 양식 템플릿
-│   ├── purchase_approval_form.html
-│   └── ... (각 양식별 HTML 템플릿)
-├── faiss_index/            # FAISS 벡터 스토어 인덱스 저장 디렉토리
-├── main.py                 # FastAPI 앱 정의 및 API 엔드포인트 (애플리케이션 진입점)
-├── form_configs.py     # 양식별 설정 (모델, 프롬프트 경로, HTML 경로 등)
+│   ├── utils.py            # 유틸리티 함수
+│   └── form_configs.py     # 양식별 설정 (템플릿 경로, 프로세서 매핑 등)
+│
+├── static/                 # 프론트엔드 정적 파일 (HTML, CSS, JS)
+├── templates/              # HTML 양식 템플릿
+├── faiss_index/            # FAISS 벡터 스토어 인덱스
+│
+├── main.py                 # FastAPI 애플리케이션 진입점
+├── requirements.txt        # Python 의존성 목록
 ├── .env.example            # 환경 변수 예시 파일
-├── README.md               # 프로젝트 설명 문서 (현재 파일)
-└── requirements.txt        # Python 라이브러리 의존성 목록
+└── README.md               # 프로젝트 설명 문서 (현재 파일)
 ```
 
-## 4. 설치 및 실행 방법 (Setup and Run)
+## 5. 설치 및 실행 방법 (Setup and Run)
 
 1.  **저장소 복제 (Clone Repository):**
     ```bash
     git clone <repository_url>
-    cd 01_agents/form-selector
+    cd form-selector
     ```
 
 2.  **가상 환경 생성 및 활성화:**
     ```bash
     python -m venv .venv
     # Windows
-    .venv\\Scripts\\activate
+    .venv\Scripts\activate
     # macOS/Linux
     source .venv/bin/activate
     ```
@@ -171,27 +165,25 @@ graph TD
     ```
 
 4.  **환경 변수 설정:**
-    -   `.env.example` 파일을 복사하여 `.env` 파일을 생성합니다.
-        ```bash
-        cp .env.example .env
-        ```
-    -   `.env` 파일을 열어 실제 OpenAI API 키 등 필요한 환경 변수를 설정합니다.
-        ```
-        OPENAI_API_KEY="sk-your_openai_api_key_here"
-        # 기타 필요한 환경 변수들...
-        ```
+    `.env.example` 파일을 복사하여 `.env` 파일을 생성하고, 실제 OpenAI API 키 등 필요한 환경 변수를 설정합니다.
+    ```bash
+    cp .env.example .env
+    ```
+    ```env
+    # .env
+    OPENAI_API_KEY="sk-your_openai_api_key_here"
+    APPROVAL_API_BASE_URL="https://your-approval-api/api/v1"
+    ```
 
 5.  **애플리케이션 실행:**
-    FastAPI 애플리케이션은 프로젝트 루트 디렉토리의 `main.py` 파일에서 실행합니다.
-    프로젝트 루트 디렉토리(`01_agents/form-selector/`)에서 다음 명령어를 실행합니다.
     ```bash
     uvicorn main:app --reload --port 8000
     ```
-    -   `--reload`: 코드 변경 시 서버 자동 재시작
-    -   `--port 8000`: 8000번 포트 사용 (필요시 변경 가능)
 
 6.  **애플리케이션 접속:**
-    웹 브라우저에서 `http://127.0.0.1:8000` 로 접속합니다.
+    웹 브라우저에서 `http://127.0.0.1:8000/ui/login.html` 로 접속합니다.
+
+
 
 ## 5. 주요 기능 상세 설명 (Features)
 
@@ -237,20 +229,14 @@ graph TD
     -   LLM이 양식 분류에 실패하거나 슬롯 추출에 실패(파싱 오류 등)하는 경우, 사용자에게 적절한 안내 메시지를 포함한 JSON 응답을 반환합니다.
     -   요청된 양식의 HTML 템플릿을 찾을 수 없는 경우에도 오류를 반환합니다.
 
+
+
+
 ## 6. 향후 개선 방향 (Future Work)
 
--   **코드 모듈성 강화:** 각 기능별 책임 분리 및 코드 가독성 향상
--   **UI/UX 개선:** 사용자 편의성 증대 및 시각적 디자인 개선
--   **추가 양식 지원 확대:** 다양한 종류의 전자결재 양식 추가
--   **테스트 코드 작성:** 단위 테스트 및 통합 테스트를 통한 안정성 확보
--   **사용자 인증/인가 기능 추가:** (필요시)
--   **데이터베이스 연동:** (필요시) 신청 내역 저장 및 관리 기능
--   **결재 라인 자동 완성 및 선택:** 결재 라인 자동 완성 및 선택 기능 추가
-
-## 7. 새로운 양식 추가 방법 (Adding New Forms)
-
-새로운 전자결재 양식을 시스템에 통합하는 방법에 대한 자세한 안내는 `NEW_FORM_INTEGRATION_MANUAL.md` 파일을 참고하십시오. 이 문서는 HTML 템플릿 준비, Pydantic 모델 정의, 슬롯 추출 프롬프트 생성, 양식 설정 파일 업데이트, RAG 인덱스 업데이트 및 테스트 등 새로운 양식을 추가하는 데 필요한 단계별 지침을 제공합니다.
-
----
-
-*이 README 문서는 프로젝트 진행 상황에 따라 지속적으로 업데이트될 예정입니다.* 
+-   **테스트 코드 작성**: 단위/통합 테스트를 통해 코드 안정성 및 신뢰성 확보
+-   **사용자 인증/인가**: OAuth2 등을 이용한 보안 강화
+-   **DB 연동**: 신청 내역 저장, 이력 관리 기능 추가
+-   **비동기 처리 개선**: 외부 API 호출 등 I/O 바운드 작업을 Celery와 같은 태스크 큐로 분리하여 응답 성능 향상
+-   **CI/CD 파이프라인 구축**: 테스트 및 배포 자동화
+-   **모니터링 및 로깅 강화**: ELK 스택 또는 유사 솔루션을 도입하여 운영 가시성 확보 
