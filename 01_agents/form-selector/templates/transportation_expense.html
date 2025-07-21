@@ -16,23 +16,37 @@
         </div>
 
         <div class="form-group">
-            <label for="origin">출발지:</label>
-            <input type="text" id="origin" name="origin" class="form-control" value="{origin}">
-        </div>
-
-        <div class="form-group">
-            <label for="destination">목적지:</label>
-            <input type="text" id="destination" name="destination" class="form-control" value="{destination}">
-        </div>
-
-        <div class="form-group">
             <label for="purpose">목적 (용무):</label>
             <input type="text" id="purpose" name="purpose" class="form-control" value="{purpose}">
         </div>
 
-        <div class="form-group">
-            <label for="transport_details">교통 내역 상세:</label>
-            <textarea id="transport_details" name="transport_details" rows="4" placeholder="예: 지하철 (강남역 -> 시청역) 1,450원, 택시 (시청역 -> 본사) 5,800원" class="form-control">{transport_details}</textarea>
+        <h3 class="form-section-title">교통 내역 상세</h3>
+        <table id="transportation_table" class="item-container-table">
+            <tbody class="item-container">
+                <tr>
+                    <td>
+                        <strong>교통수단:</strong><br>
+                        <select id="transport_type_1" name="transport_type_1" class="form-control">
+                            <option value="">선택</option>
+                            <option value="지하철">지하철</option>
+                            <option value="버스">버스</option>
+                            <option value="기차">기차</option>
+                            <option value="비행기">비행기</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </td>
+                    <td><strong>출발지:</strong><br><input type="text" id="origin_1" name="origin_1" class="form-control"></td>
+                    <td><strong>목적지:</strong><br><input type="text" id="destination_1" name="destination_1" class="form-control"></td>
+                </tr>
+                <tr class="item-row-divider">
+                    <td><strong>금액 (원):</strong><br><input type="number" id="amount_1" name="amount_1" class="form-control item-calc"></td>
+                    <td colspan="2"><strong>비고:</strong><br><input type="text" id="notes_1" name="notes_1" class="form-control"></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="table-actions">
+            <button type="button" id="add_row_btn" class="btn-add">+</button>
+            <button type="button" id="remove_row_btn" class="btn-remove">-</button>
         </div>
 
         <div class="form-group">
@@ -47,4 +61,7 @@
 
     </form>
 </div>
+<script id="items-data" type="application/json">{items_json}</script>
 <script id="approvers-data" type="application/json">{approvers_json}</script>
+<script src="../static/js/dynamic-table-handler.js"></script>
+<script src="../static/js/transportation_expense_scripts_v2.js"></script>

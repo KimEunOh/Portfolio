@@ -95,24 +95,37 @@ class DinnerExpenseSlots(BaseModel):
     )
 
 
+class TransportationExpenseItem(BaseModel):
+    """교통비 신청서의 개별 교통 내역 항목"""
+
+    transport_type: Optional[str] = Field(
+        None, description='교통수단 (예: "지하철", "버스", "기차", "비행기", "기타")'
+    )
+    origin: Optional[str] = Field(None, description='출발지 (예: "본사", "서울역")')
+    destination: Optional[str] = Field(
+        None, description='목적지 (예: "강남 거래처", "부산역")'
+    )
+    amount: Optional[int] = Field(None, description="해당 교통편의 금액 (숫자)")
+    notes: Optional[str] = Field(None, description="개별 항목에 대한 비고")
+
+
 class TransportationExpenseSlots(BaseModel):
     """교통비 신청서 슬롯"""
 
-    title: Optional[str] = Field(default=None, description="문서 제목")
     departure_date: Optional[str] = Field(
-        default=None,
-        description="출발일 또는 사용일 (자연어 입력 가능)",
+        None, description='출발일 또는 사용일 (자연어 표현, 예: "어제")'
     )
-    # arrival_date: Optional[str] = Field(default=None, description="도착일 (YYYY-MM-DD 형식, 자연어 입력 가능)") # 필요시 추가
-    origin: Optional[str] = Field(default=None, description="출발지")
-    destination: Optional[str] = Field(default=None, description="목적지")
-    purpose: Optional[str] = Field(default=None, description="목적 또는 용무")
-    transport_details: Optional[str] = Field(
-        default=None,
-        description="교통 내역 상세 (예: 지하철 (강남역 -> 시청역) 1,450원)",
+    purpose: Optional[str] = Field(
+        None, description="목적 또는 용무 (예: '거래처 미팅')"
     )
-    total_amount: Optional[int] = Field(default=None, description="총 금액 (숫자)")
-    notes: Optional[str] = Field(default=None, description="기타 보고 사항 또는 비고")
+    total_amount: Optional[int] = Field(
+        None,
+        description="총 금액 (숫자). 사용자가 명시적으로 언급할 때만 추출, 그렇지 않으면 null",
+    )
+    notes: Optional[str] = Field(None, description="기타 보고 사항 (비고)")
+    items: Optional[List[TransportationExpenseItem]] = Field(
+        None, description="교통 내역 리스트"
+    )
 
 
 class DispatchBusinessTripReportSlots(BaseModel):

@@ -24,10 +24,6 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         """교통비 전처리"""
         processed_slots = slots.copy()
 
-        # 기본값 설정
-        if "title" not in processed_slots or not processed_slots["title"]:
-            processed_slots["title"] = "교통비 신청"
-
         # total_amount 키 보존 - BaseFormProcessor의 None 필터링으로 키가 제거된 경우에도 처리
         if "total_amount" not in processed_slots:
             # None 값으로 인해 키가 제거된 경우
@@ -51,9 +47,27 @@ class TransportationExpenseProcessor(BaseFormProcessor):
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """
-        교통비는 아이템 리스트가 없으므로 기본 처리만 수행
+        교통비 아이템 리스트의 각 항목을 처리합니다.
+        - 각 아이템의 'amount'를 정수로 변환합니다.
+        - 'items' 키가 없거나 비어있으면 빈 리스트를 추가합니다.
         """
-        return slots.copy()
+        converted_slots = slots.copy()
+        items = converted_slots.get("items", [])
+
+        if not items:
+            converted_slots["items"] = []
+            return converted_slots
+
+        processed_items = []
+        for item in items:
+            processed_item = item.copy()
+            processed_item["amount"] = self._convert_amount_to_int(
+                processed_item.get("amount")
+            )
+            processed_items.append(processed_item)
+
+        converted_slots["items"] = processed_items
+        return converted_slots
 
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
@@ -73,6 +87,13 @@ class TransportationExpenseProcessor(BaseFormProcessor):
             converted_slots.get("total_amount")
         )
 
+        # 'items'가 있으면 각 아이템의 금액 합계를 total_amount로 재계산
+        if "items" in converted_slots and converted_slots["items"]:
+            total_from_items = sum(
+                item.get("amount", 0) for item in converted_slots["items"]
+            )
+            converted_slots["total_amount"] = total_from_items
+
         return converted_slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
@@ -83,12 +104,9 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         if "purpose" not in processed_slots or not processed_slots["purpose"]:
             processed_slots["purpose"] = "업무 관련 교통비"
 
-        # 출발지/목적지 기본값
-        if "origin" not in processed_slots or not processed_slots["origin"]:
-            processed_slots["origin"] = ""
-
-        if "destination" not in processed_slots or not processed_slots["destination"]:
-            processed_slots["destination"] = ""
+        # items가 없을 경우 빈 리스트로 초기화
+        if "items" not in processed_slots:
+            processed_slots["items"] = []
 
         return processed_slots
 
@@ -133,13 +151,17 @@ class TransportationExpenseProcessor(BaseFormProcessor):
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """교통비 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
 
+        # purpose 필드가 비어있으면 기본 제목 설정
+        doc_title = form_data.get("purpose") or "교통비 신청"
+
         payload = {
             "mstPid": "4",
-            "aprvNm": form_data.get("title", "교통비 신청"),
+            "aprvNm": doc_title,
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "교통비 신청"),
             "apdInfo": json.dumps(
                 {
+                    "items": form_data.get("items", []),
                     "notes": form_data.get("notes", ""),
                 },
                 ensure_ascii=False,
@@ -149,24 +171,34 @@ class TransportationExpenseProcessor(BaseFormProcessor):
             "amountList": [],
         }
 
-        # amountList 구성 (비용 정산 정보)
+        # amountList 구성: 각 교통 내역 아이템을 별도의 항목으로 추가
         departure_date = form_data.get("departure_date", "")
-        total_amount = form_data.get("total_amount", 0)
+        items = form_data.get("items", [])
+        purpose = form_data.get("purpose", "")
 
-        if departure_date and total_amount:
-            adit_info = {
-                "origin": form_data.get("origin", ""),
-                "destination": form_data.get("destination", ""),
-                "transport_details": form_data.get("transport_details", ""),
-            }
+        for item in items:
+            # useRsn: 목적(용무)를 기본으로, 아이템별 비고가 있으면 함께 표시
+            reason_parts = [purpose]
+            if item.get("notes"):
+                reason_parts.append(item["notes"])
+            use_reason = " - ".join(filter(None, reason_parts))
+
+            # dvNm: 교통수단을 기본으로, 출발지/목적지 정보 추가
+            dvnm_parts = [item.get("transport_type", "기타")]
+            if item.get("origin") or item.get("destination"):
+                dvnm_parts.append(
+                    f"({item.get('origin', '')} → {item.get('destination', '')})"
+                )
+            dv_name = " ".join(filter(None, dvnm_parts))
+
             payload["amountList"].append(
                 {
                     "useYmd": departure_date,
-                    "dvNm": "교통비",
-                    "useRsn": form_data.get("purpose", ""),
+                    "dvNm": dv_name,
+                    "useRsn": use_reason,
                     "qnty": 1,
-                    "amt": int(total_amount) if str(total_amount).isdigit() else 0,
-                    "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                    "amt": item.get("amount", 0),
+                    "aditInfo": json.dumps(item, ensure_ascii=False),
                 }
             )
 
