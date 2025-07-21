@@ -1033,21 +1033,24 @@
                 // 개별 필드에서 구입 내역 수집 (최대 6개)
                 for (let i = 1; i <= 6; i++) {
                     const itemName = getElementValueOrSlotFunc(activeForm, `item_name_${i}`, `item_name_${i}`, slots);
+                    
+                    // 품명이 없는 항목은 건너뜁니다.
+                    if (!itemName || itemName.trim() === '' || itemName.startsWith('SLOT_NOT_FOUND')) {
+                        continue;
+                    }
+
                     const itemQuantity = getElementValueOrSlotFunc(activeForm, `item_quantity_${i}`, `item_quantity_${i}`, slots);
                     const itemUnitPrice = getElementValueOrSlotFunc(activeForm, `item_unit_price_${i}`, `item_unit_price_${i}`, slots);
                     const itemTotalPrice = getElementValueOrSlotFunc(activeForm, `item_total_price_${i}`, `item_total_price_${i}`, slots);
                     const itemPurpose = getElementValueOrSlotFunc(activeForm, `item_purpose_${i}`, `item_purpose_${i}`, slots);
                     
-                    // 필수 필드가 있는 경우만 추가
-                    if (itemName) {
-                        items.push({
-                            item_name: itemName,
-                            item_quantity: parseFloat(itemQuantity) || 0,
-                            item_unit_price: parseFloat(itemUnitPrice) || 0,
-                            item_total_price: parseFloat(itemTotalPrice) || 0,
-                            item_purpose: itemPurpose || ""
-                        });
-                    }
+                    items.push({
+                        item_name: itemName,
+                        item_quantity: parseFloat(itemQuantity) || 0,
+                        item_unit_price: parseFloat(itemUnitPrice) || 0,
+                        item_total_price: parseFloat(itemTotalPrice) || 0,
+                        item_purpose: itemPurpose || ""
+                    });
                 }
 
                 if (items.length === 0) {

@@ -40,7 +40,19 @@
              * 추가 초기화 - 비품 특화 기능
              */
             onAfterInit() {
+                this.setupRequestDate();
                 this.setupInventorySpecificFeatures();
+            }
+
+            /**
+             * 요청일 자동 설정
+             */
+            setupRequestDate() {
+                const requestDateInput = this.form.querySelector('#request_date');
+                if (requestDateInput && !requestDateInput.value) {
+                    requestDateInput.value = new Date().toISOString().split('T')[0];
+                    console.log('[InventoryProcessor] Request date set to today');
+                }
             }
 
             /**
