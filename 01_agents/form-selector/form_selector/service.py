@@ -1213,11 +1213,10 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
         "mstPid": "9",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "법인 카드 사용 내역서"),
         "drafterId": form_data.get("drafterId", "00009"),
-        "docCn": form_data.get("expense_reason", "법인카드 사용 정산"),
+        "docCn": form_data.get("expense_reason", "법인카드 사용 내역서"),
         "apdInfo": json.dumps(
             {
                 "card_number": form_data.get("card_number", ""),
-                "card_user_name": form_data.get("card_user_name", ""),
                 "expense_reason": form_data.get("expense_reason", ""),
                 "statement_date": form_data.get("statement_date", ""),
                 "payment_account": form_data.get("payment_account", ""),

@@ -279,26 +279,15 @@ class CardUsageItem(BaseModel):
 
 
 class CorporateCardStatementSlots(BaseModel):
-    """법인카드 지출내역서 필드"""
+    """법인카드 사용 내역서의 슬롯 정보 모델"""
 
-    title: Optional[str] = Field(default="법인카드 지출내역", description="문서 제목")
-    draft_date: Optional[str] = Field(None, description="기안일 (자연어 날짜)")
-    card_number: Optional[str] = Field(
-        None, description="카드번호 (예: 1234-56**-****-7890)"
-    )
-
-    card_user_name: Optional[str] = Field(None, description="카드 사용자 성명")
+    card_number: Optional[str] = Field(None, description="카드번호")
+    statement_date: Optional[str] = Field(None, description="명세서 기준일")
+    total_amount_header: Optional[int] = Field(None, description="문서 상단 총 금액")
     expense_reason: Optional[str] = Field(None, description="지출 사유")
-    statement_date: Optional[str] = Field(
-        None, description="명세서 기준일 (자연어 날짜)"
+    card_usage_items: List[CardUsageItem] = Field(
+        default_factory=list, description="법인카드 사용 내역 리스트"
     )
-    card_usage_items: Optional[List[CardUsageItem]] = Field(
-        None, description="카드 사용 내역 리스트"
-    )
-    total_usage_amount: Optional[int] = Field(
-        None, description="총 사용 합계 금액 (숫자, 모든 품목 금액의 합 또는 직접 추출)"
-    )
-    payment_account: Optional[str] = Field(None, description="지급 계좌 정보")
 
 
 # 슬롯 추출 결과

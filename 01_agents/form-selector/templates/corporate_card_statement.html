@@ -11,30 +11,22 @@
     <form id="corporate_card_form">
 
 
-        <div class="form-group">
-            <label for="card_number">카드번호:</label>
-            <input type="text" id="card_number" name="card_number" placeholder="예: 1234-56**-****-7890" class="form-control" value="{card_number}">
-        </div>
-        
-        <div class="form-group">
-            <label for="statement_date">사용 일자:</label>
-            <input type="date" id="statement_date" name="statement_date" class="form-control" value="{statement_date}">
-        </div>
-
-        <div class="form-group">
-            <label for="total_amount_header">총 금액:</label>
-            <input type="text" id="total_amount_header" name="total_amount_header" readonly class="form-control" value="{total_amount}">
-        </div>
-
-        <div class="form-group">
-            <label for="expense_reason">지출 사유:</label>
-            <textarea id="expense_reason" name="expense_reason" rows="4" class="form-control">{expense_reason}</textarea>
-        </div>
-        
-        <div class="form-group">
-            <label for="card_user_name">카드 사용자 성명:</label>
-            <input type="text" id="card_user_name" name="card_user_name" class="form-control" value="{card_user_name}">
-        </div>
+        <div class="form-row">
+                <div class="form-group">
+                    <label for="card_number">카드번호</label>
+                    <input type="text" id="card_number" name="card_number" value="{{ card_number }}">
+                </div>
+                <div class="form-group">
+                    <label for="statement_date">작성 일자</label>
+                    <input type="date" id="statement_date" name="statement_date" value="{{ statement_date }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label for="expense_reason">지출 사유</label>
+                    <input type="text" id="expense_reason" name="expense_reason" value="{{ expense_reason }}">
+                </div>
+            </div>
         
         <h3 class="form-section-title">법인카드 사용 내역</h3>
         <table id="corporate_card_table" class="item-container-table">
@@ -127,5 +119,23 @@
 </div>
 <script id="items-data" type="application/json">{items_json}</script>
 <script id="approvers-data" type="application/json">{approvers_json}</script>
+<script>
+    // 총계 업데이트
+    updateTotals();
+</script>
+<script>
+    // 페이지 로드 시 오늘 날짜로 자동 설정
+    document.addEventListener('DOMContentLoaded', function() {
+        const statementDateInput = document.getElementById('statement_date');
+        if (!statementDateInput.value) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            statementDateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+    });
+
+</script>
 </body>
 </html>

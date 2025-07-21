@@ -4,6 +4,8 @@ from typing import Dict, Any, List
 from .base_processor import BaseFormProcessor
 import logging
 import json
+from datetime import datetime
+from ..utils import parse_past_date_to_iso
 
 
 class CorporateCardProcessor(BaseFormProcessor):
@@ -93,15 +95,19 @@ class CorporateCardProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """법인카드 아이템 날짜 변환"""
+        """법인카드 아이템 날짜 변환 (과거 날짜 우선)"""
         if "card_usage_items" not in slots or not isinstance(
             slots["card_usage_items"], list
         ):
             return slots
 
-        return self.item_converter.convert_card_usage_item_dates(
-            slots, current_date_iso
-        )
+        for item in slots["card_usage_items"]:
+            if "usage_date" in item and item["usage_date"]:
+                item["usage_date"] = parse_past_date_to_iso(
+                    item["usage_date"], current_date_iso
+                )
+
+        return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """사용 내역 처리: card_usage_items 배열을 HTML 필드로 분해하고 총액 계산"""
@@ -167,21 +173,53 @@ class CorporateCardProcessor(BaseFormProcessor):
         return slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """후처리: 빈 필드 기본값 설정"""
+        """후처리: 빈 필드 기본값 설정 및 지출 사유 자동 생성"""
         processed = slots.copy()
 
         # 기본값 설정
         if not processed.get("card_number"):
             processed["card_number"] = ""
 
-        if not processed.get("card_user_name"):
-            processed["card_user_name"] = ""
-
-        if not processed.get("expense_reason"):
-            processed["expense_reason"] = ""
-
         if not processed.get("statement_date"):
-            processed["statement_date"] = ""
+            processed["statement_date"] = datetime.now().date().isoformat()
+
+        # 지출 사유 자동 생성
+        if (
+            not processed.get("expense_reason")
+            and "card_usage_items" in processed
+            and processed["card_usage_items"]
+        ):
+            categories = [
+                item.get("usage_category") for item in processed["card_usage_items"]
+            ]
+
+            # 카테고리 이름 한글 매핑 (중복 제거)
+            category_names_kr = {
+                "meals": "식대",
+                "traffic_transport": "교통비",
+                "supplies": "사무용품비",
+                "entertainment": "접대비",
+                "utility": "공과금",
+                "welfare": "복리후생비",
+                "education": "교육훈련비",
+                "other": "기타 경비",
+            }
+
+            unique_kr_categories = set()
+            for cat in categories:
+                mapped_cat = self.convert_category(cat)  # 영어 카테고리로 표준화
+                if mapped_cat in category_names_kr:
+                    unique_kr_categories.add(category_names_kr[mapped_cat])
+
+            if unique_kr_categories:
+                processed["expense_reason"] = (
+                    ", ".join(unique_kr_categories) + " 등 사용"
+                )
+            else:
+                processed["expense_reason"] = "법인카드 사용 내역"
+
+        elif not processed.get("expense_reason"):
+            processed["expense_reason"] = "법인카드 사용 내역"
 
         return processed
 
@@ -189,17 +227,20 @@ class CorporateCardProcessor(BaseFormProcessor):
         """법인카드 지출내역서 폼 데이터를 API Payload로 변환"""
         logging.info("CorporateCardProcessor: Converting form data to API payload")
 
+        # '작성 일자'가 statement_date로 넘어오므로 이를 사용
+        doc_cn_reason = form_data.get("expense_reason", "법인카드 사용 내역서")
+
         payload = {
             "mstPid": "9",
             "aprvNm": form_data.get("title", "법인카드 사용 내역서"),
             "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("purpose", "법인카드 사용 내역서"),
+            "docCn": doc_cn_reason,
             "apdInfo": json.dumps(
                 {
                     "card_number": form_data.get("card_number", ""),
-                    "card_user_name": form_data.get("card_user_name", ""),
+                    "expense_reason": doc_cn_reason,
                     "statement_date": form_data.get("statement_date", ""),
-                    "total_amount": form_data.get("total_usage_amount", 0),
+                    "total_amount": int(form_data.get("total_usage_amount", 0) or 0),
                 },
                 ensure_ascii=False,
             ),
@@ -214,7 +255,8 @@ class CorporateCardProcessor(BaseFormProcessor):
         ):
             for item in form_data["card_usage_items"]:
                 usage_date = item.get("usage_date")
-                if not usage_date:
+                # 유효하지 않은 항목은 건너뛰기
+                if not usage_date or "SLOT_NOT_FOUND" in usage_date:
                     continue
 
                 usage_amount = item.get("usage_amount", 0)
@@ -239,7 +281,8 @@ class CorporateCardProcessor(BaseFormProcessor):
             # Fallback for older format
             for i in range(1, 7):  # 최대 6개 항목
                 usage_date = form_data.get(f"usage_date_{i}")
-                if not usage_date:
+                # 유효하지 않은 항목은 건너뛰기
+                if not usage_date or "SLOT_NOT_FOUND" in usage_date:
                     continue
 
                 usage_amount = form_data.get(f"usage_amount_{i}", 0)

@@ -470,6 +470,57 @@ def parse_relative_date_to_iso(
     return original_date_str
 
 
+def parse_past_date_to_iso(
+    date_str: str, current_date_iso: Optional[str] = None
+) -> str:
+    """
+    과거의 지출 내역을 처리하기 위해, 연도가 명시되지 않은 날짜를
+    현재 또는 과거의 날짜로 해석하여 YYYY-MM-DD 형식으로 변환합니다.
+    (예: 기준일이 2025-07-15일 때 '8월 1일' -> 2024-08-01, '6월 1일' -> 2025-06-01)
+    """
+    if not isinstance(date_str, str):
+        return date_str
+
+    if current_date_iso:
+        today = datetime.strptime(current_date_iso, "%Y-%m-%d").date()
+    else:
+        today = datetime.now().date()
+
+    # 기존 parse_relative_date_to_iso 함수를 호출하여 기본적인 상대 날짜 처리
+    # (오늘, 어제, 다음주 등) -> 이 경우는 미래 날짜가 올 수 있음
+    # 하지만 '다음' 키워드가 없는 '월요일' 등은 미래로 해석될 수 있음
+    # "지난 주" 등은 과거로 처리됨
+    pre_parsed = parse_relative_date_to_iso(date_str, current_date_iso)
+    if pre_parsed != date_str:  # 성공적으로 파싱되었다면 그 결과를 존중
+        # 단, '월요일'처럼 미래로 해석될 수 있는 단순 요일 입력은 재고려 필요
+        # 그러나 법인카드 내역은 보통 '지난 주 월요일'처럼 명확한 과거 시점을 명시할 가능성이 높음
+        # 일단은 기존 파서의 결과를 신뢰
+        return pre_parsed
+
+    # 'MM월 DD일' 또는 'MM-DD' 같은 형식에 대한 특별 처리
+    # 정규표현식으로 월-일 추출
+    match = re.search(r"(\d{1,2})[월/-]\s*(\d{1,2})", date_str)
+    if match:
+        month = int(match.group(1))
+        day = int(match.group(2))
+
+        # 월, 일이 현재 날짜보다 미래인지 확인
+        try:
+            this_year_date = datetime(today.year, month, day).date()
+            if this_year_date > today:  # 올해의 해당 날짜가 오늘보다 미래라면
+                year = today.year - 1  # 작년으로 처리
+            else:
+                year = today.year  # 올해로 처리
+
+            result_date = datetime(year, month, day).date()
+            return result_date.isoformat()
+        except ValueError:  # 존재하지 않는 날짜 (예: 2월 30일)
+            return date_str  # 파싱 실패 시 원본 반환
+
+    # 다른 모든 경우는 parse_relative_date_to_iso의 결과에 맡김
+    return parse_relative_date_to_iso(date_str, current_date_iso)
+
+
 def parse_datetime_description_to_iso_local(
     datetime_str: str, current_date_iso: Optional[str] = None
 ) -> Optional[str]:
