@@ -128,8 +128,16 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         }
 
         # amountList 구성 (구매 품목)
-        if "items" in form_data and isinstance(form_data["items"], list):
-            for item in form_data["items"]:
+        items_to_process = []
+        if "purchase_items" in form_data and isinstance(
+            form_data["purchase_items"], list
+        ):
+            items_to_process = form_data["purchase_items"]
+        elif "items" in form_data and isinstance(form_data["items"], list):
+            items_to_process = form_data["items"]
+
+        if items_to_process:
+            for item in items_to_process:
                 item_name = item.get("item_name")
                 if not item_name:
                     continue

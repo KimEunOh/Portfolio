@@ -958,17 +958,30 @@ def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str,
 def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any]:
     """구매 품의서 폼 데이터를 API Payload로 변환 (API_명세.md 기준)"""
 
+    # --- 추가된 수정 사항 ---
+    # 1. draft_date가 유효하지 않은 경우, purchase_items의 item_delivery_date를 사용
+    draft_date = form_data.get("draft_date")
+    if not draft_date or "SLOT_NOT_FOUND" in draft_date:
+        if form_data.get("purchase_items") and form_data["purchase_items"][0].get(
+            "item_delivery_date"
+        ):
+            draft_date = form_data["purchase_items"][0]["item_delivery_date"]
+        else:
+            draft_date = ""  # 그래도 없으면 빈 문자열로 초기화
+    # -----------------------
+
     # API_명세.md에 따른 표준 구조
     payload = {
         "mstPid": "7",  # API 명세에 맞게 string 형태로 수정
         "aprvNm": form_data.get("title", "구매 품의서"),
         "drafterId": form_data.get("drafterId", "00009"),
-        "docCn": form_data.get("special_notes", "구매 품의 요청"),
+        "docCn": form_data.get("special_notes")
+        or form_data.get("title", "구매 품의 요청"),
         "apdInfo": json.dumps(
             {
                 "draft_department": form_data.get("draft_department", ""),
                 "drafter_name": form_data.get("drafter_name", ""),
-                "draft_date": form_data.get("draft_date", ""),
+                "draft_date": draft_date,  # 수정된 draft_date 사용
                 "total_purchase_amount": form_data.get("total_purchase_amount", 0),
                 "payment_terms": form_data.get("payment_terms", ""),
                 "delivery_location": form_data.get("delivery_location", ""),
@@ -987,26 +1000,15 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
     # amountList 구성 (구매 품목 정보) - 세 가지 경로 지원
     items_to_process = []
 
+    # --- 추가된 수정 사항 ---
+    # 0. JavaScript processor에서 수집된 purchase_items 배열을 최우선으로 사용
+    if "purchase_items" in form_data and form_data["purchase_items"]:
+        items_to_process = form_data["purchase_items"]
+    # -----------------------
     # 1. 1단계에서 추출된 items 배열 사용
-    if "items" in form_data and form_data["items"]:
+    elif "items" in form_data and form_data["items"]:
         items_to_process = form_data["items"]
-    # 2. JavaScript processor에서 수집된 purchase_items 배열 사용
-    elif "purchase_items" in form_data and form_data["purchase_items"]:
-        # purchase_items를 items 형식으로 변환
-        for item in form_data["purchase_items"]:
-            items_to_process.append(
-                {
-                    "item_name": item.get("item_name", ""),
-                    "item_spec": item.get("item_spec", ""),
-                    "item_quantity": item.get("item_quantity", ""),
-                    "item_unit_price": item.get("item_unit_price", ""),
-                    "item_total_price": item.get("item_total_price", ""),
-                    "item_delivery_request_date": item.get("item_delivery_date", ""),
-                    "item_supplier": item.get("item_supplier", ""),
-                    "item_purpose": item.get("item_notes", ""),
-                }
-            )
-    # 3. 2단계에서 수집된 개별 HTML 필드들 처리
+    # 2. 2단계에서 수집된 개별 HTML 필드들 처리
     else:
         for i in range(1, 4):  # 최대 3개 항목
             item_name = form_data.get(f"item_name_{i}")
@@ -1019,30 +1021,30 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
                         "item_quantity": form_data.get(f"item_quantity_{i}", ""),
                         "item_unit_price": form_data.get(f"item_unit_price_{i}", ""),
                         "item_total_price": item_total_price,
-                        "item_delivery_request_date": form_data.get(
+                        "item_delivery_date": form_data.get(
                             f"item_delivery_date_{i}", ""
                         ),
                         "item_supplier": form_data.get(f"item_supplier_{i}", ""),
-                        "item_purpose": form_data.get(f"item_notes_{i}", ""),
+                        "item_notes": form_data.get(f"item_notes_{i}", ""),
                     }
                 )
 
     for item in items_to_process:
         # 납기요청일이 없으면 기안일 사용
         use_date = (
-            item.get("item_delivery_request_date")
-            or item.get("item_delivery_date")
-            or form_data.get("draft_date", "")
+            item.get("item_delivery_date")  # js processor에서 오는 키
+            or item.get("item_delivery_request_date")  # llm 슬롯에서 오는 키
+            or draft_date  # 수정된 draft_date 사용
         )
 
         # dvNm 필드에 주요거래처 + 품명 + 규격/사양을 조합
         dvNm_parts = []
         if item.get("item_supplier"):
-            dvNm_parts.append(item["item_supplier"])
+            dvNm_parts.append(str(item["item_supplier"]))
         if item.get("item_name"):
-            dvNm_parts.append(item["item_name"])
+            dvNm_parts.append(str(item["item_name"]))
         if item.get("item_spec"):
-            dvNm_parts.append(item["item_spec"])
+            dvNm_parts.append(str(item["item_spec"]))
 
         dvNm_combined = " - ".join(filter(None, dvNm_parts))
 
@@ -1055,15 +1057,16 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
             "unit": "개",
             "item_spec": item.get("item_spec", ""),
             "item_supplier": item.get("item_supplier", ""),
-            "item_delivery_request_date": item.get("item_delivery_request_date")
-            or item.get("item_delivery_date"),
+            "item_delivery_request_date": item.get("item_delivery_date")
+            or item.get("item_delivery_request_date"),
         }
 
         payload["amountList"].append(
             {
                 "useYmd": use_date,
                 "dvNm": dvNm_combined or "품목",  # 빈 값이면 기본값 사용
-                "useRsn": item.get("item_purpose", ""),
+                "useRsn": item.get("item_notes")
+                or item.get("item_purpose", ""),  # js/llm 키 모두 지원
                 "amt": (
                     int(item.get("item_total_price", 0))
                     if item.get("item_total_price")
@@ -1081,13 +1084,23 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
     # 결재라인 정보 추가
     if "approvers" in form_data and form_data["approvers"]:
         for approver in form_data["approvers"]:
-            payload["lineList"].append(
-                {
-                    "aprvPslId": approver.aprvPsId,
-                    "aprvDvTy": approver.aprvDvTy,
-                    "ordr": approver.ordr,
-                }
-            )
+            # Pydantic 모델 객체인지 일반 dict인지 확인
+            if isinstance(approver, dict):
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.get("aprvPsId"),
+                        "aprvDvTy": approver.get("aprvDvTy"),
+                        "ordr": approver.get("ordr"),
+                    }
+                )
+            else:  # Pydantic 모델 객체인 경우
+                payload["lineList"].append(
+                    {
+                        "aprvPslId": approver.aprvPsId,
+                        "aprvDvTy": approver.aprvDvTy,
+                        "ordr": approver.ordr,
+                    }
+                )
 
     return payload
 

@@ -1147,14 +1147,11 @@
                 
                 // itemList 구성 (호환성 유지)
                 const itemList = purchaseItems.map(item => ({
-                    itemName: item.item_name,
-                    spec: item.item_spec,
-                    quantity: item.item_quantity,
-                    unitPrice: item.item_unit_price,
-                    totalPrice: item.item_total_price,
-                    deliveryDate: item.item_delivery_date,
-                    supplier: item.item_supplier,
-                    notes: item.item_notes
+                    useYmd: draftDateValue, // 기안일을 사용일로
+                    dvNm: item.item_name,
+                    useRsn: item.item_notes || "구매 품의",
+                    qnty: item.item_quantity,
+                    amt: item.item_total_price
                 }));
 
                 return { 

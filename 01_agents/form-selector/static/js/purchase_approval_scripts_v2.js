@@ -40,7 +40,19 @@
              * 추가 초기화 - 구매 품의서 특화 기능
              */
             onAfterInit() {
+                this.setupDraftDate();
                 this.setupPurchaseSpecificFeatures();
+            }
+
+            /**
+             * 기안일 자동 설정
+             */
+            setupDraftDate() {
+                const draftDateInput = this.form.querySelector('#draft_date');
+                if (draftDateInput && !draftDateInput.value) {
+                    draftDateInput.value = new Date().toISOString().split('T')[0];
+                    console.log('[PurchaseApprovalProcessor] Draft date set to today');
+                }
             }
 
             /**
