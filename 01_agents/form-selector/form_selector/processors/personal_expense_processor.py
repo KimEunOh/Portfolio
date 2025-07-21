@@ -92,27 +92,75 @@ class PersonalExpenseProcessor(BaseFormProcessor):
         }
 
         # amountList 구성 (비용 정산 정보)
-        for i in range(1, 4):  # 최대 3개 항목
-            expense_date = form_data.get(f"expense_date_{i}")
-            if not expense_date:
-                continue
+        expenses_to_process = []
+        if "expense_items" in form_data and isinstance(
+            form_data["expense_items"], list
+        ):
+            expenses_to_process = form_data["expense_items"]
 
-            expense_amount = form_data.get(f"expense_amount_{i}", 0)
+        if expenses_to_process:
+            # expense_items 배열 처리
+            for expense in expenses_to_process:
+                expense_date = expense.get("expense_date")
+                if not expense_date:
+                    continue
 
-            adit_info = {
-                "notes": form_data.get(f"expense_notes_{i}", ""),
-            }
+                expense_amount = expense.get("expense_amount", 0)
+                expense_category = expense.get("expense_category", "기타")
 
-            payload["amountList"].append(
-                {
-                    "useYmd": expense_date,
-                    "dvNm": form_data.get(f"expense_category_{i}", "기타"),
-                    "useRsn": form_data.get(f"expense_description_{i}", ""),
-                    "qnty": 1,
-                    "amt": int(expense_amount) if str(expense_amount).isdigit() else 0,
-                    "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                # 분류 매핑 (HTML select value -> 한글명)
+                category_mapping = {
+                    "traffic": "교통비",
+                    "accommodation": "숙박비",
+                    "meals": "식대",
+                    "entertainment": "접대비",
+                    "education": "교육훈련비",
+                    "supplies": "소모품비",
+                    "other": "기타",
                 }
-            )
+                dvNm = category_mapping.get(expense_category, "기타")
+
+                adit_info = {
+                    "notes": expense.get("expense_notes", ""),
+                }
+
+                payload["amountList"].append(
+                    {
+                        "useYmd": expense_date,
+                        "dvNm": dvNm,
+                        "useRsn": expense.get("expense_description", ""),
+                        "qnty": 1,
+                        "amt": (
+                            int(expense_amount) if str(expense_amount).isdigit() else 0
+                        ),
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                    }
+                )
+        else:
+            # HTML 필드 형식 처리 (기존 로직)
+            for i in range(1, 4):  # 최대 3개 항목
+                expense_date = form_data.get(f"expense_date_{i}")
+                if not expense_date:
+                    continue
+
+                expense_amount = form_data.get(f"expense_amount_{i}", 0)
+
+                adit_info = {
+                    "notes": form_data.get(f"expense_notes_{i}", ""),
+                }
+
+                payload["amountList"].append(
+                    {
+                        "useYmd": expense_date,
+                        "dvNm": form_data.get(f"expense_category_{i}", "기타"),
+                        "useRsn": form_data.get(f"expense_description_{i}", ""),
+                        "qnty": 1,
+                        "amt": (
+                            int(expense_amount) if str(expense_amount).isdigit() else 0
+                        ),
+                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                    }
+                )
 
         # 결재라인 정보 추가 (service.py에서 이미 ApproverDetail 객체로 변환됨)
         if "approvers" in form_data and form_data["approvers"]:

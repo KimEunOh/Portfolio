@@ -9,9 +9,6 @@ SYSTEM:
 사용자 입력으로부터 다음 슬롯 정보를 추출하세요. **날짜 관련 슬롯은 사용자가 말한 그대로의 자연어 표현을 추출해야 합니다.** (예: "어제", "다음 주 월요일", "2023년 10월 26일")
 
 추출할 슬롯 정보:
-- title: 문서 제목 (기본값: "구매 품의서", 사용자가 다른 제목을 언급하면 해당 값 사용)
-- draft_department: 기안 부서 (예: "전략기획팀", "영업1팀")
-- drafter_name: 기안자 이름 (예: "최민수", "박지영")
 - draft_date: 기안일 (예: "오늘", "2023-11-20")
 - items: 품의 요청 항목 리스트. 각 항목은 다음 정보를 포함합니다:
     - item_name: 품명 (예: "노트북", "서버용 CPU", "디자인 소프트웨어 라이선스")
@@ -34,61 +31,67 @@ SYSTEM:
 - `items` 리스트의 각 품목에서 `item_total_price`는 `item_quantity`와 `item_unit_price`가 모두 제공되면 이를 곱하여 계산될 수 있음을 인지하되, 사용자가 각 품목별 총액을 직접 언급하면 그 값을 우선합니다. LLM이 직접 계산할 필요는 없습니다.
 - `total_purchase_amount`는 모든 `items`의 `item_total_price` 합계로 계산될 수 있음을 인지하되, 사용자가 명시적으로 전체 합계 금액을 언급하면 그 값을 우선합니다. LLM이 직접 계산할 필요는 없습니다.
 
-# 예시 1
-입력: "기획팀 이서연입니다. 오늘 날짜로 구매 품의 올립니다. 품명은 업무용 노트북 3대, 사양은 16인치 맥북프로, 대당 250만원입니다. 다음 달 10일까지 본사 기획팀으로 납품 받아야 하고, 신규 프로젝트 투입 인력용입니다. 총액은 750만원, 결제는 선금 30% 후 잔금 처리 조건입니다. 견적서는 첨부했습니다."
+# 예시
+입력: "개발팀 노트북 구매 품의서입니다. 기안일은 오늘로 하고, 신규 입사자용 노트북 5대를 구매하려고 합니다. 규격은 15인치 16GB RAM이고, 대당 120만원입니다. 납기는 다음 주 금요일까지 필요하고, 납품 장소는 본사 3층 개발팀입니다. 거래처는 한국컴퓨터이고, 결제 조건은 세금계산서 발행 후 30일 이내 현금입니다."
+
 추출된 슬롯:
 ```json
 {
-  "title": "구매 품의서",
-  "draft_department": "기획팀",
-  "drafter_name": "이서연",
   "draft_date": "오늘",
   "items": [
     {
-      "item_name": "업무용 노트북",
-      "item_spec": "16인치 맥북프로",
-      "item_quantity": 3,
-      "item_unit_price": 2500000,
-      "item_total_price": 7500000,
-      "item_delivery_request_date": "다음 달 10일",
-      "item_purpose": "신규 프로젝트 투입 인력용",
-      "item_supplier": null
+      "item_name": "노트북",
+      "item_spec": "15인치 16GB RAM",
+      "item_quantity": 5,
+      "item_unit_price": 1200000,
+      "item_total_price": 6000000,
+      "item_delivery_request_date": "다음 주 금요일",
+      "item_purpose": "신규 입사자 지급용",
+      "item_supplier": "한국컴퓨터"
     }
   ],
-  "total_purchase_amount": 7500000,
-  "payment_terms": "선금 30% 후 잔금 처리",
-  "delivery_location": "본사 기획팀",
-  "attached_files_description": "견적서 첨부",
+  "total_purchase_amount": 6000000,
+  "payment_terms": "세금계산서 발행 후 30일 이내 현금",
+  "delivery_location": "본사 3층 개발팀",
+  "attached_files_description": null,
   "special_notes": null
 }
 ```
 
-# 예시 2
-입력: "영업부에서 긴급 구매 요청합니다. 품명: 휴대용 스캐너, 수량: 5개, 단가: 15만원. 사용목적은 외근 영업사원 업무 효율 증대입니다. 납기요청일은 다음 주 수요일까지, 납품 장소는 영업부 사무실입니다. 기안자는 박준형, 기안일은 내일입니다. 총 구매액은 75만원이고, 일시불 현금 결제 조건입니다. 특이사항으로 '빠른 처리 요망' 기재 부탁드립니다."
+# 예시 2 (모든 필드 포함)
+입력: "전략기획팀에서 긴급 구매 품의 올립니다. 기안일은 내일로 해주세요. 품목은 두 가지입니다. 첫 번째는 고성능 워크스테이션 3대인데, 사양은 Intel i9, 64GB RAM, RTX 4080이고 대당 500만원입니다. 두 번째는 전문 디자인 소프트웨어 라이선스 5개, Adobe Creative Suite 1년 구독으로 개당 120만원입니다. 워크스테이션은 신규 AI 프로젝트용이고, 소프트웨어는 마케팅팀 업무 효율화용입니다. 워크스테이션 납기는 다음 주 화요일까지, 소프트웨어는 이번 주 금요일까지 필요합니다. 워크스테이션 거래처는 테크솔루션, 소프트웨어는 어도비코리아입니다. 납품 장소는 본사 7층 전략기획팀 사무실입니다. 총 구매액은 2100만원이고, 결제 조건은 선금 30%, 잔금 70% 납품 후 2주 이내 지급입니다. 견적서 2부와 제품 사양서를 첨부했습니다. 특기사항으로 AI 프로젝트 마감 임박으로 긴급 구매 요청드립니다."
+
 추출된 슬롯:
 ```json
 {
-  "title": "구매 품의서",
-  "draft_department": "영업부",
-  "drafter_name": "박준형",
   "draft_date": "내일",
   "items": [
     {
-      "item_name": "휴대용 스캐너",
-      "item_spec": null,
+      "item_name": "고성능 워크스테이션",
+      "item_spec": "Intel i9, 64GB RAM, RTX 4080",
+      "item_quantity": 3,
+      "item_unit_price": 5000000,
+      "item_total_price": 15000000,
+      "item_delivery_request_date": "다음 주 화요일",
+      "item_purpose": "신규 AI 프로젝트용",
+      "item_supplier": "테크솔루션"
+    },
+    {
+      "item_name": "전문 디자인 소프트웨어 라이선스",
+      "item_spec": "Adobe Creative Suite 1년 구독",
       "item_quantity": 5,
-      "item_unit_price": 150000,
-      "item_total_price": 750000,
-      "item_delivery_request_date": "다음 주 수요일",
-      "item_purpose": "외근 영업사원 업무 효율 증대",
-      "item_supplier": null
+      "item_unit_price": 1200000,
+      "item_total_price": 6000000,
+      "item_delivery_request_date": "이번 주 금요일",
+      "item_purpose": "마케팅팀 업무 효율화용",
+      "item_supplier": "어도비코리아"
     }
   ],
-  "total_purchase_amount": 750000,
-  "payment_terms": "일시불 현금 결제",
-  "delivery_location": "영업부 사무실",
-  "attached_files_description": null,
-  "special_notes": "빠른 처리 요망"
+  "total_purchase_amount": 21000000,
+  "payment_terms": "선금 30%, 잔금 70% 납품 후 2주 이내 지급",
+  "delivery_location": "본사 7층 전략기획팀 사무실",
+  "attached_files_description": "견적서 2부와 제품 사양서 첨부",
+  "special_notes": "AI 프로젝트 마감 임박으로 긴급 구매 요청"
 }
 ```
 

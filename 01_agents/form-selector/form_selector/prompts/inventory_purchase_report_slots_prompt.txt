@@ -9,9 +9,6 @@ SYSTEM:
 사용자 입력으로부터 다음 슬롯 정보를 추출하세요. **날짜 관련 슬롯은 사용자가 말한 그대로의 자연어 표현을 추출해야 합니다.** (예: "어제", "다음 주 월요일", "2023년 10월 26일")
 
 추출할 슬롯 정보:
-- title: 문서 제목 (기본값: "비품/소모품 구입 요청", 사용자가 다른 제목을 언급하면 해당 값 사용)
-- request_department: 요청 부서 (예: "인사총무팀", "개발1팀")
-- requester_name: 요청자 이름 (예: "김민준", "이수진")
 - request_date: 요청일 (예: "오늘", "2023년 11월 15일")
 - items: 구입 내역 품목 리스트. 각 항목은 다음 정보를 포함합니다:
     - item_name: 품명 (예: "A4용지", "커피믹스", "마우스")
@@ -34,23 +31,20 @@ SYSTEM:
 추출된 슬롯:
 ```json
 {
-  "title": "비품/소모품 구입 요청",
-  "request_department": "인사팀",
-  "requester_name": "김철수",
   "request_date": "오늘",
   "items": [
     {
       "item_name": "A4용지",
       "item_quantity": 10,
       "item_unit_price": 25000,
-      "item_total_price": 250000, // 10 * 25000
+      "item_total_price": 250000,
       "item_notes": "사무실 비품용"
     },
     {
       "item_name": "커피믹스",
       "item_quantity": 2,
       "item_unit_price": 15000,
-      "item_total_price": 30000, // 2 * 15000
+      "item_total_price": 30000,
       "item_notes": "사무실 비품용"
     }
   ],
@@ -61,64 +55,23 @@ SYSTEM:
 ```
 
 # 예시 2
-입력: "개발1팀에서 요청합니다. 요청자는 이영희, 요청일은 내일입니다. 필요한 물품은 모니터 2대인데, 총 가격은 50만원입니다. 용도는 신규 입사자용이고, 팀 경비로 처리할 예정입니다. 제목은 '개발팀 비품 신청'으로 해주세요."
+입력: "마우스 5개 필요해요. 개당 2만원이고, 개발자용 추가 지급입니다. 내일까지 구매해주세요. 긴급 요청건입니다."
 추출된 슬롯:
 ```json
 {
-  "title": "개발팀 비품 신청",
-  "request_department": "개발1팀",
-  "requester_name": "이영희",
-  "request_date": "내일",
+  "request_date": null,
   "items": [
     {
-      "item_name": "모니터",
-      "item_quantity": 2,
-      "item_unit_price": null, // 단가 언급 없음
-      "item_total_price": 500000, // 총액으로 품목 금액 추정
-      "item_notes": "신규 입사자용"
-    }
-  ],
-  "total_amount": 500000,
-  "payment_method": "팀 경비 처리",
-  "notes": null
-}
-```
-
-# 예시 3
-입력: "재무팀 박서준입니다. 다음 주 월요일에 필요한 소모품 구매 요청합니다. 품명은 롤휴지 20개, 개당 1,000원, 주방세제 5개, 개당 3,000원, 종이컵 1박스 10,000원입니다. 총 45,000원이고 계좌이체로 처리 부탁드립니다. 특이사항으로 '긴급 요청'이라고 적어주세요."
-추출된 슬롯:
-```json
-{
-  "title": "비품/소모품 구입 요청",
-  "request_department": "재무팀",
-  "requester_name": "박서준",
-  "request_date": "다음 주 월요일",
-  "items": [
-    {
-      "item_name": "롤휴지",
-      "item_quantity": 20,
-      "item_unit_price": 1000,
-      "item_total_price": 20000,
-      "item_notes": null
-    },
-    {
-      "item_name": "주방세제",
+      "item_name": "마우스",
       "item_quantity": 5,
-      "item_unit_price": 3000,
-      "item_total_price": 15000,
-      "item_notes": null
-    },
-    {
-      "item_name": "종이컵",
-      "item_quantity": 1, // '1박스'를 1로 해석
-      "item_unit_price": 10000,
-      "item_total_price": 10000,
-      "item_notes": null
+      "item_unit_price": 20000,
+      "item_total_price": null,
+      "item_notes": "개발자용 추가 지급"
     }
   ],
-  "total_amount": 45000,
-  "payment_method": "계좌이체",
-  "notes": "긴급 요청"
+  "total_amount": null,
+  "payment_method": null,
+  "notes": "긴급 요청건, 내일까지 구매"
 }
 ```
 

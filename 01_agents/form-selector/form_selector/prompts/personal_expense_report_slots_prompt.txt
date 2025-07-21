@@ -9,11 +9,8 @@ SYSTEM:
 사용자 입력으로부터 다음 슬롯 정보를 추출하세요. **날짜 관련 슬롯은 사용자가 말한 그대로의 자연어 표현을 추출해야 합니다.** (예: "어제", "다음 주 월요일", "2023년 10월 26일")
 
 추출할 슬롯 정보:
-- title: 문서 제목 (예: "개인경비 사용내역", "10월 개인 경비 사용 보고")
 - draft_date: 기안일 (예: "오늘", "내일", "2023년 10월 26일")
 - usage_status: 사용 현황 (선택: "personal_cash", "personal_card")
-- department: 소속 부서 (예: "개발팀", "인사팀")
-- drafter_name: 작성자 이름 (예: "홍길동", "김철수")
 - statement_date: 대표 사용일 또는 정산 기준일 (예: "오늘", "어제", "2023년 10월 25일") - 기안일과 다를 수 있습니다.
 - total_amount_header: 문서 상단에 표시될 수 있는 총 금액 (숫자, 예: 150000). 명시적 언급이 없으면 null.
 - expense_reason: 전체 지출에 대한 주된 사유 또는 설명
@@ -29,7 +26,12 @@ SYSTEM:
         * "기타": 위 분류에 해당하지 않는 모든 항목
     - expense_amount: 금액 (숫자, 예: 25000)
     - expense_description: 사용 내역 (예: "프로젝트 회의용 다과 구입", "주유 (서울-부산)", "점심 식대 (거래처 미팅)")
-    - expense_notes: 비고 (선택 사항, 예: "간이영수증 첨부", "택시비 (야근)")
+    - expense_notes: 비고 (선택 사항, 다음과 같은 정보를 포함할 수 있음)
+        * 영수증 관련: "영수증 첨부", "간이영수증", "전자영수증 발급", "영수증 분실", "현금영수증"
+        * 업무 상황: "야근 관련", "출장 중", "회의 관련", "긴급업무", "출근길", "퇴근길"
+        * 결제 방식: "개인 선결제", "법인카드 불가", "현금결제만 가능", "카드결제"
+        * 특이사항: "할인 적용", "쿠폰 사용", "단체할인", "멤버십 할인", "포인트 사용"
+        * 기타: "동료와 함께", "1인분만 개인부담", "N분의 1", "팀 전체 비용"
 - total_expense_amount: 문서 하단에 표시될 수 있는 총 합계 금액 (숫자, 예: 150000). 명시적 언급이 없으면 null.
 
 # 지침:
@@ -38,17 +40,20 @@ SYSTEM:
 - `expense_items`는 사용자가 여러 항목을 언급하면 리스트 형태로 추출합니다. 각 항목은 위에 명시된 세부 정보를 포함해야 합니다.
 - `total_amount_header`와 `total_expense_amount`는 사용자가 문서의 "총 금액" 또는 "합계"를 명시적으로 언급할 때 추출합니다. 만약 아이템들의 합계로 계산해야 한다면, 여기서는 추출하지 않고 null로 둡니다. (계산은 후속 처리)
 - `usage_status`는 사용자가 사용한 돈의 출처(개인 현금 또는 개인 카드)를 명확히 언급할 때만 설정합니다.
+- `expense_notes`는 사용자가 언급하는 특별한 상황, 영수증 관련 정보, 결제 방식의 특이사항 등을 추출합니다. 예를 들어:
+  * "영수증이 없어서", "간이영수증만 있음" → 영수증 관련 정보
+  * "야근하면서 먹은", "출장 중에 쓴" → 업무 상황
+  * "개인카드로 먼저 결제", "현금으로만 가능했음" → 결제 방식
+  * "할인받아서", "쿠폰 썼는데" → 특이사항
+  * "동료들과 함께", "팀 전체 비용 중 일부" → 기타 특이사항
 
 # 예시 1
-입력: "개발팀 홍길동입니다. 어제하고 오늘 쓴 개인 경비 내역입니다. 기안일은 오늘이고요. 어제는 프로젝트 미팅 때문에 택시비로 15,000원 썼고, 오늘은 사무용품 구입비로 30,000원 썼어요. 총 45,000원입니다. 지출 사유는 팀 프로젝트 지원 경비입니다."
+입력: "개발팀 홍길동입니다. 어제하고 오늘 쓴 개인 경비 내역입니다. 기안일은 오늘이고요. 어제는 야근하면서 프로젝트 미팅 때문에 택시비로 15,000원 썼는데 영수증 분실했어요. 오늘은 사무용품 구입비로 30,000원 썼고 전자영수증 받았습니다. 총 45,000원입니다. 지출 사유는 팀 프로젝트 지원 경비입니다."
 추출된 슬롯:
 ```json
 {
-  "title": "개인경비 사용내역",
   "draft_date": "오늘",
   "usage_status": null,  // 언급 없음
-  "department": "개발팀",
-  "drafter_name": "홍길동",
   "statement_date": "오늘",
   "total_amount_header": 45000,
   "expense_reason": "팀 프로젝트 지원 경비",
@@ -58,14 +63,14 @@ SYSTEM:
       "expense_category": "교통비",
       "expense_amount": 15000,
       "expense_description": "프로젝트 미팅 택시비",
-      "expense_notes": null
+      "expense_notes": "야근 관련, 영수증 분실"
     },
     {
       "expense_date": "오늘",
       "expense_category": "소모품비",
       "expense_amount": 30000,
       "expense_description": "사무용품 구입",
-      "expense_notes": null
+      "expense_notes": "전자영수증 발급"
     }
   ],
   "total_expense_amount": 45000
@@ -73,16 +78,13 @@ SYSTEM:
 ```
 
 # 예시 2
-입력: "10월 25일에 개인 카드로 지출한 내역 정리해서 올립니다. 작성일은 10월 26일, 제목은 '10월 개인경비'. 내용은 점심 식대로 12,000원, 저녁 식대로 20,000원입니다. 둘 다 클라이언트 미팅 관련입니다."
+입력: "10월 25일에 개인 카드로 지출한 내역 정리해서 올립니다. 작성일은 10월 26일, 내용은 점심 식대로 12,000원 법인카드가 안되서 개인카드로 먼저 결제했고, 저녁 식대로 20,000원 할인받아서 원래 25,000원이었는데 20,000원 나왔어요. 둘 다 클라이언트 미팅 관련입니다."
 추출된 슬롯:
 ```json
 {
-  "title": "10월 개인경비",
   "draft_date": "10월 26일", // 작성일과 동일하게 가정
   "usage_status": "personal_card",
-  "department": "개발팀",
-  "drafter_name": "홍길동",
-  "statement_date": "오늘",
+  "statement_date": "10월 25일",
   "total_amount_header": null, // 총액 직접 언급 없음
   "expense_reason": "클라이언트 미팅 관련",
   "expense_items": [
@@ -91,17 +93,47 @@ SYSTEM:
       "expense_category": "식대",
       "expense_amount": 12000,
       "expense_description": "점심 식대 (클라이언트 미팅)",
-      "expense_notes": null
+      "expense_notes": "법인카드 불가, 개인 선결제"
     },
     {
       "expense_date": "10월 25일",
       "expense_category": "식대",
       "expense_amount": 20000,
       "expense_description": "저녁 식대 (클라이언트 미팅)",
-      "expense_notes": null
+      "expense_notes": "할인 적용 (원가 25,000원)"
     }
   ],
   "total_expense_amount": null // 총액 직접 언급 없음
+}
+```
+
+# 예시 3 (비고 추출 다양한 패턴)
+입력: "출장비 정산입니다. 7월 3일 부산 출장 중에 동료 3명과 함께 저녁 먹은 비용 60,000원 중에서 제 몫 20,000원만 개인부담이고, 7월 4일 새벽 6시 KTX 타고 올라올 때 현금으로만 결제 가능한 택시비 35,000원 썼어요. 간이영수증밖에 못받았습니다."
+추출된 슬롯:
+```json
+{
+  "draft_date": null,
+  "usage_status": null,
+  "statement_date": null,
+  "total_amount_header": null,
+  "expense_reason": "출장비 정산",
+  "expense_items": [
+    {
+      "expense_date": "7월 3일",
+      "expense_category": "식대",
+      "expense_amount": 20000,
+      "expense_description": "부산 출장 중 저녁 식대",
+      "expense_notes": "동료 3명과 함께, 전체 60,000원 중 1인분만 개인부담"
+    },
+    {
+      "expense_date": "7월 4일",
+      "expense_category": "교통비",
+      "expense_amount": 35000,
+      "expense_description": "새벽 KTX 이용 후 택시비",
+      "expense_notes": "현금결제만 가능, 간이영수증"
+    }
+  ],
+  "total_expense_amount": null
 }
 ```
 

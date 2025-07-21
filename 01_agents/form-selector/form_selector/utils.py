@@ -315,13 +315,21 @@ def parse_relative_date_to_iso(
                     year = today.year  # 현재 월 이후 또는 같으면 올해
                 else:
                     year = today.year + 1  # 이전 월이면 다음 년도
-                return f"{year}-{month:02d}-{day:02d}"
+                result = f"{year}-{month:02d}-{day:02d}"
+                logging.debug(
+                    f"Date parsing: '{m.group(0)}' -> '{result}' (today: {today})"
+                )
+                return result
 
             temp_str = re.sub(
                 r"(\d{1,2})월\s*(\d{1,2})일",
                 smart_year_replace,
                 temp_str,
             )
+
+        # 변환 후 로깅
+        if temp_str != original_date_str:
+            logging.debug(f"Date preprocessing: '{original_date_str}' -> '{temp_str}'")
 
         # "오늘 아침", "내일 오후 3시" 등 시간 정보 제거
         time_related_patterns = r"\s*(오전|오후|아침|저녁|밤|새벽|정오|자정|\d{1,2}시(\s*\d{1,2}분)?(\s*\d{1,2}초)?|\d{1,2}:\d{1,2}(:\d{1,2})?|T\d{2}:\d{2}(:\d{2})?)"
@@ -413,18 +421,53 @@ def parse_relative_date_to_iso(
         dt = today + timedelta(days=days_diff)
         return dt.isoformat()
 
-    # 5. 모든 규칙 기반 파싱 실패 시 LLM 호출
+    # 5. 추가 fallback: 정규식으로 "MM월 DD일" 패턴 직접 처리
+    month_day_direct_match = re.search(r"(\d{1,2})월\s*(\d{1,2})일", original_date_str)
+    if month_day_direct_match:
+        month = int(month_day_direct_match.group(1))
+        day = int(month_day_direct_match.group(2))
+
+        # 스마트 년도 결정
+        if month >= today.month:
+            year = today.year
+        else:
+            year = today.year + 1
+
+        try:
+            result_date = datetime(year, month, day).date()
+            result = result_date.isoformat()
+            logging.info(
+                f"Direct pattern match for '{original_date_str}' -> '{result}'"
+            )
+            return result
+        except ValueError as e:
+            logging.warning(
+                f"Invalid date from pattern match: {year}-{month:02d}-{day:02d}, error: {e}"
+            )
+
+    # 6. 모든 규칙 기반 파싱 실패 시 LLM 호출
     # _call_llm_for_datetime_parsing는 "YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:MM"을 반환할 수 있음
     # 여기서는 날짜만 필요하므로, 시간 부분은 제거.
-    parsed_by_llm = _call_llm_for_datetime_parsing(original_date_str, today.isoformat())
-    if parsed_by_llm:
-        # LLM 결과에서 날짜 부분만 추출
-        match_llm_date = re.match(r"(\d{4}-\d{2}-\d{2})", parsed_by_llm)
-        if match_llm_date:
-            return match_llm_date.group(1)
+    try:
+        parsed_by_llm = _call_llm_for_datetime_parsing(
+            original_date_str, today.isoformat()
+        )
+        if parsed_by_llm:
+            # LLM 결과에서 날짜 부분만 추출
+            match_llm_date = re.match(r"(\d{4}-\d{2}-\d{2})", parsed_by_llm)
+            if match_llm_date:
+                logging.info(
+                    f"LLM parsing success for '{original_date_str}' -> '{match_llm_date.group(1)}'"
+                )
+                return match_llm_date.group(1)
+    except Exception as e:
+        logging.warning(f"LLM parsing failed for '{original_date_str}': {e}")
 
-        # 최후의 수단으로 원본 문자열 반환
-        return original_date_str
+    # 7. 최후의 수단으로 원본 문자열 반환
+    logging.warning(
+        f"All date parsing methods failed for '{original_date_str}', returning original"
+    )
+    return original_date_str
 
 
 def parse_datetime_description_to_iso_local(
