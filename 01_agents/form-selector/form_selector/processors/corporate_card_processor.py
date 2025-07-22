@@ -5,7 +5,7 @@ from .base_processor import BaseFormProcessor
 import logging
 import json
 from datetime import datetime
-from ..utils import parse_past_date_to_iso
+from ..utils import parse_relative_date_to_iso
 
 
 class CorporateCardProcessor(BaseFormProcessor):
@@ -95,18 +95,10 @@ class CorporateCardProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """법인카드 아이템 날짜 변환 (과거 날짜 우선)"""
-        if "card_usage_items" not in slots or not isinstance(
-            slots["card_usage_items"], list
-        ):
-            return slots
-
-        for item in slots["card_usage_items"]:
-            if "usage_date" in item and item["usage_date"]:
-                item["usage_date"] = parse_past_date_to_iso(
-                    item["usage_date"], current_date_iso
-                )
-
+        """BaseFormProcessor의 추상 메소드를 구현합니다.
+        실제 날짜 변환은 BaseFormProcessor.convert_dates에서 DateConverter를 통해 처리되므로,
+        여기서는 특별한 동작을 하지 않습니다.
+        """
         return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:

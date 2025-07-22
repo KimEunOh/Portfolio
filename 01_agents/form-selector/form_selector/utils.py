@@ -260,11 +260,12 @@ def preprocess_date_str(date_str: str, today: datetime.date) -> str:
 
 
 def parse_relative_date_to_iso(
-    date_str: str, current_date_iso: Optional[str] = None
+    date_str: str, current_date_iso: Optional[str] = None, prefer_past: bool = False
 ) -> str:
     """다양한 상대적/절대적 날짜 표현을 YYYY-MM-DD 형식으로 변환합니다.
     변환 실패 시 원본 문자열을 반환합니다.
     `current_date_iso`가 제공되면 해당 날짜를 기준으로, 아니면 실제 현재 날짜를 기준으로 합니다.
+    `prefer_past`가 True이면, 연도 없는 날짜를 과거로 우선 해석합니다.
     """
     if not isinstance(date_str, str):
         return date_str
@@ -300,24 +301,36 @@ def parse_relative_date_to_iso(
             temp_str,
         )
         # "MM월 DD일" (앞에 년도 없을 때) -> 스마트 년도 결정
-        # 현재 월보다 이전 월이면 다음 년도로, 이후 월이면 올해로 해석
         if not re.match(r"^\d{4}-", temp_str):
 
             def smart_year_replace(m):
                 month = int(m.group(1))
                 day = int(m.group(2))
-                # 연도가 명시되지 않은 월/일의 경우:
-                # - 해당 월이 기준일의 월보다 이후이거나 같으면: 기준일과 같은 연도
-                # - 해당 월이 기준일의 월보다 이전이면: 기준일의 다음 연도
-                # 예: 기준일이 2025-07-02이고 입력이 "12월 23일"이면 → 2025-12-23 (12 >= 7)
-                # 예: 기준일이 2025-07-02이고 입력이 "3월 15일"이면 → 2026-03-15 (3 < 7)
-                if month >= today.month:
-                    year = today.year  # 현재 월 이후 또는 같으면 올해
+
+                if prefer_past:
+                    # 과거 우선 로직 (비용 보고서 등)
+                    try:
+                        this_year_date = datetime(today.year, month, day).date()
+                        if this_year_date > today:
+                            year = (
+                                today.year - 1
+                            )  # 올해의 해당 날짜가 미래면, 작년으로 해석
+                        else:
+                            year = (
+                                today.year
+                            )  # 올해의 해당 날짜가 과거나 오늘이면, 올해로 해석
+                    except ValueError:
+                        year = today.year  # 2월 30일 같은 잘못된 날짜는 일단 올해로
                 else:
-                    year = today.year + 1  # 이전 월이면 다음 년도
+                    # 미래 우선 로직 (기존, 휴가 신청 등)
+                    if month >= today.month:
+                        year = today.year
+                    else:
+                        year = today.year + 1
+
                 result = f"{year}-{month:02d}-{day:02d}"
                 logging.debug(
-                    f"Date parsing: '{m.group(0)}' -> '{result}' (today: {today})"
+                    f"Date parsing: '{m.group(0)}' -> '{result}' (today: {today}, prefer_past: {prefer_past})"
                 )
                 return result
 
@@ -470,57 +483,6 @@ def parse_relative_date_to_iso(
     return original_date_str
 
 
-def parse_past_date_to_iso(
-    date_str: str, current_date_iso: Optional[str] = None
-) -> str:
-    """
-    과거의 지출 내역을 처리하기 위해, 연도가 명시되지 않은 날짜를
-    현재 또는 과거의 날짜로 해석하여 YYYY-MM-DD 형식으로 변환합니다.
-    (예: 기준일이 2025-07-15일 때 '8월 1일' -> 2024-08-01, '6월 1일' -> 2025-06-01)
-    """
-    if not isinstance(date_str, str):
-        return date_str
-
-    if current_date_iso:
-        today = datetime.strptime(current_date_iso, "%Y-%m-%d").date()
-    else:
-        today = datetime.now().date()
-
-    # 기존 parse_relative_date_to_iso 함수를 호출하여 기본적인 상대 날짜 처리
-    # (오늘, 어제, 다음주 등) -> 이 경우는 미래 날짜가 올 수 있음
-    # 하지만 '다음' 키워드가 없는 '월요일' 등은 미래로 해석될 수 있음
-    # "지난 주" 등은 과거로 처리됨
-    pre_parsed = parse_relative_date_to_iso(date_str, current_date_iso)
-    if pre_parsed != date_str:  # 성공적으로 파싱되었다면 그 결과를 존중
-        # 단, '월요일'처럼 미래로 해석될 수 있는 단순 요일 입력은 재고려 필요
-        # 그러나 법인카드 내역은 보통 '지난 주 월요일'처럼 명확한 과거 시점을 명시할 가능성이 높음
-        # 일단은 기존 파서의 결과를 신뢰
-        return pre_parsed
-
-    # 'MM월 DD일' 또는 'MM-DD' 같은 형식에 대한 특별 처리
-    # 정규표현식으로 월-일 추출
-    match = re.search(r"(\d{1,2})[월/-]\s*(\d{1,2})", date_str)
-    if match:
-        month = int(match.group(1))
-        day = int(match.group(2))
-
-        # 월, 일이 현재 날짜보다 미래인지 확인
-        try:
-            this_year_date = datetime(today.year, month, day).date()
-            if this_year_date > today:  # 올해의 해당 날짜가 오늘보다 미래라면
-                year = today.year - 1  # 작년으로 처리
-            else:
-                year = today.year  # 올해로 처리
-
-            result_date = datetime(year, month, day).date()
-            return result_date.isoformat()
-        except ValueError:  # 존재하지 않는 날짜 (예: 2월 30일)
-            return date_str  # 파싱 실패 시 원본 반환
-
-    # 다른 모든 경우는 parse_relative_date_to_iso의 결과에 맡김
-    return parse_relative_date_to_iso(date_str, current_date_iso)
-
-
 def parse_datetime_description_to_iso_local(
     datetime_str: str, current_date_iso: Optional[str] = None
 ) -> Optional[str]:
@@ -592,7 +554,10 @@ def parse_datetime_description_to_iso_local(
 
 
 def parse_date_range_with_context(
-    start_date_str: str, end_date_str: str, current_date_iso: Optional[str] = None
+    start_date_str: str,
+    end_date_str: str,
+    current_date_iso: Optional[str] = None,
+    prefer_past: bool = False,
 ) -> tuple[str, str]:
     """날짜 범위를 컨텍스트를 유지하며 파싱합니다.
 
@@ -616,7 +581,9 @@ def parse_date_range_with_context(
         current_date = datetime.now().date()
 
     # 1. start_date 먼저 파싱
-    parsed_start = parse_relative_date_to_iso(start_date_str, current_date_iso)
+    parsed_start = parse_relative_date_to_iso(
+        start_date_str, current_date_iso, prefer_past=prefer_past
+    )
 
     # 2. end_date에 월 정보가 없고, start_date에 월 정보가 있는 경우 컨텍스트 보강
     if (
@@ -641,17 +608,23 @@ def parse_date_range_with_context(
 
             # end_date에 월 정보 추가
             enhanced_end_date = f"{year}년 {month}월 {end_date_str}"
-            parsed_end = parse_relative_date_to_iso(enhanced_end_date, current_date_iso)
+            parsed_end = parse_relative_date_to_iso(
+                enhanced_end_date, current_date_iso, prefer_past=prefer_past
+            )
 
             print(
                 f"Enhanced end_date with context: '{end_date_str}' → '{enhanced_end_date}' → '{parsed_end}'"
             )
         else:
             # 월 정보 추출 실패 시 일반 파싱
-            parsed_end = parse_relative_date_to_iso(end_date_str, current_date_iso)
+            parsed_end = parse_relative_date_to_iso(
+                end_date_str, current_date_iso, prefer_past=prefer_past
+            )
     else:
         # 일반적인 개별 파싱
-        parsed_end = parse_relative_date_to_iso(end_date_str, current_date_iso)
+        parsed_end = parse_relative_date_to_iso(
+            end_date_str, current_date_iso, prefer_past=prefer_past
+        )
 
     return parsed_start, parsed_end
 

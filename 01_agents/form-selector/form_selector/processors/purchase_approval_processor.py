@@ -28,11 +28,11 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """구매 품의서 아이템 날짜 변환"""
-        if "items" not in slots or not isinstance(slots["items"], list):
-            return slots
-
-        return self.item_converter.convert_item_delivery_dates(slots, current_date_iso)
+        """BaseFormProcessor의 추상 메소드를 구현합니다.
+        실제 날짜 변환은 BaseFormProcessor.convert_dates에서 DateConverter를 통해 처리되므로,
+        여기서는 특별한 동작을 하지 않습니다.
+        """
+        return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """아이템 처리: items 배열을 HTML 필드로 분해하고 총액 계산"""

@@ -47,6 +47,7 @@ def fill_slots_in_template(
     slots_dict: Dict[str, Any],
     current_date_iso: str,
     form_type: str = "",
+    time_context: str = "PRESENT",  # time_context 파라미터 추가
 ) -> Tuple[str, Dict[str, Any]]:
     """새로운 모듈 구조를 사용한 슬롯 처리 함수
 
@@ -74,7 +75,11 @@ def fill_slots_in_template(
     processor = get_form_processor(form_type)
 
     # 2. 슬롯 처리 (모든 변환 로직 포함)
-    final_processed_slots = processor.process_slots(slots_dict, current_date_iso)
+    # time_context에 따라 prefer_past 플래그 설정
+    prefer_past = True if time_context == "PAST" else False
+    final_processed_slots = processor.process_slots(
+        slots_dict, current_date_iso, prefer_past=prefer_past
+    )
 
     # 3. HTML 템플릿 채우기
     final_html = processor.fill_template(
@@ -137,6 +142,11 @@ def classify_and_extract_slots_for_template(
     form_type = classifier_result.form_type
     keywords = (
         classifier_result.keywords if hasattr(classifier_result, "keywords") else []
+    )
+    time_context = (
+        classifier_result.time_context
+        if hasattr(classifier_result, "time_context")
+        else "PRESENT"
     )
 
     # 분류된 form_type이 시스템에서 지원하는 양식인지 확인합니다.
@@ -273,6 +283,7 @@ def classify_and_extract_slots_for_template(
         slots_dict=raw_slots,
         current_date_iso=current_date_iso,
         form_type=form_type,
+        time_context=time_context,  # time_context 전달
     )
     logging.info(
         f"Final processed slots after fill_slots_in_template: {final_processed_slots}"

@@ -1,4 +1,4 @@
-from typing import Dict, Type
+from typing import Dict, Type, Optional
 from pydantic import BaseModel
 
 from .schema import (
@@ -19,6 +19,7 @@ class FormConfig(BaseModel):
     html_template_path: str
     mstPid: int
     english_id: str  # 백엔드 API에서 사용할 영어 식별자
+    items_config: Optional[Dict[str, str]] = None  # 아이템 리스트 설정을 위한 필드 추가
 
 
 FORM_CONFIGS: Dict[str, FormConfig] = {
@@ -63,6 +64,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/purchase_approval_form.html",
         mstPid=7,
         english_id="purchase_approval_form",
+        items_config={"list_key": "items", "date_key": "item_delivery_request_date"},
     ),
     "개인 경비 사용 내역서": FormConfig(
         model=PersonalExpenseReportSlots,
@@ -70,6 +72,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/personal_expense_report.html",
         mstPid=8,
         english_id="personal_expense_report",
+        items_config={"list_key": "expense_items", "date_key": "expense_date"},
     ),
     "법인카드 지출내역서": FormConfig(
         model=CorporateCardStatementSlots,
@@ -77,6 +80,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/corporate_card_statement.html",
         mstPid=9,
         english_id="corporate_card_statement",
+        items_config={"list_key": "card_usage_items", "date_key": "usage_date"},
     ),
 }
 

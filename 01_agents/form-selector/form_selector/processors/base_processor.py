@@ -16,18 +16,30 @@ from ..converters import DateConverter, ItemConverter, FieldConverter
 class BaseFormProcessor(ABC):
     """양식 처리를 위한 기본 클래스"""
 
-    def __init__(self, form_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, form_config: Optional[Any] = None):
         """
         Args:
-            form_config: 양식별 설정 정보
+            form_config: 양식별 설정 정보 (Pydantic 모델 또는 dict)
         """
-        self.form_config = form_config or {}
+        if form_config:
+            if hasattr(form_config, "dict"):  # Pydantic 모델인지 확인
+                self.form_config = (
+                    form_config.dict()
+                )  # Pydantic v1 호환성을 위해 .dict() 사용
+            else:
+                self.form_config = form_config
+        else:
+            self.form_config = {}
+
         self.date_converter = DateConverter()
         self.item_converter = ItemConverter()
         self.field_converter = FieldConverter()
 
     def process_slots(
-        self, slots_dict: Dict[str, Any], current_date_iso: str
+        self,
+        slots_dict: Dict[str, Any],
+        current_date_iso: str,
+        prefer_past: bool = False,
     ) -> Dict[str, Any]:
         """슬롯 처리 템플릿 메서드
 
@@ -51,30 +63,63 @@ class BaseFormProcessor(ABC):
         # 1. 전처리 (양식별 특별 처리)
         transformed_slots = self.preprocess_slots(transformed_slots)
 
-        # 2. 날짜 변환
-        transformed_slots = self.convert_dates(transformed_slots, current_date_iso)
+        # 2. 날짜 변환 (최상위 필드)
+        transformed_slots = self.date_converter.convert_date_fields(
+            transformed_slots, current_date_iso, prefer_past
+        )
 
-        # 3. 아이템 변환
+        # 3. 아이템 내 날짜 변환 (설정 기반)
+        if self.form_config and self.form_config.get("items_config"):
+            items_config = self.form_config["items_config"]
+            list_key = items_config.get("list_key")
+            date_key = items_config.get("date_key")
+
+            if (
+                list_key in transformed_slots
+                and isinstance(transformed_slots[list_key], list)
+                and date_key
+            ):
+                transformed_slots[list_key] = self.date_converter.convert_item_dates(
+                    items=transformed_slots[list_key],
+                    date_field=date_key,
+                    current_date_iso=current_date_iso,
+                    prefer_past=prefer_past,
+                )
+
+        # 4. 아이템 변환
         transformed_slots = self.convert_items(transformed_slots)
 
-        # 4. 필드 변환
+        # 5. 필드 변환
         transformed_slots = self.convert_fields(transformed_slots)
 
-        # 5. 후처리 (양식별 특별 처리)
+        # 6. 후처리 (양식별 특별 처리)
         transformed_slots = self.postprocess_slots(transformed_slots)
 
         logging.info(f"Completed slot processing with {self.__class__.__name__}")
         return transformed_slots
 
     def convert_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
+        self, slots: Dict[str, Any], current_date_iso: str, prefer_past: bool = False
     ) -> Dict[str, Any]:
         """날짜 변환 공통 로직"""
         # 1. 주요 날짜 필드 변환
-        slots = self.date_converter.convert_date_fields(slots, current_date_iso)
+        slots = self.date_converter.convert_date_fields(
+            slots, current_date_iso, prefer_past
+        )
 
-        # 2. 아이템 내 날짜 변환
-        slots = self.convert_item_dates(slots, current_date_iso)
+        # 2. 아이템 내 날짜 변환 (설정 기반)
+        if self.form_config and self.form_config.get("items_config"):
+            items_config = self.form_config["items_config"]
+            list_key = items_config.get("list_key")
+            date_key = items_config.get("date_key")
+
+            if list_key in slots and isinstance(slots[list_key], list) and date_key:
+                slots[list_key] = self.date_converter.convert_item_dates(
+                    items=slots[list_key],
+                    date_field=date_key,
+                    current_date_iso=current_date_iso,
+                    prefer_past=prefer_past,
+                )
 
         # 3. 야근 시간 변환 (해당하는 경우)
         if "overtime_time" in slots and isinstance(slots["overtime_time"], str):
@@ -83,7 +128,9 @@ class BaseFormProcessor(ABC):
             )
 
         # 4. 일반 날짜 슬롯 변환
-        slots = self.date_converter.convert_general_date_slots(slots, current_date_iso)
+        slots = self.date_converter.convert_general_date_slots(
+            slots, current_date_iso, prefer_past=prefer_past
+        )
 
         return slots
 

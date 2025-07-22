@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 from .base_processor import BaseFormProcessor
 import json
 import logging
+from ..utils import parse_relative_date_to_iso
 
 
 class DispatchReportProcessor(BaseFormProcessor):
@@ -51,38 +52,6 @@ class DispatchReportProcessor(BaseFormProcessor):
         """아이템 처리: 파견 및 출장보고서는 아이템 분해가 없음"""
         # 파견 및 출장보고서는 복잡한 아이템 구조가 없으므로 그대로 반환
         return slots
-
-    def convert_fields(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """필드 변환: duration_days 처리 및 기간 계산"""
-        result = slots.copy()
-
-        # duration_days 변환
-        if "duration_days" in result and result["duration_days"]:
-            # 자연어 표현을 숫자로 변환
-            duration_str = str(result["duration_days"]).strip()
-            converted_duration = self.convert_duration_days(duration_str)
-            result["duration_days"] = converted_duration
-        else:
-            # duration_days가 없고 start_date, end_date가 있으면 계산
-            if "start_date" in result and "end_date" in result:
-                start_date = result.get("start_date")
-                end_date = result.get("end_date")
-
-                if start_date and end_date:
-                    try:
-                        # ISO 형식 날짜라면 기간 계산
-                        if self._is_iso_date(start_date) and self._is_iso_date(
-                            end_date
-                        ):
-                            start_dt = datetime.fromisoformat(start_date)
-                            end_dt = datetime.fromisoformat(end_date)
-                            duration = (end_dt - start_dt).days + 1  # 시작일 포함
-                            result["duration_days"] = duration
-                    except (ValueError, TypeError):
-                        # 날짜 파싱 실패 시 기본값
-                        pass
-
-        return result
 
     def convert_duration_days(self, duration_str: str) -> int:
         """자연어 기간 표현을 숫자로 변환"""

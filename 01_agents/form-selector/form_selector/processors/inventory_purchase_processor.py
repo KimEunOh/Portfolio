@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from .base_processor import BaseFormProcessor
 import logging
 import json
+from ..utils import parse_relative_date_to_iso
 
 
 class InventoryPurchaseProcessor(BaseFormProcessor):
@@ -64,10 +65,6 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
             result["total_amount"] = total_amount
 
         return result
-
-    def convert_fields(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """필드 변환: 특별한 필드 변환 없음"""
-        return slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """후처리: 빈 필드 기본값 설정"""

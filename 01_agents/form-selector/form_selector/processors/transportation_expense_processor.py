@@ -12,6 +12,7 @@ from typing import Dict, Any
 from .base_processor import BaseFormProcessor
 import logging
 import json
+from ..utils import parse_relative_date_to_iso
 
 
 class TransportationExpenseProcessor(BaseFormProcessor):
@@ -32,18 +33,6 @@ class TransportationExpenseProcessor(BaseFormProcessor):
             processed_slots["total_amount"] = 0
 
         return processed_slots
-
-    def convert_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """교통비 관련 날짜 변환"""
-        # 기본 날짜 변환 수행 (departure_date 등이 처리됨)
-        converted_slots = super().convert_dates(slots, current_date_iso)
-
-        # 추가적인 교통비 특화 날짜 처리가 필요한 경우 여기에 추가
-        # 현재는 기본 처리로 충분함
-
-        return converted_slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -77,24 +66,6 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         교통비는 아이템이 없으므로 날짜 변환하지 않습니다.
         """
         return slots
-
-    def convert_fields(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """교통비 특화 필드 변환"""
-        converted_slots = super().convert_fields(slots)
-
-        # 금액 필드 처리 - 키가 없는 경우에도 기본값 설정
-        converted_slots["total_amount"] = self._convert_amount_to_int(
-            converted_slots.get("total_amount")
-        )
-
-        # 'items'가 있으면 각 아이템의 금액 합계를 total_amount로 재계산
-        if "items" in converted_slots and converted_slots["items"]:
-            total_from_items = sum(
-                item.get("amount", 0) for item in converted_slots["items"]
-            )
-            converted_slots["total_amount"] = total_from_items
-
-        return converted_slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """교통비 후처리"""

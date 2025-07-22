@@ -11,7 +11,10 @@ from datetime import datetime, timedelta
 import re
 
 from .base_processor import BaseFormProcessor
-from ..utils import parse_duration_to_days  # 새로운 유틸리티 함수 임포트
+from ..utils import (
+    parse_duration_to_days,
+    parse_relative_date_to_iso,
+)  # 새로운 유틸리티 함수 임포트
 
 
 class AnnualLeaveProcessor(BaseFormProcessor):
@@ -132,7 +135,7 @@ class AnnualLeaveProcessor(BaseFormProcessor):
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """연차 신청서 폼 데이터를 API Payload로 변환 (Legacy 형식과 동일)"""
-        logger.info("AnnualLeaveProcessor: Converting form data to API payload")
+        logging.info("AnnualLeaveProcessor: Converting form data to API payload")
 
         # 기존 Legacy API 형식과 동일한 구조 사용
         payload = {

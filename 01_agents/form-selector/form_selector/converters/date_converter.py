@@ -37,7 +37,10 @@ class DateConverter:
         pass
 
     def convert_date_fields(
-        self, slots: Dict[str, Any], current_date_iso: str
+        self,
+        slots: Dict[str, Any],
+        current_date_iso: str,
+        prefer_past: bool = False,
     ) -> Dict[str, Any]:
         """일반 날짜 필드들을 YYYY-MM-DD 형식으로 변환.
         'start_date'와 'end_date'는 컨텍스트를 유지하며 함께 파싱될 수 있습니다.
@@ -79,12 +82,15 @@ class DateConverter:
                 # start_date만 개별적으로 파싱
                 if isinstance(slots["start_date"], str):
                     slots["start_date"] = parse_relative_date_to_iso(
-                        slots["start_date"], current_date_iso
+                        slots["start_date"], current_date_iso, prefer_past=prefer_past
                     )
             else:
                 # 기간이 아닌 경우에만 동시 파싱 수행
                 start_parsed, end_parsed = parse_date_range_with_context(
-                    slots["start_date"], slots["end_date"], current_date_iso
+                    slots["start_date"],
+                    slots["end_date"],
+                    current_date_iso,
+                    prefer_past=prefer_past,
                 )
                 slots["start_date"] = start_parsed
                 slots["end_date"] = end_parsed
@@ -102,7 +108,7 @@ class DateConverter:
             original_value = slots[field]
             if isinstance(original_value, str):
                 parsed_value = parse_relative_date_to_iso(
-                    original_value, current_date_iso
+                    original_value, current_date_iso, prefer_past=prefer_past
                 )
                 if parsed_value != original_value:
                     slots[field] = parsed_value
@@ -113,13 +119,23 @@ class DateConverter:
         return slots
 
     def convert_date_range(
-        self, start_date: str, end_date: str, current_date_iso: str
+        self,
+        start_date: str,
+        end_date: str,
+        current_date_iso: str,
+        prefer_past: bool = False,
     ) -> Tuple[str, str]:
         """날짜 범위를 컨텍스트 유지하며 변환"""
-        return parse_date_range_with_context(start_date, end_date, current_date_iso)
+        return parse_date_range_with_context(
+            start_date, end_date, current_date_iso, prefer_past=prefer_past
+        )
 
     def convert_item_dates(
-        self, items: List[Dict[str, Any]], date_field: str, current_date_iso: str
+        self,
+        items: List[Dict[str, Any]],
+        date_field: str,
+        current_date_iso: str,
+        prefer_past: bool = False,
     ) -> List[Dict[str, Any]]:
         """아이템 리스트 내의 날짜 필드들을 변환"""
         updated_items = []
@@ -133,7 +149,9 @@ class DateConverter:
                 ):
                     original_date_str = processed_item[date_field]
                     parsed_date = parse_relative_date_to_iso(
-                        original_date_str, current_date_iso=current_date_iso
+                        original_date_str,
+                        current_date_iso=current_date_iso,
+                        prefer_past=prefer_past,
                     )
 
                     if parsed_date:
@@ -177,7 +195,10 @@ class DateConverter:
             return ""
 
     def convert_general_date_slots(
-        self, slots: Dict[str, Any], current_date_iso: str
+        self,
+        slots: Dict[str, Any],
+        current_date_iso: str,
+        prefer_past: bool = False,
     ) -> Dict[str, Any]:
         """일반적인 날짜 슬롯들을 키 이름 기준으로 자동 감지하여 변환"""
         main_date_fields = [
@@ -203,7 +224,9 @@ class DateConverter:
             ):
                 original_value = value
                 parsed_value = parse_relative_date_to_iso(
-                    original_value, current_date_iso=current_date_iso
+                    original_value,
+                    current_date_iso=current_date_iso,
+                    prefer_past=prefer_past,
                 )
 
                 if parsed_value and parsed_value != original_value:

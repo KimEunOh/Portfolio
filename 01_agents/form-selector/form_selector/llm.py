@@ -35,8 +35,13 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.messages import SystemMessage
 from langchain.output_parsers import PydanticOutputParser
 
-# schema.py에서 FormClassifierOutput만 가져오고, 각 슬롯 모델은 form_configs.py를 통해 간접적으로 사용
-from .schema import FormClassifierOutput
+# schema.py에서 Pydantic 모델들을 가져옵니다.
+from .schema import (
+    FormClassificationOutput,
+    AnnualLeaveSlots,
+    DinnerExpenseSlots,
+    TransportationExpenseSlots,
+)
 
 # form_configs.py에서 양식 설정과 관련된 정보들을 가져옴
 from .form_configs import FORM_CONFIGS, AVAILABLE_FORM_TYPES
@@ -67,7 +72,7 @@ def get_form_classifier_chain():
     반환 값:
         LCEL Chain: "input" 문자열을 받아 `FormClassifierOutput` 객체를 반환하는 실행 가능한 체인.
     """
-    parser = PydanticOutputParser(pydantic_object=FormClassifierOutput)
+    parser = PydanticOutputParser(pydantic_object=FormClassificationOutput)
 
     classifier_prompt_filename = (
         "form_classifier_prompt.txt"  # 양식 분류기용 프롬프트 파일명

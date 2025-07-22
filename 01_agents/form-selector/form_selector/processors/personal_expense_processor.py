@@ -12,6 +12,7 @@ from typing import Dict, Any
 import json
 
 from .base_processor import BaseFormProcessor
+from ..utils import parse_relative_date_to_iso
 
 
 class PersonalExpenseProcessor(BaseFormProcessor):
@@ -64,11 +65,11 @@ class PersonalExpenseProcessor(BaseFormProcessor):
     def convert_item_dates(
         self, slots: Dict[str, Any], current_date_iso: str
     ) -> Dict[str, Any]:
-        """개인 경비 아이템 날짜 변환"""
-        if "expense_items" not in slots or not isinstance(slots["expense_items"], list):
-            return slots
-
-        return self.item_converter.convert_expense_item_dates(slots, current_date_iso)
+        """BaseFormProcessor의 추상 메소드를 구현합니다.
+        실제 날짜 변환은 BaseFormProcessor.convert_dates에서 DateConverter를 통해 처리되므로,
+        여기서는 특별한 동작을 하지 않습니다.
+        """
+        return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """개인 경비 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""

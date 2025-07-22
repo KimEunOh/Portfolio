@@ -16,10 +16,13 @@ class UsageStatusEnum(str, Enum):
 
 
 # 1단계: 양식 분류 모델의 출력 스키마
-class FormClassifierOutput(BaseModel):
+class FormClassificationOutput(BaseModel):
+    """양식 분류 결과"""
+
     form_type: str = Field(..., description="분류된 양식의 종류")
-    keywords: Optional[List[str]] = Field(
-        default_factory=list, description="추출된 키워드 리스트"
+    keywords: Optional[List[str]] = Field(None, description="추출된 관련 키워드")
+    time_context: Optional[str] = Field(
+        None, description="사용자 발화의 시간적 맥락 (PAST, FUTURE)"
     )
 
 
