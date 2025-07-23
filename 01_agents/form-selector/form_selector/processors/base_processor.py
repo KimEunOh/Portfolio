@@ -69,22 +69,9 @@ class BaseFormProcessor(ABC):
         )
 
         # 3. 아이템 내 날짜 변환 (설정 기반)
-        if self.form_config and self.form_config.get("items_config"):
-            items_config = self.form_config["items_config"]
-            list_key = items_config.get("list_key")
-            date_key = items_config.get("date_key")
-
-            if (
-                list_key in transformed_slots
-                and isinstance(transformed_slots[list_key], list)
-                and date_key
-            ):
-                transformed_slots[list_key] = self.date_converter.convert_item_dates(
-                    items=transformed_slots[list_key],
-                    date_field=date_key,
-                    current_date_iso=current_date_iso,
-                    prefer_past=prefer_past,
-                )
+        transformed_slots = self.convert_item_dates(
+            transformed_slots, current_date_iso, prefer_past
+        )
 
         # 4. 아이템 변환
         transformed_slots = self.convert_items(transformed_slots)
@@ -107,27 +94,13 @@ class BaseFormProcessor(ABC):
             slots, current_date_iso, prefer_past
         )
 
-        # 2. 아이템 내 날짜 변환 (설정 기반)
-        if self.form_config and self.form_config.get("items_config"):
-            items_config = self.form_config["items_config"]
-            list_key = items_config.get("list_key")
-            date_key = items_config.get("date_key")
-
-            if list_key in slots and isinstance(slots[list_key], list) and date_key:
-                slots[list_key] = self.date_converter.convert_item_dates(
-                    items=slots[list_key],
-                    date_field=date_key,
-                    current_date_iso=current_date_iso,
-                    prefer_past=prefer_past,
-                )
-
-        # 3. 야근 시간 변환 (해당하는 경우)
+        # 2. 야근 시간 변환 (해당하는 경우)
         if "overtime_time" in slots and isinstance(slots["overtime_time"], str):
             slots["overtime_time"] = self.date_converter.convert_datetime_to_time(
                 slots["overtime_time"], current_date_iso
             )
 
-        # 4. 일반 날짜 슬롯 변환
+        # 3. 일반 날짜 슬롯 변환
         slots = self.date_converter.convert_general_date_slots(
             slots, current_date_iso, prefer_past=prefer_past
         )
@@ -210,12 +183,23 @@ class BaseFormProcessor(ABC):
         """후처리 단계 - 양식별 최종 처리"""
         pass
 
-    @abstractmethod
     def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
+        self, slots: Dict[str, Any], current_date_iso: str, prefer_past: bool = False
     ) -> Dict[str, Any]:
-        """아이템 내 날짜 변환 - 양식별 구현"""
-        pass
+        """아이템 리스트 내부의 날짜 필드를 변환합니다."""
+        if self.form_config and self.form_config.get("items_config"):
+            items_config = self.form_config["items_config"]
+            list_key = items_config.get("list_key")
+            date_key = items_config.get("date_key")
+
+            if list_key in slots and isinstance(slots.get(list_key), list) and date_key:
+                slots[list_key] = self.date_converter.convert_item_dates(
+                    items=slots[list_key],
+                    date_field=date_key,
+                    current_date_iso=current_date_iso,
+                    prefer_past=prefer_past,
+                )
+        return slots
 
     @abstractmethod
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -233,11 +217,6 @@ class DefaultFormProcessor(BaseFormProcessor):
         return slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        return slots
-
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
         return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:

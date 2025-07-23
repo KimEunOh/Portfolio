@@ -24,33 +24,53 @@ class PersonalExpenseProcessor(BaseFormProcessor):
 
     def preprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """개인 경비 사용내역서 전처리"""
-        logging.debug("PersonalExpenseProcessor: Starting preprocessing")
+        # expense_items가 있고 statement_date가 없는 경우, 첫 아이템 날짜로 채움
+        if (
+            "expense_items" in slots
+            and slots["expense_items"]
+            and not slots.get("statement_date")
+        ):
+            first_item = slots["expense_items"][0]
+            if "expense_date" in first_item and first_item["expense_date"]:
+                slots["statement_date"] = first_item["expense_date"]
+                logging.info(
+                    f"preprocess_slots: Set statement_date to {first_item['expense_date']} from the first expense item."
+                )
+
         return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """개인 경비 아이템 변환"""
-        if "expense_items" not in slots or not isinstance(slots["expense_items"], list):
-            logging.debug("PersonalExpenseProcessor: No expense_items to process")
-            return slots
+        """아이템 처리: expense_items 배열을 HTML 필드로 분해하고 총액 계산"""
+        result = slots.copy()
 
-        logging.info(
-            f"PersonalExpenseProcessor: Processing {len(slots['expense_items'])} expense items"
-        )
+        # 총액 초기화
+        total_amount = 0
 
-        # 1. 분류 매핑 적용
-        updated_items = self.field_converter.process_expense_category_mapping(
-            slots["expense_items"]
-        )
-        slots["expense_items"] = updated_items
+        if "expense_items" in slots and slots["expense_items"]:
+            items = slots["expense_items"]
 
-        # 2. HTML 필드로 분해
-        decomposed_fields = self.item_converter.decompose_expense_items(updated_items)
-        slots.update(decomposed_fields)
+            for i, item in enumerate(items[:3], 1):  # 최대 3개 항목
+                result[f"expense_date_{i}"] = item.get("expense_date", "")
+                result[f"expense_category_{i}"] = (
+                    self.field_converter.map_expense_category_to_value(
+                        item.get("expense_category", "")
+                    )
+                )
+                result[f"expense_amount_{i}"] = item.get("expense_amount", 0)
+                result[f"expense_description_{i}"] = item.get("expense_description", "")
+                result[f"expense_notes_{i}"] = item.get("expense_notes", "")
 
-        logging.info(
-            f"PersonalExpenseProcessor: Generated {len(decomposed_fields)} HTML fields from expense items"
-        )
-        return slots
+                # 총액 계산
+                total_amount += item.get("expense_amount", 0) or 0
+
+            # 처리된 아이템 리스트를 다시 슬롯에 포함
+            result["expense_items"] = items
+
+        # 계산된 총액을 슬롯에 추가 (기존 값이 없거나 0인 경우)
+        if total_amount > 0 and not result.get("total_expense_amount"):
+            result["total_expense_amount"] = total_amount
+
+        return result
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """개인 경비 사용내역서 후처리"""
@@ -60,15 +80,6 @@ class PersonalExpenseProcessor(BaseFormProcessor):
                 f"PersonalExpenseProcessor: Total expense amount calculated: {slots['total_expense_amount']}"
             )
 
-        return slots
-
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """BaseFormProcessor의 추상 메소드를 구현합니다.
-        실제 날짜 변환은 BaseFormProcessor.convert_dates에서 DateConverter를 통해 처리되므로,
-        여기서는 특별한 동작을 하지 않습니다.
-        """
         return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:

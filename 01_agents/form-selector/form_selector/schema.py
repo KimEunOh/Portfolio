@@ -1,6 +1,6 @@
 from enum import Enum
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, Field, validator
+from typing import List, Dict, Optional, Any, Union, Literal
 
 
 class UserInput(BaseModel):
@@ -21,9 +21,9 @@ class FormClassificationOutput(BaseModel):
 
     form_type: str = Field(..., description="분류된 양식의 종류")
     keywords: Optional[List[str]] = Field(None, description="추출된 관련 키워드")
-    time_context: Optional[str] = Field(
-        None, description="사용자 발화의 시간적 맥락 (PAST, FUTURE)"
-    )
+    # time_context: Optional[str] = Field(
+    #     None, description="사용자 발화의 시간적 맥락 (PAST, FUTURE)"
+    # )
 
 
 # 2단계: 양식별 슬롯 추출 모델의 출력 스키마들
@@ -49,6 +49,10 @@ class AnnualLeaveSlots(BaseModel):
     )
     # applicant_name: Optional[str] = Field(default=None, description="신청자 이름")
     # department: Optional[str] = Field(default=None, description="신청자 부서")
+    time_context: Optional[Literal["PAST", "FUTURE"]] = Field(
+        None,
+        description="신청의 시간적 맥락. 사전 신청은 'FUTURE', 사후 신청은 'PAST'.",
+    )
 
 
 class DinnerExpenseSlots(BaseModel):
@@ -151,6 +155,10 @@ class DispatchBusinessTripReportSlots(BaseModel):
         default=None, description="주요 업무 내용 및 결과 (보고사항)"
     )
     notes: Optional[str] = Field(default=None, description="기타 특이사항")
+    time_context: Optional[Literal["PAST", "FUTURE"]] = Field(
+        None,
+        description="보고의 시간적 맥락. 사전 계획 보고는 'FUTURE', 사후 결과 보고는 'PAST'.",
+    )
 
 
 # 결과를 하나로 묶는 타입은 이제 사용하지 않음. 각 체인이 해당 Pydantic 모델을 직접 반환.

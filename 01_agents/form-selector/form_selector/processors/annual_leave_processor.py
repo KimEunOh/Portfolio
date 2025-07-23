@@ -123,16 +123,6 @@ class AnnualLeaveProcessor(BaseFormProcessor):
 
         return slots
 
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """연차 신청서 아이템 날짜 변환
-
-        연차 신청서는 아이템이 없으므로 날짜 변환하지 않습니다.
-        """
-        logging.debug("AnnualLeaveProcessor: No item dates to convert")
-        return slots
-
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """연차 신청서 폼 데이터를 API Payload로 변환 (Legacy 형식과 동일)"""
         logging.info("AnnualLeaveProcessor: Converting form data to API payload")

@@ -34,6 +34,16 @@ from .utils import (
 from .rag import retrieve_template  # RAG 모듈의 retrieve_template 함수 임포트
 import re
 from langchain_core.exceptions import OutputParserException
+from datetime import datetime
+import logging
+from typing import Dict, Any, Tuple
+
+from . import schema
+from .llm import get_form_classifier_chain, SLOT_EXTRACTOR_CHAINS
+from .rag import retrieve_template
+from .form_configs import AVAILABLE_FORM_TYPES, FORM_CONFIGS
+from .processors.processor_factory import get_form_processor
+
 
 # 🆕 logger 추가
 logger = logging.getLogger(__name__)
@@ -72,7 +82,8 @@ def fill_slots_in_template(
         return template, {}
 
     # 1. 양식별 프로세서 생성
-    processor = get_form_processor(form_type)
+    form_config = FORM_CONFIGS.get(form_type)
+    processor = get_form_processor(form_type, form_config)
 
     # 2. 슬롯 처리 (모든 변환 로직 포함)
     # time_context에 따라 prefer_past 플래그 설정
@@ -143,11 +154,6 @@ def classify_and_extract_slots_for_template(
     keywords = (
         classifier_result.keywords if hasattr(classifier_result, "keywords") else []
     )
-    time_context = (
-        classifier_result.time_context
-        if hasattr(classifier_result, "time_context")
-        else "PRESENT"
-    )
 
     # 분류된 form_type이 시스템에서 지원하는 양식인지 확인합니다.
     if form_type not in AVAILABLE_FORM_TYPES:
@@ -184,9 +190,8 @@ def classify_and_extract_slots_for_template(
     logging.info(f"Retrieved template for form_type: {form_type}")
 
     # 3단계: 양식별 슬롯 추출
-    raw_slots: Dict[str, Any] = (
-        {}
-    )  # LLM이 추출한 원본 슬롯 (Pydantic 모델 객체에서 변환된 dict)
+    extracted_slots_model = None
+    raw_slots: Dict[str, Any] = {}
     if form_type in SLOT_EXTRACTOR_CHAINS:
         slot_chain = SLOT_EXTRACTOR_CHAINS[form_type]
         try:
@@ -199,12 +204,7 @@ def classify_and_extract_slots_for_template(
                 f"Extracted slots model for {form_type}: {extracted_slots_model}"
             )
             if extracted_slots_model:
-                # Pydantic 모델을 딕셔너리로 변환합니다.
-                # .model_dump()는 Pydantic V2 스타일이며, V1에서는 .dict()를 사용합니다.
-                # 현재 프로젝트의 schema.py가 langchain_core.pydantic_v1을 사용하고 있으므로,
-                # .dict() 또는 .model_dump() (호환성 shim이 있다면)가 적절합니다.
-                # 여기서는 .model_dump()가 일반적으로 더 권장되므로 사용합니다.
-                raw_slots = extracted_slots_model.model_dump()
+                raw_slots = extracted_slots_model.dict()
 
                 # --- "회의비 지출결의서" 특별 처리 로직 ---
                 # venue_fee(장소 대관료), refreshment_fee(다과비), llm_expense_details(기타 상세)를 조합하여
@@ -277,17 +277,41 @@ def classify_and_extract_slots_for_template(
         )
         raw_slots = {}
 
-        # 4단계: 슬롯 처리 및 템플릿 채우기 (리팩토링된 모듈 구조 사용)
-    final_html, final_processed_slots = fill_slots_in_template(
+    # 4. 시간 맥락(Time Context) 결정
+    time_context_llm_forms = ["연차 신청서", "파견 및 출장 보고서"]
+    past_fixed_forms = [
+        "야근식대비용 신청서",
+        "개인 경비 사용 내역서",
+        "법인카드 지출내역서",
+        "교통비 신청서",
+    ]
+    future_fixed_forms = ["비품/소모품 구입내역서", "구매 품의서"]
+
+    final_time_context = "PRESENT"  # Default value
+    if form_type in time_context_llm_forms:
+        if extracted_slots_model:
+            final_time_context = (
+                getattr(extracted_slots_model, "time_context", None) or "PRESENT"
+            )
+    elif form_type in past_fixed_forms:
+        final_time_context = "PAST"
+    elif form_type in future_fixed_forms:
+        final_time_context = "FUTURE"
+
+    logging.info(
+        f"Final resolved time_context: '{final_time_context}' for form_type: '{form_type}'"
+    )
+
+    # 5단계: 슬롯 추출 및 템플릿 채우기 (분류된 양식에 해당하는 슬롯 추출기 사용)
+    final_html, final_slots = fill_slots_in_template(
         template=retrieved_template_html,
-        slots_dict=raw_slots,
+        slots_dict=raw_slots,  # Pydantic 모델을 dict로 변환
         current_date_iso=current_date_iso,
         form_type=form_type,
-        time_context=time_context,  # time_context 전달
+        time_context=final_time_context,
     )
-    logging.info(
-        f"Final processed slots after fill_slots_in_template: {final_processed_slots}"
-    )
+
+    logging.info(f"Final processed slots after fill_slots_in_template: {final_slots}")
     # logging.info(f"Final HTML template (first 500 chars): {final_html[:500]}...") # 너무 길면 일부만 로깅
 
     # 5단계: 최종 결과 반환
@@ -324,7 +348,7 @@ def classify_and_extract_slots_for_template(
     return {
         "form_type": form_type,
         "keywords": keywords,
-        "slots": final_processed_slots,  # 최종적으로 변환되고 HTML에 채워진 슬롯
+        "slots": final_slots,  # 최종적으로 변환되고 HTML에 채워진 슬롯
         "html_template": final_html,  # 슬롯 값이 모두 채워진 HTML 문자열
         "original_input": user_input.input,  # 사용자의 원본 입력
         "approver_info": approver_info_data,  # 결재 정보 추가

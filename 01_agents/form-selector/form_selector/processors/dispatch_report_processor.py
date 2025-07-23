@@ -39,15 +39,6 @@ class DispatchReportProcessor(BaseFormProcessor):
 
         return processed
 
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """파견/출장 보고서 아이템 날짜 변환
-
-        파견/출장 보고서는 아이템이 없으므로 날짜 변환하지 않습니다.
-        """
-        return slots
-
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """아이템 처리: 파견 및 출장보고서는 아이템 분해가 없음"""
         # 파견 및 출장보고서는 복잡한 아이템 구조가 없으므로 그대로 반환
@@ -83,26 +74,11 @@ class DispatchReportProcessor(BaseFormProcessor):
         return bool(re.match(pattern, date_str))
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """후처리: 빈 필드 기본값 설정"""
-        processed = slots.copy()
-
-        # 기본값 설정
-        field_defaults = {
-            "origin": "",
-            "destination": "",
-            "purpose": "",
-            "report_details": "",
-            "notes": "",
-        }
-
-        for field, default_value in field_defaults.items():
-            if not processed.get(field):
-                processed[field] = default_value
-
-        return processed
+        """파견 및 출장 보고서 후처리"""
+        return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """파견/출장 보고서 폼 데이터를 API Payload로 변환"""
+        """파견 및 출장 보고서 폼 데이터를 API Payload로 변환"""
         logging.info("DispatchReportProcessor: Converting form data to API payload")
 
         payload = {

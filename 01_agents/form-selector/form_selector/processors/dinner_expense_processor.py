@@ -40,29 +40,16 @@ class DinnerExpenseProcessor(BaseFormProcessor):
         """
         return slots.copy()
 
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """야근 식대 아이템 날짜 변환
-
-        야근 식대는 아이템이 없으므로 날짜 변환하지 않습니다.
-        """
-        logging.debug("DinnerExpenseProcessor: No item dates to convert")
-        return slots
-
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """야근 식대 후처리"""
-        processed_slots = slots.copy()
+        """야근 식대 신청서 후처리"""
 
-        # 기본값 설정
-        if "title" not in processed_slots or not processed_slots["title"]:
-            processed_slots["title"] = "야근 식대 신청"
+        processed_slots = slots.copy()
 
         if (
             "work_location" not in processed_slots
             or not processed_slots["work_location"]
         ):
-            processed_slots["work_location"] = "회사"
+            processed_slots["work_location"] = "사무실"
 
         return processed_slots
 

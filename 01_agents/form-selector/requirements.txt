@@ -5,7 +5,11 @@ langchain-openai
 openai
 langchain-community
 pydantic
-dotenv
+python-dotenv
 faiss-cpu
 python-dateutil 
 httpx
+langchain-text-splitters==0.2.2
+langsmith==0.1.83
+loguru==0.7.2
+pytest

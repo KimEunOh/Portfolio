@@ -58,28 +58,9 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         converted_slots["items"] = processed_items
         return converted_slots
 
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """교통비 아이템 날짜 변환
-
-        교통비는 아이템이 없으므로 날짜 변환하지 않습니다.
-        """
-        return slots
-
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """교통비 후처리"""
-        processed_slots = slots.copy()
-
-        # 기본값 설정
-        if "purpose" not in processed_slots or not processed_slots["purpose"]:
-            processed_slots["purpose"] = "업무 관련 교통비"
-
-        # items가 없을 경우 빈 리스트로 초기화
-        if "items" not in processed_slots:
-            processed_slots["items"] = []
-
-        return processed_slots
+        """교통비 신청서 후처리"""
+        return slots
 
     def _convert_amount_to_int(self, amount_value: Any) -> int:
         """

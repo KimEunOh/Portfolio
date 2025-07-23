@@ -25,15 +25,6 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
 
         return processed
 
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """비품구입 아이템 날짜 변환
-
-        비품구입은 아이템이 없으므로 날짜 변환하지 않습니다.
-        """
-        return slots
-
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """아이템 처리: items 배열을 HTML 필드로 분해하고 총액 계산"""
         result = slots.copy()
@@ -67,17 +58,8 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
         return result
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """후처리: 빈 필드 기본값 설정"""
-        processed = slots.copy()
-
-        # 기본값 설정
-        if not processed.get("payment_method"):
-            processed["payment_method"] = ""
-
-        if not processed.get("notes"):
-            processed["notes"] = ""
-
-        return processed
+        """비품/소모품 구입내역서 후처리"""
+        return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """비품/소모품 구입내역서 폼 데이터를 API Payload로 변환"""

@@ -83,22 +83,19 @@ class CorporateCardProcessor(BaseFormProcessor):
     }
 
     def preprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """전처리: 기본값 설정"""
-        processed = slots.copy()
-
-        # 기본 제목 설정
-        if not processed.get("title"):
-            processed["title"] = "법인카드 지출내역"
-
-        return processed
-
-    def convert_item_dates(
-        self, slots: Dict[str, Any], current_date_iso: str
-    ) -> Dict[str, Any]:
-        """BaseFormProcessor의 추상 메소드를 구현합니다.
-        실제 날짜 변환은 BaseFormProcessor.convert_dates에서 DateConverter를 통해 처리되므로,
-        여기서는 특별한 동작을 하지 않습니다.
-        """
+        """법인카드 사용 내역서 전처리"""
+        # card_usage_items가 있고 statement_date가 없는 경우, 첫 아이템 날짜로 채움
+        if (
+            "card_usage_items" in slots
+            and slots["card_usage_items"]
+            and not slots.get("statement_date")
+        ):
+            first_item = slots["card_usage_items"][0]
+            if "usage_date" in first_item and first_item["usage_date"]:
+                slots["statement_date"] = first_item["usage_date"]
+                logging.info(
+                    f"preprocess_slots: Set statement_date to {first_item['usage_date']} from the first card usage item."
+                )
         return slots
 
     def convert_items(self, slots: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,10 +107,10 @@ class CorporateCardProcessor(BaseFormProcessor):
 
         # card_usage_items 배열이 있는 경우 HTML 필드로 분해
         if "card_usage_items" in slots and slots["card_usage_items"]:
-            usage_items = slots["card_usage_items"]
+            items = slots["card_usage_items"]
 
             # 최대 6개 사용 내역까지 처리
-            for i, item in enumerate(usage_items[:6], 1):
+            for i, item in enumerate(items[:6], 1):
                 result[f"usage_date_{i}"] = item.get("usage_date", "")
 
                 # 카테고리 매핑
@@ -126,8 +123,11 @@ class CorporateCardProcessor(BaseFormProcessor):
                 result[f"usage_amount_{i}"] = item.get("usage_amount", 0)
                 result[f"usage_notes_{i}"] = item.get("usage_notes", "")
 
-                # 총액에 추가
-                total_amount += item.get("usage_amount", 0)
+                # 총액 계산
+                total_amount += item.get("usage_amount", 0) or 0
+
+            # 처리된 아이템 리스트를 다시 슬롯에 포함
+            result["card_usage_items"] = items
 
         # 총액 설정 (두 개 필드 동기화)
         if "total_amount_header" in slots and slots["total_amount_header"] is not None:
@@ -165,55 +165,8 @@ class CorporateCardProcessor(BaseFormProcessor):
         return slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """후처리: 빈 필드 기본값 설정 및 지출 사유 자동 생성"""
-        processed = slots.copy()
-
-        # 기본값 설정
-        if not processed.get("card_number"):
-            processed["card_number"] = ""
-
-        if not processed.get("statement_date"):
-            processed["statement_date"] = datetime.now().date().isoformat()
-
-        # 지출 사유 자동 생성
-        if (
-            not processed.get("expense_reason")
-            and "card_usage_items" in processed
-            and processed["card_usage_items"]
-        ):
-            categories = [
-                item.get("usage_category") for item in processed["card_usage_items"]
-            ]
-
-            # 카테고리 이름 한글 매핑 (중복 제거)
-            category_names_kr = {
-                "meals": "식대",
-                "traffic_transport": "교통비",
-                "supplies": "사무용품비",
-                "entertainment": "접대비",
-                "utility": "공과금",
-                "welfare": "복리후생비",
-                "education": "교육훈련비",
-                "other": "기타 경비",
-            }
-
-            unique_kr_categories = set()
-            for cat in categories:
-                mapped_cat = self.convert_category(cat)  # 영어 카테고리로 표준화
-                if mapped_cat in category_names_kr:
-                    unique_kr_categories.add(category_names_kr[mapped_cat])
-
-            if unique_kr_categories:
-                processed["expense_reason"] = (
-                    ", ".join(unique_kr_categories) + " 등 사용"
-                )
-            else:
-                processed["expense_reason"] = "법인카드 사용 내역"
-
-        elif not processed.get("expense_reason"):
-            processed["expense_reason"] = "법인카드 사용 내역"
-
-        return processed
+        """법인카드 사용 내역서 후처리"""
+        return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """법인카드 지출내역서 폼 데이터를 API Payload로 변환"""
