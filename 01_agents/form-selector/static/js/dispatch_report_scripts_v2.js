@@ -124,30 +124,31 @@
             }
 
             /**
-             * 보고서 내용 유효성 검사
+             * 보고서 내용 유효성 검사 일시 비활성화
              */
-            setupReportValidation() {
-                const purposeInput = this.form.querySelector('#dispatch_purpose');
-                const reportDetailsInput = this.form.querySelector('#report_details');
+            // setupReportValidation() {
+            //     const purposeInput = this.form.querySelector('#dispatch_purpose');
+            //     const reportDetailsInput = this.form.querySelector('#report_details');
                 
-                if (purposeInput) {
-                    purposeInput.addEventListener('blur', (e) => {
-                        if (e.target.value.trim().length < 10) {
-                            alert('파견/출장 목적은 10자 이상 작성해주세요.');
-                            e.target.focus();
-                        }
-                    });
-                }
                 
-                if (reportDetailsInput) {
-                    reportDetailsInput.addEventListener('blur', (e) => {
-                        if (e.target.value.trim().length < 50) {
-                            alert('보고서 내용은 50자 이상 작성해주세요.');
-                            e.target.focus();
-                        }
-                    });
-                }
-            }
+            //     if (purposeInput) {
+            //         purposeInput.addEventListener('blur', (e) => {
+            //             if (e.target.value.trim().length < 10) {
+            //                 alert('파견/출장 목적은 10자 이상 작성해주세요.');
+            //                 e.target.focus();
+            //             }
+            //         });
+            //     }
+                
+            //     if (reportDetailsInput) {
+            //         reportDetailsInput.addEventListener('blur', (e) => {
+            //             if (e.target.value.trim().length < 50) {
+            //                 alert('보고서 내용은 50자 이상 작성해주세요.');
+            //                 e.target.focus();
+            //             }
+            //         });
+            //     }
+            // }
         }
 
         // 프로세서 인스턴스 생성

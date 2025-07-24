@@ -125,7 +125,7 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         if items_to_process:
             for item in items_to_process:
                 item_name = item.get("item_name")
-                if not item_name:
+                if not item_name or item_name == "SLOT_NOT_FOUND_OR_UNDEFINED":
                     continue
 
                 item_total_price = item.get("item_total_price", 0)
@@ -158,7 +158,7 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
             # Fallback for older format
             for i in range(1, 4):  # 최대 3개 항목
                 item_name = form_data.get(f"item_name_{i}")
-                if not item_name:
+                if not item_name or item_name == "SLOT_NOT_FOUND_OR_UNDEFINED":
                     continue
 
                 item_total_price = form_data.get(f"item_total_price_{i}", 0)

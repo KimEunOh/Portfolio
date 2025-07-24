@@ -59,8 +59,20 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         return converted_slots
 
     def postprocess_slots(self, slots: Dict[str, Any]) -> Dict[str, Any]:
-        """교통비 신청서 후처리"""
-        return slots
+        """교통비 후처리: 아이템 금액을 합산하여 total_amount 업데이트"""
+        processed_slots = slots.copy()
+
+        # items 리스트의 amount를 합산하여 total_amount 계산
+        if "items" in processed_slots and isinstance(processed_slots["items"], list):
+            total_amount = sum(
+                item.get("amount", 0) for item in processed_slots["items"]
+            )
+            processed_slots["total_amount"] = total_amount
+            logging.info(
+                f"TransportationExpenseProcessor: Calculated total_amount: {total_amount}"
+            )
+
+        return processed_slots
 
     def _convert_amount_to_int(self, amount_value: Any) -> int:
         """

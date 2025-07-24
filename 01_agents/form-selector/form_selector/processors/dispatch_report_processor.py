@@ -33,9 +33,8 @@ class DispatchReportProcessor(BaseFormProcessor):
         """전처리: 기본값 설정"""
         processed = slots.copy()
 
-        # 기본 제목 설정
-        if not processed.get("title"):
-            processed["title"] = "파견 및 출장 보고서"
+        if "origin" not in processed or not processed["origin"]:
+            processed["origin"] = "사무실"
 
         return processed
 
@@ -83,7 +82,7 @@ class DispatchReportProcessor(BaseFormProcessor):
 
         payload = {
             "mstPid": "5",  # API 명세에 맞게 string 형태로 수정
-            "aprvNm": form_data.get("title", "파견/출장 보고서"),
+            "aprvNm": "파견/출장 보고서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "파견/출장 보고서"),
             "apdInfo": json.dumps(

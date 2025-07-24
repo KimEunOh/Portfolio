@@ -121,6 +121,9 @@ class AnnualLeaveProcessor(BaseFormProcessor):
                     f"Could not calculate leave_days from start_date='{start_date_str}' and end_date='{end_date_str}'. Error: {e}"
                 )
 
+        if "reason" not in slots or not slots["reason"]:
+            slots["reason"] = "개인 사유"
+
         return slots
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
