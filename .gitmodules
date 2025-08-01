@@ -1,0 +1,3 @@
+[submodule "02_LLM/UseBase"]
+	path = 02_LLM/UseBase
+	url = git@github.com:KimEunOh/Usebase.git
