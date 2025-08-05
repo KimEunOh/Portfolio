@@ -250,7 +250,7 @@ class CorporateCardProcessor(BaseFormProcessor):
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.aprvPsId,
+                        "aprvPsId": approver.aprvPsId,
                         "aprvDvTy": approver.aprvDvTy,
                         "ordr": int(approver.ordr),
                     }

@@ -688,12 +688,12 @@ def _convert_annual_leave_to_payload(form_data: Dict[str, Any]) -> Dict[str, Any
             f"[연차 신청서] 시작일이 누락되어 dayList를 생성할 수 없습니다."
         )
 
-    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPsId 사용)
     if "approvers" in form_data and form_data["approvers"]:
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvPsId": approver.aprvPsId,  # aprvPsId로 수정
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }
@@ -745,12 +745,12 @@ def _convert_dinner_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
             }
         )
 
-    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPsId 사용)
     if "approvers" in form_data and form_data["approvers"]:
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvPsId": approver.aprvPsId,  # aprvPsId로 수정
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }
@@ -801,12 +801,12 @@ def _convert_transportation_expense_to_payload(
             }
         )
 
-    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPsId 사용)
     if "approvers" in form_data and form_data["approvers"]:
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,  # aprvPslId로 수정
+                    "aprvPsId": approver.aprvPsId,  # aprvPsId로 수정
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }
@@ -892,12 +892,12 @@ def _convert_dispatch_report_to_payload(form_data: Dict[str, Any]) -> Dict[str, 
             f"[파견 및 출장 보고서] 시작일 또는 종료일 누락: start_date={start_date}, end_date={end_date}"
         )
 
-    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPslId 사용)
+    # 결재라인 정보 추가 (API_명세.md에 따라 aprvPsId 사용)
     if "approvers" in form_data and form_data["approvers"]:
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,
+                    "aprvPsId": approver.aprvPsId,
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }
@@ -981,7 +981,7 @@ def _convert_inventory_report_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,
+                    "aprvPsId": approver.aprvPsId,
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }
@@ -1123,7 +1123,7 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
             if isinstance(approver, dict):
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.get("aprvPsId"),
+                        "aprvPsId": approver.get("aprvPsId"),
                         "aprvDvTy": approver.get("aprvDvTy"),
                         "ordr": approver.get("ordr"),
                     }
@@ -1131,7 +1131,7 @@ def _convert_purchase_approval_to_payload(form_data: Dict[str, Any]) -> Dict[str
             else:  # Pydantic 모델 객체인 경우
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.aprvPsId,
+                        "aprvPsId": approver.aprvPsId,
                         "aprvDvTy": approver.aprvDvTy,
                         "ordr": approver.ordr,
                     }
@@ -1231,7 +1231,7 @@ def _convert_personal_expense_to_payload(form_data: Dict[str, Any]) -> Dict[str,
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,
+                    "aprvPsId": approver.aprvPsId,
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }
@@ -1356,7 +1356,7 @@ def _convert_corporate_card_to_payload(form_data: Dict[str, Any]) -> Dict[str, A
         for approver in form_data["approvers"]:
             payload["lineList"].append(
                 {
-                    "aprvPslId": approver.aprvPsId,
+                    "aprvPsId": approver.aprvPsId,
                     "aprvDvTy": approver.aprvDvTy,
                     "ordr": approver.ordr,
                 }

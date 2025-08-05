@@ -207,7 +207,7 @@ class AnnualLeaveProcessor(BaseFormProcessor):
             for approver in form_data["approvers"]:
                 payload["lineList"].append(
                     {
-                        "aprvPslId": approver.aprvPsId,  # Legacy 형식: aprvPslId
+                        "aprvPsId": approver.aprvPsId,  # Legacy 형식: aprvPslId
                         "aprvDvTy": approver.aprvDvTy,
                         "ordr": int(approver.ordr),
                     }
