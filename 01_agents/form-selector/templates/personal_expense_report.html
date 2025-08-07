@@ -11,8 +11,8 @@
     <form id="personal_expense_form">
 
         <div class="form-group">
-            <label for="usage_status">사용 현황:</label>
-            <select id="usage_status" name="usage_status" class="form-control" data-selected="{usage_status}">
+            <label for="usageStatus">사용 현황:</label>
+            <select id="usageStatus" name="usageStatus" class="form-control" data-selected="{usage_status}">
                 <option value="">선택하세요</option>
                 <option value="personal_cash">개인현금</option>
                 <option value="personal_card">개인카드</option>
@@ -20,13 +20,13 @@
         </div>
 
         <div class="form-group">
-            <label for="total_amount_header">총 금액:</label>
-            <input type="text" id="total_amount_header" name="total_amount_header" readonly class="form-control" value="{total_amount}">
+            <label for="totalAmountHeader">총 금액:</label>
+            <input type="text" id="totalAmountHeader" name="totalAmountHeader" readonly class="form-control" value="{total_amount}">
         </div>
 
         <div class="form-group">
-            <label for="expense_reason">지출 사유:</label>
-            <textarea id="expense_reason" name="expense_reason" rows="4" class="form-control">{expense_reason}</textarea>
+            <label for="expenseReason">지출 사유:</label>
+            <textarea id="expenseReason" name="expenseReason" rows="4" class="form-control">{expense_reason}</textarea>
         </div>
         
         <h3 class="form-section-title">경비 사용 내역</h3>
@@ -35,9 +35,9 @@
             <tbody class="item-container">
                 <!-- Item 1 -->
                 <tr>
-                    <td colspan="2"><strong>사용내역:</strong><br><input type="text" id="expense_description_1" name="expense_description_1" class="form-control"></td>
+                    <td colspan="2"><strong>사용내역:</strong><br><input type="text" id="expenseDescription_1" name="expenseDescription_1" class="form-control"></td>
                     <td><strong>분류:</strong><br>
-                        <select id="expense_category_1" name="expense_category_1" class="form-control">
+                        <select id="expenseCategory_1" name="expenseCategory_1" class="form-control">
                             <option value="">선택</option>
                             <option value="traffic">교통비</option>
                             <option value="accommodation">숙박비</option>
@@ -50,17 +50,17 @@
                     </td>
                 </tr>
                 <tr class="item-row-divider">
-                    <td><strong>사용일자:</strong><br><input type="date" id="expense_date_1" name="expense_date_1" class="form-control"></td>
-                    <td><strong>금액:</strong><br><input type="number" id="expense_amount_1" name="expense_amount_1" class="form-control expense-amount-calc"></td>
-                    <td><strong>비고:</strong><br><input type="text" id="expense_notes_1" name="expense_notes_1" class="form-control"></td>
+                    <td><strong>사용일자:</strong><br><input type="date" id="expenseDate_1" name="expenseDate_1" class="form-control"></td>
+                    <td><strong>금액:</strong><br><input type="number" id="expenseAmount_1" name="expenseAmount_1" class="form-control expense-amount-calc"></td>
+                    <td><strong>비고:</strong><br><input type="text" id="expenseNotes_1" name="expenseNotes_1" class="form-control"></td>
                 </tr>
             </tbody>
             <tbody class="item-container">
                 <!-- Item 2 -->
                 <tr>
-                    <td colspan="2"><strong>사용내역:</strong><br><input type="text" id="expense_description_2" name="expense_description_2" class="form-control"></td>
+                    <td colspan="2"><strong>사용내역:</strong><br><input type="text" id="expenseDescription_2" name="expenseDescription_2" class="form-control"></td>
                     <td><strong>분류:</strong><br>
-                        <select id="expense_category_2" name="expense_category_2" class="form-control">
+                        <select id="expenseCategory_2" name="expenseCategory_2" class="form-control">
                             <option value="">선택</option>
                             <option value="traffic">교통비</option>
                             <option value="accommodation">숙박비</option>
@@ -73,17 +73,17 @@
                     </td>
                 </tr>
                 <tr class="item-row-divider">
-                    <td><strong>사용일자:</strong><br><input type="date" id="expense_date_2" name="expense_date_2" class="form-control"></td>
-                    <td><strong>금액:</strong><br><input type="number" id="expense_amount_2" name="expense_amount_2" class="form-control expense-amount-calc"></td>
-                    <td><strong>비고:</strong><br><input type="text" id="expense_notes_2" name="expense_notes_2" class="form-control"></td>
+                    <td><strong>사용일자:</strong><br><input type="date" id="expenseDate_2" name="expenseDate_2" class="form-control"></td>
+                    <td><strong>금액:</strong><br><input type="number" id="expenseAmount_2" name="expenseAmount_2" class="form-control expense-amount-calc"></td>
+                    <td><strong>비고:</strong><br><input type="text" id="expenseNotes_2" name="expenseNotes_2" class="form-control"></td>
                 </tr>
             </tbody>
             <tbody class="item-container">
                 <!-- Item 3 -->
                 <tr>
-                    <td colspan="2"><strong>사용내역:</strong><br><input type="text" id="expense_description_3" name="expense_description_3" class="form-control"></td>
+                    <td colspan="2"><strong>사용내역:</strong><br><input type="text" id="expenseDescription_3" name="expenseDescription_3" class="form-control"></td>
                     <td><strong>분류:</strong><br>
-                        <select id="expense_category_3" name="expense_category_3" class="form-control">
+                        <select id="expenseCategory_3" name="expenseCategory_3" class="form-control">
                             <option value="">선택</option>
                             <option value="traffic">교통비</option>
                             <option value="accommodation">숙박비</option>
@@ -96,9 +96,9 @@
                     </td>
                 </tr>
                 <tr class="item-row-divider">
-                    <td><strong>사용일자:</strong><br><input type="date" id="expense_date_3" name="expense_date_3" class="form-control"></td>
-                    <td><strong>금액:</strong><br><input type="number" id="expense_amount_3" name="expense_amount_3" class="form-control expense-amount-calc"></td>
-                    <td><strong>비고:</strong><br><input type="text" id="expense_notes_3" name="expense_notes_3" class="form-control"></td>
+                    <td><strong>사용일자:</strong><br><input type="date" id="expenseDate_3" name="expenseDate_3" class="form-control"></td>
+                    <td><strong>금액:</strong><br><input type="number" id="expenseAmount_3" name="expenseAmount_3" class="form-control expense-amount-calc"></td>
+                    <td><strong>비고:</strong><br><input type="text" id="expenseNotes_3" name="expenseNotes_3" class="form-control"></td>
                 </tr>
             </tbody>
         </table>
@@ -108,8 +108,8 @@
         </div>
         
         <div class="form-group">
-            <label for="total_expense_amount">총 합계 금액:</label>
-            <input type="text" id="total_expense_amount" name="total_expense_amount" readonly class="form-control">
+            <label for="totalExpenseAmount">총 합계 금액:</label>
+            <input type="text" id="totalExpenseAmount" name="totalExpenseAmount" readonly class="form-control">
         </div>
 
         <p><strong>* 영수증 별도 제출</strong></p>

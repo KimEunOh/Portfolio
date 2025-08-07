@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ko" xml:lang="ko" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:insert="~{/soulGod/fragments/headChatbot :: headChatbot}"></th:block>
+    <script th:inline="javascript">
+        $(function(){
+            //datepicker
+            fn_setDatePicker('#date');
+
+            // 결재라인 버튼 클릭
+            $(document).on('click', '.approval_line .btn_arr', function() {
+                $(this).parents('.approval_line').toggleClass('active');
+            });
+
+            // 상세 내역 버튼 클릭
+            $(document).on('click', '.detail_area ul > li .btn_arr', function() {
+                $(this).parents('li').toggleClass('active');
+            });
+
+            // 수량
+            $('#amountamount').spinner({
+                min: 0
+            });
+            $('#amountamount2').spinner({
+                min: 0
+            });
+        });
+    </script>
+</head>
+<body>
+<div id="wrap">
+    <div class="contents">
+        <div class="form_area">
+            <div class="form_tit">비품/소모품 구입내역서</div>
+            <div class="approval_line">
+                <div class="draft">
+                    <div class="tit">
+                        <span>기안</span>
+                        <span class="date">(2025.07.14)</span>
+                    </div>
+                    <div class="name">
+                        이철수 선임
+                        <button type="button" class="btn_arr"></button>
+                    </div>
+                </div>
+                <div class="lines">
+                    <ul>
+                        <li>
+                            <dl>
+                                <dt>합의</dt>
+                                <dd>
+                                    <div class="name">이영희 책임</div>
+                                    <button type="button" class="btn">변경</button>
+                                </dd>
+                            </dl>
+                        </li>
+                        <li>
+                            <dl>
+                                <dt>결재</dt>
+                                <dd>
+                                    <div class="name">김명수 이사</div>
+                                    <button type="button" class="btn">변경</button>
+                                </dd>
+                            </dl>
+                        </li>
+                        <li>
+                            <dl>
+                                <dt>참조</dt>
+                                <dd>
+                                    <div class="name">-</div>
+                                    <button type="button" class="btn">추가</button>
+                                </dd>
+                            </dl>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <form action="">
+                <fieldset>
+                    <legend>비품/소모품 구입내역서</legend>
+                    <div class="form">
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="date">요청일</label></dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="date" name="requestDate" class="datepicker" readonly>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>
+                                    <label for="paymentMethod">대금지불방법</label>
+                                </dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="paymentMethod" name="paymentMethod" placeholder="입력하세요." value="{paymentMethod}">
+                                        <button type="button" class="btn_del" tabindex="-1">
+                                            <span class="blind">삭제</span>
+                                        </button>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>구입 상세 내역 <button type="button" class="btn btn_add"></button></dt>
+                                <dd>
+                                    <div class="detail_area">
+                                        <ul>
+                                            <li>
+                                                <div class="box">
+                                                    <div class="box_head">
+                                                        <div class="tit">
+                                                            <button type="button" class="btn_arr"></button>
+                                                            <p>A4 용지</p>
+                                                        </div>
+                                                        <div class="data">
+                                                            <div class="input inp_sm">
+                                                                <input type="text" id="itemTotalPrice1" name="itemTotalPrice1" class="comma" placeholder="입력하세요." value="50000">
+                                                                <button type="button" class="btn_del" tabindex="-1">
+                                                                    <span class="blind">삭제</span>
+                                                                </button>
+                                                            </div>
+                                                            <button type="button" class="btn btn_remove"></button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="box_body">
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemName1">품명</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemName1" name="itemName1" placeholder="입력하세요." value="A4 용지">
+                                                                        <button type="button" class="btn_del" tabindex="-1">
+                                                                            <span class="blind">삭제</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="bundle">
+                                                                <dl class="col">
+                                                                    <dt><label for="itemUnitPrice1">단가</label></dt>
+                                                                    <dd>
+                                                                        <div class="input">
+                                                                            <input type="text" id="itemUnitPrice1" name="itemUnitPrice1" class="comma" placeholder="입력하세요." value="5000">
+                                                                            <button type="button" class="btn_del" tabindex="-1">
+                                                                                <span class="blind">삭제</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    </dd>
+                                                                </dl>
+                                                                <dl class="col">
+                                                                    <dt>수량</dt>
+                                                                    <dd>
+                                                                        <div class="amount">
+                                                                            <label for="itemQuantity1" class="blind">수량 선택</label>
+                                                                            <input type="number" id="itemQuantity1" name="itemQuantity1">
+                                                                        </div>
+                                                                    </dd>
+                                                                </dl>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemPurpose1">용도</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemPurpose1" name="itemPurpose1" placeholder="입력하세요.">
+                                                                        <button type="button" class="btn_del" tabindex="-1">
+                                                                            <span class="blind">삭제</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <div class="box">
+                                                    <div class="box_head">
+                                                        <div class="tit">
+                                                            <button type="button" class="btn_arr"></button>
+                                                            <p>볼펜</p>
+                                                        </div>
+                                                        <div class="data">
+                                                            <div class="input inp_sm">
+                                                                <input type="text" id="itemTotalPrice2" name="itemTotalPrice2" class="comma" placeholder="입력하세요." value="16000">
+                                                                <button type="button" class="btn_del" tabindex="-1">
+                                                                    <span class="blind">삭제</span>
+                                                                </button>
+                                                            </div>
+                                                            <button type="button" class="btn btn_remove"></button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="box_body">
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemName2">품명</label></dt>
+                                                                <dd>
+                                                                    <div class="input2">
+                                                                        <input type="text" id="itemName2" name="itemName2" placeholder="입력하세요." value="볼펜">
+                                                                        <button type="button" class="btn_del" tabindex="-1">
+                                                                            <span class="blind">삭제</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="bundle">
+                                                                <dl class="col">
+                                                                    <dt><label for="itemUnitPrice2">단가</label></dt>
+                                                                    <dd>
+                                                                        <div class="input">
+                                                                            <input type="text" id="itemUnitPrice2" name="itemUnitPrice2" class="comma" placeholder="입력하세요." value="1600">
+                                                                            <button type="button" class="btn_del" tabindex="-1">
+                                                                                <span class="blind">삭제</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    </dd>
+                                                                </dl>
+                                                                <dl class="col">
+                                                                    <dt>수량</dt>
+                                                                    <dd>
+                                                                        <div class="amount">
+                                                                            <label for="itemQuantity2" class="blind">수량 선택</label>
+                                                                            <input type="number" id="itemQuantity2" name="itemQuantity2">
+                                                                        </div>
+                                                                    </dd>
+                                                                </dl>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemPurpose2">용도</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemPurpose2" name="itemPurpose2" placeholder="입력하세요.">
+                                                                        <button type="button" class="btn_del" tabindex="-1">
+                                                                            <span class="blind">삭제</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="totalAmount">총 금액</label></dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="totalAmount" name="totalAmount" class="comma" placeholder="입력하세요.">
+                                        <button type="button" class="btn_del" tabindex="-1">
+                                            <span class="blind">삭제</span>
+                                        </button>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="notes">기타 보고 사항(비고)</label></dt>
+                                <dd>
+                                    <textarea name="notes" id="notes" placeholder="입력하세요.">{notes}</textarea>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                    <div class="tip">
+                        <p>영수증 별도 제출</p>
+                    </div>
+                    <div class="btn_area">
+                        <button type="button" class="btn btn_md fill_primary">제출하기</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

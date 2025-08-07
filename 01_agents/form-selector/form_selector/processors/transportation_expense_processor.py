@@ -12,7 +12,7 @@ from typing import Dict, Any
 from .base_processor import BaseFormProcessor
 import logging
 import json
-from ..utils import parse_relative_date_to_iso
+from ..utils import parse_relative_date_to_iso, convert_keys_to_camel
 
 
 class TransportationExpenseProcessor(BaseFormProcessor):
@@ -115,40 +115,47 @@ class TransportationExpenseProcessor(BaseFormProcessor):
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """교통비 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
 
-        # purpose 필드가 비어있으면 기본 제목 설정
-        doc_title = form_data.get("purpose") or "교통비 신청"
+        # 1. form_data에서 items와 notes를 직접 가져옵니다.
+        #    service.py에서 넘어오는 데이터는 snake_case 키를 가집니다.
+        items_snake = form_data.get("items", [])
+        notes = form_data.get("notes", "")
 
+        # 2. items 리스트의 키를 snake_case에서 camelCase로 변환합니다.
+        items_camel = convert_keys_to_camel(items_snake)
+
+        # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다. (items 제외)
+        apd_info_dict = {
+            "notes": notes,
+        }
+        final_apd_info_str = json.dumps(apd_info_dict, ensure_ascii=False)
+
+        # 4. 기본 페이로드 구조를 설정합니다.
         payload = {
             "mstPid": "4",
-            "aprvNm": doc_title,
+            "aprvNm": "교통비 신청서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "교통비 신청"),
-            "apdInfo": json.dumps(
-                {
-                    "items": form_data.get("items", []),
-                    "notes": form_data.get("notes", ""),
-                },
-                ensure_ascii=False,
-            ),
+            "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
             "amountList": [],
         }
 
-        # amountList 구성: 각 교통 내역 아이템을 별도의 항목으로 추가
+        # 5. amountList를 구성합니다.
+        #    - form_data에서 snake_case 키로 날짜를 가져옵니다.
+        #    - 키 변환이 완료된 items_camel 리스트를 사용합니다.
         departure_date = form_data.get("departure_date", "")
-        items = form_data.get("items", [])
         purpose = form_data.get("purpose", "")
 
-        for item in items:
+        for item in items_camel:  # camelCase로 변환된 아이템 리스트 사용
             # useRsn: 목적(용무)를 기본으로, 아이템별 비고가 있으면 함께 표시
             reason_parts = [purpose]
             if item.get("notes"):
                 reason_parts.append(item["notes"])
             use_reason = " - ".join(filter(None, reason_parts))
 
-            # dvNm: 교통수단을 기본으로, 출발지/목적지 정보 추가
-            dvnm_parts = [item.get("transport_type", "기타")]
+            # dvNm: 교통수단을 기본으로, 출발지/목적지 정보 추가 (camelCase 키 사용)
+            dvnm_parts = [item.get("transportType", "기타")]
             if item.get("origin") or item.get("destination"):
                 dvnm_parts.append(
                     f"({item.get('origin', '')} → {item.get('destination', '')})"
@@ -162,6 +169,7 @@ class TransportationExpenseProcessor(BaseFormProcessor):
                     "useRsn": use_reason,
                     "qnty": 1,
                     "amt": item.get("amount", 0),
+                    # aditInfo에는 camelCase로 변환된 item 전체를 저장
                     "aditInfo": json.dumps(item, ensure_ascii=False),
                 }
             )

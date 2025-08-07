@@ -6,7 +6,7 @@ import logging
 import json
 from datetime import datetime
 
-from ..utils import parse_relative_date_to_iso
+from ..utils import parse_relative_date_to_iso, convert_keys_to_camel
 
 
 class PurchaseApprovalProcessor(BaseFormProcessor):
@@ -92,101 +92,111 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         """구매품의서 폼 데이터를 API Payload로 변환"""
         logging.info("PurchaseApprovalProcessor: Converting form data to API payload")
 
+        # 1. form_data에서 items 리스트를 가져옵니다. (purchase_items 키 사용)
+        items_snake = form_data.get("purchase_items", [])
+        logging.info(f"PurchaseApprovalProcessor: items_snake = {items_snake}")
+
+        # 2. items 리스트의 키를 camelCase로 변환합니다.
+        items_camel = convert_keys_to_camel(items_snake)
+        logging.info(f"PurchaseApprovalProcessor: items_camel = {items_camel}")
+
+        # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다. (items 제외)
+        apd_info_dict = {
+            "deliveryLocation": form_data.get("delivery_location", ""),
+            "paymentTerms": form_data.get("payment_terms", ""),
+            "attachedFilesDescription": form_data.get("attached_files_description", ""),
+            "totalPurchaseAmount": form_data.get("total_purchase_amount", 0),
+            "specialNotes": form_data.get("special_notes", ""),
+        }
+        final_apd_info_str = json.dumps(
+            convert_keys_to_camel(apd_info_dict), ensure_ascii=False
+        )
+
+        # 4. 기본 페이로드 구조를 설정합니다.
         payload = {
             "mstPid": "7",
-            "aprvNm": form_data.get("title", "구매 품의서"),
+            "aprvNm": "구매 품의서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "구매 품의서"),
-            "apdInfo": json.dumps(
-                {
-                    "delivery_location": form_data.get("delivery_location", ""),
-                    "payment_terms": form_data.get("payment_terms", ""),
-                    "attached_files_description": form_data.get(
-                        "attached_files_description", ""
-                    ),
-                    "total_purchase_amount": form_data.get("total_purchase_amount", 0),
-                },
-                ensure_ascii=False,
-            ),
+            "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
             "amountList": [],
         }
 
-        # amountList 구성 (구매 품목)
-        items_to_process = []
-        if "purchase_items" in form_data and isinstance(
-            form_data["purchase_items"], list
-        ):
-            items_to_process = form_data["purchase_items"]
-        elif "items" in form_data and isinstance(form_data["items"], list):
-            items_to_process = form_data["items"]
+        # 5. amountList를 구성합니다 (camelCase로 변환된 items_camel 사용).
+        draft_date = form_data.get("draft_date", "")
+        logging.info(
+            f"PurchaseApprovalProcessor: Processing {len(items_camel) if items_camel else 0} items for amountList"
+        )
 
-        if items_to_process:
-            for item in items_to_process:
-                item_name = item.get("item_name")
+        if items_camel:
+            for item in items_camel:
+                item_name = item.get("itemName")
+                logging.info(f"PurchaseApprovalProcessor: Processing item: {item_name}")
                 if not item_name or item_name == "SLOT_NOT_FOUND_OR_UNDEFINED":
                     continue
 
-                item_total_price = item.get("item_total_price", 0)
-                item_quantity = item.get("item_quantity", 0)
+                item_total_price = item.get("itemTotalPrice", 0)
+                item_quantity = item.get("itemQuantity", 0)
 
                 adit_info = {
-                    "spec": item.get("item_spec", ""),
-                    "unitPrice": item.get("item_unit_price", 0),
-                    "supplier": item.get("item_supplier", ""),
+                    "spec": item.get("itemSpec", ""),
+                    "unitPrice": item.get("itemUnitPrice", 0),
+                    "supplier": item.get("itemSupplier", ""),
                 }
 
-                payload["amountList"].append(
-                    {
-                        "useYmd": item.get("item_delivery_date")
-                        or form_data.get("draft_date", ""),
-                        "dvNm": item_name,
-                        "useRsn": item.get("item_notes", ""),
-                        "qnty": (
-                            int(item_quantity) if str(item_quantity).isdigit() else 0
-                        ),
-                        "amt": (
-                            int(item_total_price)
-                            if str(item_total_price).isdigit()
-                            else 0
-                        ),
-                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
-                    }
+                amount_item = {
+                    "useYmd": item.get("itemDeliveryDate") or draft_date,
+                    "dvNm": item_name,
+                    "useRsn": item.get("itemNotes", ""),
+                    "qnty": (int(item_quantity) if str(item_quantity).isdigit() else 0),
+                    "amt": (
+                        int(item_total_price) if str(item_total_price).isdigit() else 0
+                    ),
+                    "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                }
+                payload["amountList"].append(amount_item)
+                logging.info(
+                    f"PurchaseApprovalProcessor: Added amount item: {amount_item}"
                 )
         else:
-            # Fallback for older format
-            for i in range(1, 4):  # 최대 3개 항목
-                item_name = form_data.get(f"item_name_{i}")
+            logging.info(
+                "PurchaseApprovalProcessor: No items_camel, trying fallback..."
+            )
+            # Fallback for older format (HTML 필드 직접 참조)
+            for i in range(1, 4):
+                item_name = form_data.get(f"itemName_{i}")
                 if not item_name or item_name == "SLOT_NOT_FOUND_OR_UNDEFINED":
                     continue
 
-                item_total_price = form_data.get(f"item_total_price_{i}", 0)
-                item_quantity = form_data.get(f"item_quantity_{i}", 0)
+                item_total_price = form_data.get(f"itemTotalPrice_{i}", 0)
+                item_quantity = form_data.get(f"itemQuantity_{i}", 0)
 
                 adit_info = {
-                    "spec": form_data.get(f"item_spec_{i}", ""),
-                    "unitPrice": form_data.get(f"item_unit_price_{i}", 0),
-                    "supplier": form_data.get(f"item_supplier_{i}", ""),
+                    "spec": form_data.get(f"itemSpec_{i}", ""),
+                    "unitPrice": form_data.get(f"itemUnitPrice_{i}", 0),
+                    "supplier": form_data.get(f"itemSupplier_{i}", ""),
                 }
 
-                payload["amountList"].append(
-                    {
-                        "useYmd": form_data.get(f"item_delivery_date_{i}")
-                        or form_data.get("draft_date", ""),
-                        "dvNm": item_name,
-                        "useRsn": form_data.get(f"item_notes_{i}", ""),
-                        "qnty": (
-                            int(item_quantity) if str(item_quantity).isdigit() else 0
-                        ),
-                        "amt": (
-                            int(item_total_price)
-                            if str(item_total_price).isdigit()
-                            else 0
-                        ),
-                        "aditInfo": json.dumps(adit_info, ensure_ascii=False),
-                    }
+                amount_item = {
+                    "useYmd": form_data.get(f"itemDeliveryDate_{i}") or draft_date,
+                    "dvNm": item_name,
+                    "useRsn": form_data.get(f"itemNotes_{i}", ""),
+                    "qnty": (int(item_quantity) if str(item_quantity).isdigit() else 0),
+                    "amt": (
+                        int(item_total_price) if str(item_total_price).isdigit() else 0
+                    ),
+                    "aditInfo": json.dumps(adit_info, ensure_ascii=False),
+                }
+                payload["amountList"].append(amount_item)
+                logging.info(
+                    f"PurchaseApprovalProcessor: Added fallback amount item: {amount_item}"
                 )
+
+        logging.info(
+            f"PurchaseApprovalProcessor: Final amountList length: {len(payload['amountList'])}"
+        )
 
         # 결재라인 정보 추가
         if "approvers" in form_data and form_data["approvers"]:

@@ -1,0 +1,66 @@
+// font
+@each $weight, $filename in (
+		900: 'Black',
+		800: 'ExtraBold',
+		700: 'Bold',
+		600: 'SemiBold',
+		500: 'Medium',
+		400: 'Regular',
+		300: 'Light',
+		200: 'ExtraLight',
+		100: 'Thin'
+) {
+	@font-face {
+		font-family: 'Pretendard';
+		font-style: normal;
+		font-weight: $weight;
+		font-display: swap;
+		src: local('Pretendard #{$filename}'), url('../font/Pretendard/Pretendard-#{$filename}.woff2') format('woff2'),
+		url('../font/Pretendard/Pretendard-#{$filename}.woff') format('woff');
+	}
+}
+@font-face {
+	font-family: 'Open Sans';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: local('OpenSans-Regular'),
+	url('../font/OpenSans/OpenSans-Regular.woff') format('woff');
+}
+
+// font size
+.fz0 {
+	font-size: 0 !important;
+}
+@for $i from 10 through 30 {
+	.fz#{$i} {
+		font-size: #{$i}px !important;
+	}
+}
+
+// font weight
+@for $weight from 1 through 9 {
+	.fw#{$weight * 100} {
+		font-weight: #{$weight * 100} !important;
+	}
+}
+
+// line height
+.lh180p {
+	line-height: 180% !important;
+}
+
+// letter spacing
+.ls {
+	&0 {
+		letter-spacing: 0 !important;
+	}
+
+	&_05 {
+		letter-spacing: -0.5px !important;
+	}
+
+	&_1 {
+		letter-spacing: -1px !important;
+	}
+}

@@ -1,0 +1,100 @@
+// 기간 폼
+.term_form {
+    display: inline-flex;
+    align-items: center;
+    column-gap: 12px;
+    width: 100%;
+    color: var(--grey60);
+
+    .input,
+    input {
+        width: 100%;
+    }
+}
+
+// 수량 선택
+.amount {
+    .ui-spinner {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 36px;
+        border-color: var(--grey10);
+        border-radius: var(--border-radius);
+        padding: 0 8px;
+
+        input {
+            flex: 1;
+            order: 2;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            color: var(--black);
+            font-size: 13px;
+            font-family: var(--font-family);
+            text-align: center;
+            border-radius: 0;
+            background-color: var(--white) !important;
+            padding: 0 8px !important;
+            &[disabled] {
+                color: rgba(var(--grey60-rgb),.36);
+            }
+
+            &[disabled] ~ .ui-spinner-button {
+                cursor: default;
+                pointer-events: none;
+
+                &.ui-spinner-up,
+                &.ui-spinner-down {
+                    opacity: 0.5 ;
+                }
+            }
+        }
+        .ui-spinner-button {
+            flex-shrink: 0;
+            position: static;
+            width: 20px;
+            height: 20px;
+            color: var(--grey70);
+            border: 0;
+            border-radius: 6px;
+            @include bg-base(50% 50%, 16px, var(--white));
+            &:not(.disabled) {
+                cursor: pointer;
+            }
+
+            span {
+                display: none;
+            }
+            &.ui-spinner-up {
+                order: 3;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%2342414C' d='M18 12.998h-5v5a1 1 0 0 1-2 0v-5H6a1 1 0 0 1 0-2h5v-5a1 1 0 0 1 2 0v5h5a1 1 0 0 1 0 2'/%3E%3C/svg%3E");
+
+                &.disabled {
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%23a2acbe' d='M18 12.998h-5v5a1 1 0 0 1-2 0v-5H6a1 1 0 0 1 0-2h5v-5a1 1 0 0 1 2 0v5h5a1 1 0 0 1 0 2'/%3E%3C/svg%3E");
+                }
+            }
+            &.ui-spinner-down {
+                order: 1;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%2342414C' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 12h14'/%3E%3C/svg%3E");
+
+                &.disabled {
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23a2acbe' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 12h14'/%3E%3C/svg%3E");
+                }
+            }
+
+            &:hover {
+                background-color: var(--bg20);
+            }
+            &:hover:active {
+                background-color: var(--grey20);
+            }
+            &:has(input:focus) {
+                border-color: var(--grey70);
+            }
+            &:has(input[disabled]) {
+                background-color: var(--bg10);
+            }
+        }
+    }
+}

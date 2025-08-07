@@ -1167,10 +1167,10 @@
                 // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
                 const titleValue = getElementValueOrSlotFunc(activeForm, 'title', 'title', slots);
                 const draftDateValue = getElementValueOrSlotFunc(activeForm, 'draft_date', 'draft_date', slots);
-                const usageStatusValue = getElementValueOrSlotFunc(activeForm, 'usage_status', 'usage_status', slots);
-                const totalAmountHeaderValue = getElementValueOrSlotFunc(activeForm, 'total_amount_header', 'total_amount_header', slots);
-                const expenseReasonValue = getElementValueOrSlotFunc(activeForm, 'expense_reason', 'expense_reason', slots);
-                const totalExpenseAmountValue = getElementValueOrSlotFunc(activeForm, 'total_expense_amount', 'total_expense_amount', slots);
+                const usageStatusValue = getElementValueOrSlotFunc(activeForm, 'usageStatus', 'usage_status', slots);
+                const totalAmountHeaderValue = getElementValueOrSlotFunc(activeForm, 'totalAmountHeader', 'total_amount_header', slots);
+                const expenseReasonValue = getElementValueOrSlotFunc(activeForm, 'expenseReason', 'expense_reason', slots);
+                const totalExpenseAmountValue = getElementValueOrSlotFunc(activeForm, 'totalExpenseAmount', 'total_expense_amount', slots);
 
                 // 필수값 검증
                 if (!draftDateValue || !expenseReasonValue) {
@@ -1185,11 +1185,11 @@
                 
                 // 개별 필드에서 경비 내역 수집 (최대 3개)
                 for (let i = 1; i <= 3; i++) {
-                    const expenseDate = getElementValueOrSlotFunc(activeForm, `expense_date_${i}`, `expense_date_${i}`, slots);
-                    const expenseCategory = getElementValueOrSlotFunc(activeForm, `expense_category_${i}`, `expense_category_${i}`, slots);
-                    const expenseDescription = getElementValueOrSlotFunc(activeForm, `expense_description_${i}`, `expense_description_${i}`, slots);
-                    const expenseAmount = getElementValueOrSlotFunc(activeForm, `expense_amount_${i}`, `expense_amount_${i}`, slots);
-                    const expenseNotes = getElementValueOrSlotFunc(activeForm, `expense_notes_${i}`, `expense_notes_${i}`, slots);
+                    const expenseDate = getElementValueOrSlotFunc(activeForm, `expenseDate_${i}`, `expense_date_${i}`, slots);
+                    const expenseCategory = getElementValueOrSlotFunc(activeForm, `expenseCategory_${i}`, `expense_category_${i}`, slots);
+                    const expenseDescription = getElementValueOrSlotFunc(activeForm, `expenseDescription_${i}`, `expense_description_${i}`, slots);
+                    const expenseAmount = getElementValueOrSlotFunc(activeForm, `expenseAmount_${i}`, `expense_amount_${i}`, slots);
+                    const expenseNotes = getElementValueOrSlotFunc(activeForm, `expenseNotes_${i}`, `expense_notes_${i}`, slots);
                     
                     // 필수 필드가 있는 경우만 추가
                     if (expenseDate && expenseAmount) {

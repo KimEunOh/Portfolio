@@ -5,7 +5,7 @@ from .base_processor import BaseFormProcessor
 import logging
 import json
 from datetime import datetime
-from ..utils import parse_relative_date_to_iso
+from ..utils import parse_relative_date_to_iso, convert_keys_to_camel
 
 
 class CorporateCardProcessor(BaseFormProcessor):
@@ -172,73 +172,74 @@ class CorporateCardProcessor(BaseFormProcessor):
         """법인카드 지출내역서 폼 데이터를 API Payload로 변환"""
         logging.info("CorporateCardProcessor: Converting form data to API payload")
 
-        # '작성 일자'가 statement_date로 넘어오므로 이를 사용
+        # 1. form_data에서 필요한 데이터를 snake_case 키로 가져옵니다.
         doc_cn_reason = form_data.get("expense_reason", "법인카드 사용 내역서")
+        items_snake = form_data.get("card_usage_items", [])
 
+        # 2. items 리스트의 키를 camelCase로 변환합니다.
+        items_camel = convert_keys_to_camel(items_snake)
+
+        # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다.
+        apd_info_dict = {
+            "cardNumber": form_data.get("card_number", ""),
+            "expenseReason": doc_cn_reason,
+            "statementDate": form_data.get("statement_date", ""),
+            "totalAmount": int(form_data.get("total_usage_amount", 0) or 0),
+        }
+        final_apd_info_str = json.dumps(
+            convert_keys_to_camel(apd_info_dict), ensure_ascii=False
+        )
+
+        # 4. 기본 페이로드 구조를 설정합니다.
         payload = {
             "mstPid": "9",
-            "aprvNm": form_data.get("title", "법인카드 사용 내역서"),
+            "aprvNm": "법인카드 지출내역서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": doc_cn_reason,
-            "apdInfo": json.dumps(
-                {
-                    "card_number": form_data.get("card_number", ""),
-                    "expense_reason": doc_cn_reason,
-                    "statement_date": form_data.get("statement_date", ""),
-                    "total_amount": int(form_data.get("total_usage_amount", 0) or 0),
-                },
-                ensure_ascii=False,
-            ),
+            "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
             "amountList": [],
         }
 
-        # amountList 구성 (카드 사용 내역)
-        if "card_usage_items" in form_data and isinstance(
-            form_data["card_usage_items"], list
-        ):
-            for item in form_data["card_usage_items"]:
-                usage_date = item.get("usage_date")
-                # 유효하지 않은 항목은 건너뛰기
+        # 5. amountList를 구성합니다. (camelCase로 변환된 items_camel 사용)
+        if items_camel:
+            for item in items_camel:
+                usage_date = item.get("usageDate")
                 if not usage_date or "SLOT_NOT_FOUND" in usage_date:
                     continue
 
-                usage_amount = item.get("usage_amount", 0)
-
-                # 카테고리 매핑 적용
-                raw_category = item.get("usage_category", "기타")
+                usage_amount = item.get("usageAmount", 0)
+                raw_category = item.get("usageCategory", "기타")
                 mapped_category = self.convert_category(raw_category)
-
-                adit_info = {"notes": item.get("usage_notes", "")}
+                adit_info = {"notes": item.get("usageNotes", "")}
 
                 payload["amountList"].append(
                     {
                         "useYmd": usage_date,
                         "dvNm": mapped_category,
-                        "useRsn": item.get("usage_description", ""),  # 상점명
+                        "useRsn": item.get("usageDescription", ""),  # 상점명
                         "qnty": 1,
                         "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
         else:
-            # Fallback for older format
-            for i in range(1, 7):  # 최대 6개 항목
-                usage_date = form_data.get(f"usage_date_{i}")
-                # 유효하지 않은 항목은 건너뛰기
+            # Fallback for older format (HTML 필드 직접 참조)
+            # 이 부분의 키들도 service.py에 의해 camelCase로 변환되었을 가능성이 있으므로 camelCase로 참조
+            for i in range(1, 7):
+                usage_date = form_data.get(f"usageDate_{i}")
                 if not usage_date or "SLOT_NOT_FOUND" in usage_date:
                     continue
 
-                usage_amount = form_data.get(f"usage_amount_{i}", 0)
-
-                adit_info = {"notes": form_data.get(f"usage_notes_{i}", "")}
+                usage_amount = form_data.get(f"usageAmount_{i}", 0)
+                adit_info = {"notes": form_data.get(f"usageNotes_{i}", "")}
 
                 payload["amountList"].append(
                     {
                         "useYmd": usage_date,
-                        "dvNm": form_data.get(f"usage_category_{i}", "기타"),
-                        "useRsn": form_data.get(f"merchant_name_{i}", ""),
+                        "dvNm": form_data.get(f"usageCategory_{i}", "기타"),
+                        "useRsn": form_data.get(f"merchantName_{i}", ""),
                         "qnty": 1,
                         "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),

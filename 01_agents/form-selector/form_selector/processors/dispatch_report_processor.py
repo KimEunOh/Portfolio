@@ -82,16 +82,15 @@ class DispatchReportProcessor(BaseFormProcessor):
 
         payload = {
             "mstPid": "5",  # API 명세에 맞게 string 형태로 수정
-            "aprvNm": "파견/출장 보고서",
+            "aprvNm": "파견 및 출장 보고서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "파견/출장 보고서"),
             "apdInfo": json.dumps(
                 {
                     "destination": form_data.get("destination", ""),
-                    "period_days": int(form_data.get("duration_days", 0)),
-                    "accomplishments": form_data.get("report_details", ""),
-                    "challenges": form_data.get("challenges", ""),
-                    "next_actions": form_data.get("next_actions", ""),
+                    "periodDays": int(form_data.get("duration_days", 0)),
+                    "reportDetails": form_data.get("report_details", ""),
+                    "notes": form_data.get("notes", ""),
                 },
                 ensure_ascii=False,
             ),

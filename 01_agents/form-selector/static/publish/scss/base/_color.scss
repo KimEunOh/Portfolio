@@ -1,0 +1,55 @@
+$color-map: (
+		white: var(--white), black: var(--black),
+        primary05: var(--primary05), primary10: var(--primary10), primary30: var(--primary30), primary50: var(--primary50), primary70: var(--primary70), primary90: var(--primary90),
+		grey10: var(--grey10), grey20: var(--grey20), grey30: var(--grey30), grey40: var(--grey40), grey50: var(--grey50),
+		grey60: var(--grey60), grey70: var(--grey70),
+        green10: var(--green10), green30: var(--green30), green50: var(--green50), green70: var(--green70), green90: var(--green90),
+        coral10: var(--coral10), coral30: var(--coral30), coral50: var(--coral50), coral70: var(--coral70), coral90: var(--coral90),
+        yellow10: var(--yellow10), yellow30: var(--yellow30), yellow50: var(--yellow50), yellow70: var(--yellow70), yellow90: var(--yellow90)
+);
+
+// 폰트 컬러
+@each $color-name, $color-value in $color-map {
+	.fc_#{$color-name} {
+		color: #{$color-value} !important;
+	}
+}
+
+// 배경 컬러
+@each $color-name, $color-value in (
+		primary: var(--primary90), grey70: var(--grey70),
+) {
+	.fill_#{$color-name} {
+		color: var(--white) !important;
+		font-weight: 500;
+		border-color: #{$color-value} !important;
+		background-color: #{$color-value} !important;
+
+		@if $color-name == grey70 {
+			&:hover, &:focus {
+				border-color: var(--primary90) !important;
+				background-color: var(--primary90) !important;
+			}
+			&.active {
+				background: linear-gradient(0deg, rgba(var(--black-rgb), 0.2) 0%, rgba(var(--black-rgb), 0.2) 100%), var(--primary90) !important;
+			}
+		}
+
+		&.disabled, &[disabled] {
+			color: var(--grey50) !important;
+			border-color: var(--grey30) !important;
+			background-color: var(--grey30) !important;
+		}
+	}
+}
+
+// 라인 컬러
+@each $name, $colors in (
+        grey: (var(--grey50), var(--grey20), var(--bg10))
+) {
+	.line_#{$name}20 {
+		color: nth($colors, 1) !important;
+		border-color: nth($colors, 2) !important;
+		background-color: nth($colors, 3) !important;
+	}
+}

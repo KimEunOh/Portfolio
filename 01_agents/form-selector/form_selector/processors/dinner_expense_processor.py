@@ -152,14 +152,14 @@ class DinnerExpenseProcessor(BaseFormProcessor):
 
         payload = {
             "mstPid": "3",
-            "aprvNm": form_data.get("title", "야근 식대 신청"),
+            "aprvNm": "야근 식대 신청서",
             "drafterId": form_data.get("drafterId", ""),
             "docCn": form_data.get("work_details", "야근 식대 신청"),
             "apdInfo": json.dumps(
                 {
-                    "work_location": form_data.get("work_location", ""),
-                    "overtime_time": form_data.get("overtime_time", ""),
-                    "bank_account_for_deposit": form_data.get(
+                    "workLocation": form_data.get("work_location", ""),
+                    "overtimeTime": form_data.get("overtime_time", ""),
+                    "bankAccountForDeposit": form_data.get(
                         "bank_account_for_deposit", ""
                     ),
                 },

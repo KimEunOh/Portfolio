@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko" xml:lang="ko" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:insert="~{/soulGod/fragments/headChatbot :: headChatbot}"></th:block>
+    <script th:inline="javascript">
+        $(function(){
+            //datepicker
+            fn_setDatePicker('#date');
+            fn_setDatePicker('#date2');
+
+            // 결재라인 버튼 클릭
+            $(document).on('click', '.approval_line .btn_arr', function() {
+                $(this).parents('.approval_line').toggleClass('active');
+            });
+
+            // 상세 내역 버튼 클릭
+            $(document).on('click', '.detail_area ul > li .btn_arr', function() {
+                $(this).parents('li').toggleClass('active');
+            });
+
+            // 수량
+            $('#amountamount').spinner({
+                min: 0
+            });
+            $('#amountamount2').spinner({
+                min: 0
+            });
+
+            // 첨부파일
+            initDropzone('#fileDropZone', {
+                maxFiles: 3,
+            });
+        });
+    </script>
+</head>
+<body>
+<div id="wrap">
+    <div class="contents">
+        <div class="form_area">
+            <div class="form_tit">구매 품의서</div>
+            <div class="approval_line">
+                <div class="draft">
+                    <div class="tit">
+                        <span>기안</span>
+                        <span class="date">(2025.07.14)</span>
+                    </div>
+                    <div class="name">
+                        이철수 선임
+                        <button type="button" class="btn_arr"></button>
+                    </div>
+                </div>
+                <div class="lines">
+                    <ul>
+                        <li>
+                            <dl>
+                                <dt>합의</dt>
+                                <dd>
+                                    <div class="name">이영희 책임</div>
+                                    <button type="button" class="btn">변경</button>
+                                </dd>
+                            </dl>
+                        </li>
+                        <li>
+                            <dl>
+                                <dt>결재</dt>
+                                <dd>
+                                    <div class="name">김명수 이사</div>
+                                    <button type="button" class="btn">변경</button>
+                                </dd>
+                            </dl>
+                        </li>
+                        <li>
+                            <dl>
+                                <dt>참조</dt>
+                                <dd>
+                                    <div class="name">-</div>
+                                    <button type="button" class="btn">추가</button>
+                                </dd>
+                            </dl>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <form action="">
+                <fieldset>
+                    <legend>구매 품의서</legend>
+                    <div class="form">
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="date">기안일</label></dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="date" name="draftDate" class="datepicker" readonly value="{draftDate}">
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>품의 요청 항목 <button type="button" class="btn btn_add"></button></dt>
+                                <dd>
+                                    <div class="detail_area">
+                                        <ul>
+                                            <li>
+                                                <div class="box">
+                                                    <div class="box_head">
+                                                        <div class="tit">
+                                                            <button type="button" class="btn_arr"></button>
+                                                            <p>델 울트라샤프 27인치 모니터</p>
+                                                        </div>
+                                                        <div class="data">
+                                                            <div class="input inp_sm">
+                                                                <input type="text" id="itemTotalPrice1" name="itemTotalPrice1" class="comma" placeholder="입력하세요." value="1700000">
+                                                            </div>
+                                                            <button type="button" class="btn btn_remove"></button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="box_body">
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemName1">품명</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemName1" name="itemName1" placeholder="입력하세요." value="델 울트라샤프 27인치 모니터">
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemSpec1">규격/사양</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemSpec1" name="itemSpec1" placeholder="입력하세요." value="모델명 U2723QE 4K해상도">
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="bundle">
+                                                                <dl class="col">
+                                                                    <dt><label for="itemUnitPrice1">단가</label></dt>
+                                                                    <dd>
+                                                                        <div class="input">
+                                                                            <input type="text" id="itemUnitPrice1" name="itemUnitPrice1" class="comma" placeholder="입력하세요." value="860000">
+                                                                        </div>
+                                                                    </dd>
+                                                                </dl>
+                                                                <dl class="col">
+                                                                    <dt>수량</dt>
+                                                                    <dd>
+                                                                        <div class="amount">
+                                                                            <label for="itemQuantity1" class="blind">수량 선택</label>
+                                                                            <input type="number" id="itemQuantity1" name="itemQuantity1">
+                                                                        </div>
+                                                                    </dd>
+                                                                </dl>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="date2">납기 요청일</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="date2" name="itemDeliveryDate1" class="datepicker" readonly>
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemSupplier1">주요 거래처</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemSupplier1" name="itemSupplier1" placeholder="입력하세요.">
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                        <div class="row">
+                                                            <dl class="col">
+                                                                <dt><label for="itemNotes1">비고</label></dt>
+                                                                <dd>
+                                                                    <div class="input">
+                                                                        <input type="text" id="itemNotes1" name="itemNotes1" placeholder="입력하세요.">
+                                                                    </div>
+                                                                </dd>
+                                                            </dl>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="totalPurchaseAmount">총 금액</label></dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="totalPurchaseAmount" name="totalPurchaseAmount" class="comma" placeholder="입력하세요." value="{totalPurchaseAmount}">
+                                        <button type="button" class="btn_del" tabindex="-1">
+                                            <span class="blind">삭제</span>
+                                        </button>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>
+                                    <label for="paymentTerms">결제조건</label>
+                                </dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="paymentTerms" name="paymentTerms" placeholder="입력하세요." value="{paymentTerms}">
+                                        <button type="button" class="btn_del" tabindex="-1">
+                                            <span class="blind">삭제</span>
+                                        </button>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>
+                                    <label for="deliveryLocation">납품장소</label>
+                                </dt>
+                                <dd>
+                                    <div class="input">
+                                        <input type="text" id="deliveryLocation" name="deliveryLocation" placeholder="입력하세요." value="{deliveryLocation}">
+                                        <button type="button" class="btn_del" tabindex="-1">
+                                            <span class="blind">삭제</span>
+                                        </button>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>
+                                    <label for="fileDropZone">첨부파일</label>
+                                </dt>
+                                <dd>
+                                    <div class="dropzone" id="fileDropZone">
+                                        <div class="dz-message btn_upload">
+                                            <p>첨부할 파일 선택 또는 드래그 (최대 20mb)</p>
+                                        </div>
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="specialNotes">특이사항</label></dt>
+                                <dd>
+                                    <textarea name="specialNotes" id="specialNotes" placeholder="입력하세요.">{specialNotes}</textarea>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                    <div class="btn_area">
+                        <button type="button" class="btn btn_md fill_primary">제출하기</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

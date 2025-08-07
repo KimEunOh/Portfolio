@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko" xml:lang="ko" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:insert="~{/soulGod/fragments/headChatbot :: headChatbot}"></th:block>
+    <script th:inline="javascript">
+        $(function(){
+            //datepicker
+            fn_setDatePicker('#date');
+            /*Time*/
+            fn_setTimePicker('#time');
+
+            // 결재라인 버튼 클릭
+            $(document).on('click', '.approval_line .btn_arr', function() {
+                $(this).parents('.approval_line').toggleClass('active');
+            });
+        });
+    </script>
+</head>
+<body>
+<div id="wrap">
+    <div class="contents">
+        <div class="form_area">
+            <div class="form_tit">야근식대 신청서</div>
+            <div class="approval_line">
+                <div class="draft">
+                    <div class="tit">
+                        <span>기안</span>
+                        <span class="date">(2025.07.14)</span>
+                    </div>
+                    <div class="name">
+                        이철수 선임
+                        <button type="button" class="btn_arr"></button>
+                    </div>
+                </div>
+                <div class="lines">
+                    <ul>
+                        <li>
+                            <dl>
+                                <dt>합의</dt>
+                                <dd>
+                                    <div class="name">이영희 책임</div>
+                                    <button type="button" class="btn">변경</button>
+                                </dd>
+                            </dl>
+                        </li>
+                        <li>
+                            <dl>
+                                <dt>결재</dt>
+                                <dd>
+                                    <div class="name">김명수 이사</div>
+                                    <button type="button" class="btn">변경</button>
+                                </dd>
+                            </dl>
+                        </li>
+                        <li>
+                            <dl>
+                                <dt>참조</dt>
+                                <dd>
+                                    <div class="name">-</div>
+                                    <button type="button" class="btn">추가</button>
+                                </dd>
+                            </dl>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <form action="">
+                <fieldset>
+                    <legend>야근식대 신청서</legend>
+                    <div class="form">
+                        <div class="row">
+                            <div class="bundle">
+                                <dl class="col">
+                                    <dt>
+                                        <label for="date">야근일자</label>
+                                    </dt>
+                                    <dd>
+                                        <div class="input">
+                                            <input type="text" id="date" name="workDate" class="datepicker" readonly value="{workDate}">
+                                        </div>
+                                    </dd>
+                                </dl>
+                                <dl class="col">
+                                    <dt>
+                                        <label for="time">퇴근시간</label>
+                                    </dt>
+                                    <dd>
+                                        <div class="input">
+                                            <input type="text" id="time" name="overtimeTime" class="timepicker" readonly value="{overtimeTime}">
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="bundle">
+                                <dl class="col">
+                                    <dt>
+                                        <label for="workLocation">근무장소</label>
+                                    </dt>
+                                    <dd>
+                                        <div class="input">
+                                            <input type="text" id="workLocation" name="workLocation" placeholder="입력하세요." value="{workLocation}">
+                                            <button type="button" class="btn_del" tabindex="-1">
+                                                <span class="blind">삭제</span>
+                                            </button>
+                                        </div>
+                                    </dd>
+                                </dl>
+                                <dl class="col">
+                                    <dt>
+                                        <label for="dinnerExpenseAmount">식대금액</label>
+                                    </dt>
+                                    <dd>
+                                        <div class="input">
+                                            <input type="text" id="dinnerExpenseAmount" name="dinnerExpenseAmount" class="comma" placeholder="입력하세요." value="{dinnerExpenseAmount}">
+                                            <button type="button" class="btn_del" tabindex="-1">
+                                                <span class="blind">삭제</span>
+                                            </button>
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt>
+                                    <label for="bankAccountForDeposit">입금요청 계좌</label>
+                                </dt>
+                                <dd>
+                                   <div class="input">
+                                       <input type="text" id="bankAccountForDeposit" name="bankAccountForDeposit" placeholder="예: OO은행 123-456-789012" value="{bankAccountForDeposit}">
+                                       <button type="button" class="btn_del" tabindex="-1">
+                                           <span class="blind">삭제</span>
+                                       </button>
+                                   </div>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="row">
+                            <dl class="col">
+                                <dt><label for="workDetails">주요 업무 내용</label></dt>
+                                <dd>
+                                    <textarea name="workDetails" id="workDetails" placeholder="입력하세요.">{workDetails}</textarea>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                    <div class="tip">
+                        <p>영수증 별도 제출</p>
+                    </div>
+                    <div class="btn_area">
+                        <button type="button" class="btn btn_md fill_primary">제출하기</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

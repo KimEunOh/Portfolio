@@ -133,7 +133,7 @@ class AnnualLeaveProcessor(BaseFormProcessor):
         # 기존 Legacy API 형식과 동일한 구조 사용
         payload = {
             "mstPid": "1",  # API 명세에 맞게 string 형태로 수정
-            "aprvNm": form_data.get("title", "연차 사용 신청"),
+            "aprvNm": "연차 신청서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("reason", "개인 사유"),
             "apdInfo": json.dumps({}, ensure_ascii=False),

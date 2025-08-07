@@ -45,6 +45,24 @@ from .form_configs import AVAILABLE_FORM_TYPES, FORM_CONFIGS
 from .processors.processor_factory import get_form_processor
 
 
+def _snake_to_camel(snake_str):
+    components = snake_str.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+def _convert_keys_to_camel(d):
+    if isinstance(d, list):
+        return [_convert_keys_to_camel(i) for i in d]
+    if not isinstance(d, dict):
+        return d
+
+    new_dict = {}
+    for k, v in d.items():
+        new_key = _snake_to_camel(k)
+        new_dict[new_key] = _convert_keys_to_camel(v)
+    return new_dict
+
+
 # 🆕 logger 추가
 logger = logging.getLogger(__name__)
 
@@ -276,6 +294,21 @@ def classify_and_extract_slots_for_template(
             f"No slot extractor chain found for form_type: {form_type}. Proceeding without slot extraction."
         )
         raw_slots = {}
+
+    # snake_case -> camelCase 변환이 필요한 폼 타입 목록
+    camel_case_forms = [
+        "dinner_expense",
+        "transportation_expense",
+        "annual_leave",
+        "dispatch_report",
+        "personal_expense",
+        "corporate_card",
+        "inventory",
+        "purchase_approval",
+    ]
+    if form_type in camel_case_forms:
+        raw_slots = _convert_keys_to_camel(raw_slots)
+        logging.info(f"Converted snake_case to camelCase for {form_type}: {raw_slots}")
 
     # 4. 시간 맥락(Time Context) 결정
     time_context_llm_forms = ["연차 신청서", "파견 및 출장 보고서"]

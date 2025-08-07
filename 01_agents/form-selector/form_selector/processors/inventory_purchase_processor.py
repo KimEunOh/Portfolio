@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from .base_processor import BaseFormProcessor
 import logging
 import json
-from ..utils import parse_relative_date_to_iso
+from ..utils import parse_relative_date_to_iso, convert_keys_to_camel
 
 
 class InventoryPurchaseProcessor(BaseFormProcessor):
@@ -65,34 +65,46 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
         """비품/소모품 구입내역서 폼 데이터를 API Payload로 변환"""
         logging.info("InventoryPurchaseProcessor: Converting form data to API payload")
 
+        # 1. form_data에서 데이터를 가져옵니다 (snake_case 키 사용).
+        items_snake = form_data.get("items", [])
+
+        # 2. items 리스트의 키를 camelCase로 변환합니다.
+        items_camel = convert_keys_to_camel(items_snake)
+
+        # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다.
+        apd_info_dict = {
+            "requestDate": form_data.get("request_date", ""),
+            "totalAmount": form_data.get("total_amount", 0),
+            "paymentMethod": form_data.get("payment_method", "corporate_card"),
+        }
+        final_apd_info_str = json.dumps(
+            convert_keys_to_camel(apd_info_dict), ensure_ascii=False
+        )
+
+        # 4. 기본 페이로드 구조를 설정합니다.
         payload = {
             "mstPid": "6",
-            "aprvNm": form_data.get("title", "비품/소모품 구입내역서"),
+            "aprvNm": "비품/소모품 구입내역서",
             "drafterId": form_data.get("drafterId", "00009"),
             "docCn": form_data.get("purpose", "비품/소모품 구입내역서"),
-            "apdInfo": json.dumps(
-                {
-                    "request_date": form_data.get("request_date", ""),
-                    "purpose": form_data.get("purpose", ""),
-                    "total_amount": form_data.get("total_amount", 0),
-                },
-                ensure_ascii=False,
-            ),
+            "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
             "amountList": [],
         }
 
-        # amountList 구성 (구입 내역)
-        if "items" in form_data and isinstance(form_data["items"], list):
-            for item in form_data["items"]:
-                item_name = item.get("item_name")
+        # 5. amountList를 구성합니다 (camelCase로 변환된 items_camel 사용).
+        request_date = form_data.get("request_date", "")
+
+        if items_camel:
+            for item in items_camel:
+                item_name = item.get("itemName")
                 if not item_name:
                     continue
 
-                item_quantity = item.get("item_quantity", 0)
-                item_unit_price = item.get("item_unit_price", 0)
-                item_total_price = item.get("item_total_price", 0)
+                item_quantity = item.get("itemQuantity", 0)
+                item_unit_price = item.get("itemUnitPrice", 0)
+                item_total_price = item.get("itemTotalPrice", 0)
 
                 adit_info = {
                     "unitPrice": (
@@ -102,9 +114,9 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
 
                 payload["amountList"].append(
                     {
-                        "useYmd": form_data.get("request_date", ""),
+                        "useYmd": request_date,
                         "dvNm": item_name,
-                        "useRsn": item.get("item_purpose", ""),
+                        "useRsn": item.get("itemPurpose", ""),
                         "qnty": (
                             int(item_quantity) if str(item_quantity).isdigit() else 0
                         ),
@@ -117,15 +129,15 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
                     }
                 )
         else:
-            # Fallback for older format if "items" list is not present
-            for i in range(1, 7):  # 최대 6개 항목
-                item_name = form_data.get(f"item_name_{i}")
+            # Fallback for older format (HTML 필드 직접 참조)
+            for i in range(1, 7):
+                item_name = form_data.get(f"itemName_{i}")
                 if not item_name:
                     continue
 
-                item_quantity = form_data.get(f"item_quantity_{i}", 0)
-                item_unit_price = form_data.get(f"item_unit_price_{i}", 0)
-                item_total_price = form_data.get(f"item_total_price_{i}", 0)
+                item_quantity = form_data.get(f"itemQuantity_{i}", 0)
+                item_unit_price = form_data.get(f"itemUnitPrice_{i}", 0)
+                item_total_price = form_data.get(f"itemTotalPrice_{i}", 0)
 
                 adit_info = {
                     "unitPrice": (
@@ -135,9 +147,9 @@ class InventoryPurchaseProcessor(BaseFormProcessor):
 
                 payload["amountList"].append(
                     {
-                        "useYmd": form_data.get("request_date", ""),
+                        "useYmd": request_date,
                         "dvNm": item_name,
-                        "useRsn": form_data.get(f"item_purpose_{i}", ""),
+                        "useRsn": form_data.get(f"itemPurpose_{i}", ""),
                         "qnty": (
                             int(item_quantity) if str(item_quantity).isdigit() else 0
                         ),

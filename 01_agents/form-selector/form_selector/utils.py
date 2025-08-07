@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse, ParserError
 from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
 import re  # 정규표현식 모듈 임포트
-from typing import Optional, Dict, Any, Literal, Union
+from typing import Optional, Dict, Any, Literal, Union, List
 from pydantic import BaseModel, Field
 import json
 import logging
@@ -788,3 +788,28 @@ if __name__ == "__main__":
         print(
             f"Input: '{desc_str}', Output: '{parse_datetime_description_to_iso_local(desc_str, test_current_date)}'"
         )
+
+
+# --- Key Case Conversion Utilities ---
+
+
+def _snake_to_camel(snake_str: str) -> str:
+    """Converts a snake_case string to camelCase."""
+    if not isinstance(snake_str, str) or not snake_str:
+        return ""
+    components = snake_str.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+def convert_keys_to_camel(d: Union[Dict, List]) -> Union[Dict, List]:
+    """Recursively converts all keys in a dictionary or a list of dictionaries from snake_case to camelCase."""
+    if isinstance(d, list):
+        return [convert_keys_to_camel(i) for i in d]
+    if not isinstance(d, dict):
+        return d
+
+    new_dict = {}
+    for k, v in d.items():
+        new_key = _snake_to_camel(k)
+        new_dict[new_key] = convert_keys_to_camel(v)
+    return new_dict

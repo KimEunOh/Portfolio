@@ -12,7 +12,7 @@ from typing import Dict, Any
 import json
 
 from .base_processor import BaseFormProcessor
-from ..utils import parse_relative_date_to_iso
+from ..utils import parse_relative_date_to_iso, convert_keys_to_camel
 
 
 class PersonalExpenseProcessor(BaseFormProcessor):
@@ -86,39 +86,55 @@ class PersonalExpenseProcessor(BaseFormProcessor):
         """개인 경비 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
         logging.info("PersonalExpenseProcessor: Converting form data to API payload")
 
+        # 1. form_data에서 필요한 데이터를 가져옵니다 (snake_case 키 사용)
+        usage_status_raw = form_data.get("usage_status", "")
+        usage_status_map = {
+            "personal_cash": "개인현금",
+            "personal_card": "개인카드",
+        }
+        usage_status_korean = usage_status_map.get(usage_status_raw, usage_status_raw)
+
+        # 2. apdInfo JSON 문자열을 생성합니다 (items 제외)
+        apd_info_dict = {
+            "usageStatus": usage_status_korean,
+            "totalAmount": form_data.get("total_expense_amount", 0),
+        }
+        final_apd_info_str = json.dumps(
+            convert_keys_to_camel(apd_info_dict), ensure_ascii=False
+        )
+
         payload = {
             "mstPid": "8",
-            "aprvNm": form_data.get("title", "개인 경비 사용 신청"),
+            "aprvNm": "개인 경비 사용내역서",
             "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("purpose", "개인 경비 사용 신청"),
-            "apdInfo": json.dumps(
-                {
-                    "usage_status": form_data.get("usage_status", ""),
-                    "total_amount": form_data.get("total_expense_amount", 0),
-                },
-                ensure_ascii=False,
-            ),
+            "docCn": form_data.get("expense_reason", "개인 경비 사용 신청"),
+            "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
             "amountList": [],
         }
 
         # amountList 구성 (비용 정산 정보)
-        expenses_to_process = []
-        if "expense_items" in form_data and isinstance(
-            form_data["expense_items"], list
-        ):
-            expenses_to_process = form_data["expense_items"]
+        # form_data에서 expense_items 키로 조회 (snake_case)
+        expenses_to_process = form_data.get("expense_items", [])
+        logging.info(
+            f"PersonalExpenseProcessor: expenses_to_process = {expenses_to_process}"
+        )
 
         if expenses_to_process:
-            # expense_items 배열 처리
-            for expense in expenses_to_process:
-                expense_date = expense.get("expense_date")
+            # expenseItems 배열의 각 항목을 camelCase로 변환
+            expenses_camel = convert_keys_to_camel(expenses_to_process)
+            logging.info(f"PersonalExpenseProcessor: expenses_camel = {expenses_camel}")
+
+            # expenseItems 배열 처리
+            for expense in expenses_camel:
+                # camelCase로 변환된 키로 조회
+                expense_date = expense.get("expenseDate")
                 if not expense_date:
                     continue
 
-                expense_amount = expense.get("expense_amount", 0)
-                expense_category = expense.get("expense_category", "기타")
+                expense_amount = expense.get("expenseAmount", 0)
+                expense_category = expense.get("expenseCategory", "기타")
 
                 # 분류 매핑 (HTML select value -> 한글명)
                 category_mapping = {
@@ -133,14 +149,14 @@ class PersonalExpenseProcessor(BaseFormProcessor):
                 dvNm = category_mapping.get(expense_category, "기타")
 
                 adit_info = {
-                    "notes": expense.get("expense_notes", ""),
+                    "notes": expense.get("expenseNotes", ""),
                 }
 
                 payload["amountList"].append(
                     {
                         "useYmd": expense_date,
                         "dvNm": dvNm,
-                        "useRsn": expense.get("expense_description", ""),
+                        "useRsn": expense.get("expenseDescription", ""),
                         "qnty": 1,
                         "amt": (
                             int(expense_amount) if str(expense_amount).isdigit() else 0
@@ -149,23 +165,28 @@ class PersonalExpenseProcessor(BaseFormProcessor):
                     }
                 )
         else:
-            # HTML 필드 형식 처리 (기존 로직)
+            # HTML 필드 형식 처리 (기존 로직 - 이 부분은 LLM에서 바로 데이터를 채울 때 사용됨)
+            # form-configs.js와 service.py 수정으로 인해 form_data의 키는 이미 camelCase
             for i in range(1, 4):  # 최대 3개 항목
-                expense_date = form_data.get(f"expense_date_{i}")
+                expense_date = form_data.get(f"expenseDate_{i}")  # camelCase
                 if not expense_date:
                     continue
 
-                expense_amount = form_data.get(f"expense_amount_{i}", 0)
+                expense_amount = form_data.get(f"expenseAmount_{i}", 0)  # camelCase
 
                 adit_info = {
-                    "notes": form_data.get(f"expense_notes_{i}", ""),
+                    "notes": form_data.get(f"expenseNotes_{i}", ""),  # camelCase
                 }
 
                 payload["amountList"].append(
                     {
                         "useYmd": expense_date,
-                        "dvNm": form_data.get(f"expense_category_{i}", "기타"),
-                        "useRsn": form_data.get(f"expense_description_{i}", ""),
+                        "dvNm": form_data.get(
+                            f"expenseCategory_{i}", "기타"
+                        ),  # camelCase
+                        "useRsn": form_data.get(
+                            f"expenseDescription_{i}", ""
+                        ),  # camelCase
                         "qnty": 1,
                         "amt": (
                             int(expense_amount) if str(expense_amount).isdigit() else 0

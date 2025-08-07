@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko" xml:lang="ko" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<th:block th:insert="~{/soulGod/fragments/headChatbot :: headChatbot}"></th:block>
+	<script th:inline="javascript">
+		$(function(){
+            //datepicker
+            fn_setDatePicker('#searchStDt', {
+                onShow: function (ct) {
+                    this.setOptions({
+                        maxDate: $('#searchEdDt').val() ? $('#searchEdDt').val() : false
+                    })
+                }
+            });
+            fn_setDatePicker('#searchEdDt', {
+                onShow: function (ct) {
+                    this.setOptions({
+                        minDate: $('#searchStDt').val() ? $('#searchStDt').val() : false
+                    })
+                }
+            });
+
+            // 결재라인 버튼 클릭
+            $(document).on('click', '.approval_line .btn_arr', function() {
+                $(this).parents('.approval_line').toggleClass('active');
+            });
+		});
+	</script>
+</head>
+<body>
+	<div id="wrap">
+        <div class="contents">
+            <div class="form_area">
+                <div class="form_tit">연차 신청서</div>
+                <div class="approval_line">
+                     <div class="draft">
+                         <div class="tit">
+                             <span>기안</span>
+                             <span class="date">(2025.07.14)</span>
+                         </div>
+                         <div class="name">
+                             이철수 선임
+                             <button type="button" class="btn_arr"></button>
+                         </div>
+                     </div>
+                    <div class="lines">
+                        <ul>
+                            <li>
+                                <dl>
+                                    <dt>합의</dt>
+                                    <dd>
+                                        <div class="name">이영희 책임</div>
+                                        <button type="button" class="btn">변경</button>
+                                    </dd>
+                                </dl>
+                            </li>
+                            <li>
+                                <dl>
+                                    <dt>결재</dt>
+                                    <dd>
+                                        <div class="name">김명수 이사</div>
+                                        <button type="button" class="btn">변경</button>
+                                    </dd>
+                                </dl>
+                            </li>
+                            <li>
+                                <dl>
+                                    <dt>참조</dt>
+                                    <dd>
+                                        <div class="name">-</div>
+                                        <button type="button" class="btn">추가</button>
+                                    </dd>
+                                </dl>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <form action="">
+                    <fieldset>
+                        <legend>연차 신청서 폼</legend>
+                        <div class="form">
+                            <div class="row">
+                                <dl class="col">
+                                    <dt>
+                                        <label for="leaveType">휴가 종류</label>
+                                    </dt>
+                                    <dd>
+                                        <select name="leaveType" id="leaveType" data-selected="{leaveType}">
+                                            <option value="">선택하세요</option>
+                                            <option value="annual">연차</option>
+                                            <option value="half_day_morning">오전 반차</option>
+                                            <option value="half_day_afternoon">오후 반차</option>
+                                            <option value="quarter_day_morning">오전 반반차</option>
+                                            <option value="quarter_day_afternoon">오후 반반차</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="row">
+                                <dl class="col">
+                                    <dt>
+                                        <label for="reason">휴가 사유</label>
+                                    </dt>
+                                    <dd>
+                                        <textarea name="reason" id="reason" placeholder="입력하세요.">{reason}</textarea>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <!-- 기간 및 일시와 중복. 통합 필요 -->
+                            <div class="row">
+                                <dl class="col">
+                                    <dt><label for="leaveDays">연차 일수</label></dt>
+                                    <dd>
+                                        <div class="input">
+                                            <input type="number" id="leaveDays" name="leaveDays" min="0.25" step="0.25" value="{leaveDays}">
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="row">
+                                <dl class="col">
+                                    <dt><label for="searchStDt">기간 및 일시</label> <span class="badge">선택일수 : 1</span></dt>
+                                    <dd>
+                                        <div class="term_form">
+                                            <div class="input">
+                                                <label for="searchStDt" class="blind">시작날짜 입력</label>
+                                                <input type="text" id="searchStDt" name="startDate" class="datepicker" readonly value="{startDate}">
+                                            </div>
+                                            <div class="swung">-</div>
+                                            <div class="input">
+                                                <label for="searchEdDt" class="blind">종료날짜 입력</label>
+                                                <input type="text" id="searchEdDt" name="endDate" class="datepicker" readonly value="{endDate}">
+                                            </div>
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        <div class="btn_area">
+                            <button type="button" class="btn btn_md fill_primary">제출하기</button>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+	</div>
+</body>
+</html>
