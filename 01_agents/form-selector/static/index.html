@@ -623,7 +623,7 @@
             currentFormResponse = null; // 이전 응답 초기화
 
             try {
-                const response = await fetch('/form-selector', {
+                const response = await fetch('http://localhost:8000/form-selector', {
                     method: 'post',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1609,7 +1609,7 @@
                     };
                 }
 
-                const convertResponse = await fetch('/submit-form', {
+                const convertResponse = await fetch('http://localhost:8000/submit-form', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

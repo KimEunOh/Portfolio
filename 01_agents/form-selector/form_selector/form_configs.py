@@ -10,25 +10,29 @@ from .schema import (
     PurchaseApprovalFormSlots,
     PersonalExpenseReportSlots,
     CorporateCardStatementSlots,
+    ResignationLetterSlots,
 )
 
 
 class FormConfig(BaseModel):
     model: Type[BaseModel]
     prompt_template_path: str
-    html_template_path: str
+    html_template_path: str  # 로컬 경로 또는 외부 API URL 모두 지원
     mstPid: int
     english_id: str  # 백엔드 API에서 사용할 영어 식별자
     items_config: Optional[Dict[str, str]] = None  # 아이템 리스트 설정을 위한 필드 추가
+    is_external_template: bool = False  # 외부 API 여부 플래그 추가
 
 
 FORM_CONFIGS: Dict[str, FormConfig] = {
     "연차 신청서": FormConfig(
         model=AnnualLeaveSlots,
         prompt_template_path="annual_leave_slots_prompt.txt",
-        html_template_path="templates/annual_leave.html",
+        html_template_path="templates/annual_leave.html",  # 로컬 파일 경로
+        # html_template_path="https://api.example.com/templates/annual_leave.html",  # 외부 API URL 예시
         mstPid=1,
         english_id="annual_leave",
+        is_external_template=False,  # 로컬 파일
     ),
     "야근식대비용 신청서": FormConfig(
         model=DinnerExpenseSlots,
@@ -36,6 +40,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/dinner_expense.html",
         mstPid=3,
         english_id="dinner_expense",
+        is_external_template=False,
     ),
     "교통비 신청서": FormConfig(
         model=TransportationExpenseSlots,
@@ -43,6 +48,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/transportation_expense.html",
         mstPid=4,
         english_id="transportation_expense",
+        is_external_template=False,
     ),
     "파견 및 출장 보고서": FormConfig(
         model=DispatchBusinessTripReportSlots,
@@ -50,6 +56,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/dispatch_businesstrip_report.html",
         mstPid=5,
         english_id="dispatch_businesstrip_report",
+        is_external_template=False,
     ),
     "비품/소모품 구입내역서": FormConfig(
         model=InventoryPurchaseReportSlots,
@@ -57,6 +64,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path="templates/inventory_purchase_report.html",
         mstPid=6,
         english_id="inventory_purchase_report",
+        is_external_template=False,
     ),
     "구매 품의서": FormConfig(
         model=PurchaseApprovalFormSlots,
@@ -65,6 +73,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         mstPid=7,
         english_id="purchase_approval_form",
         items_config={"list_key": "items", "date_key": "item_delivery_request_date"},
+        is_external_template=False,
     ),
     "개인 경비 사용 내역서": FormConfig(
         model=PersonalExpenseReportSlots,
@@ -73,6 +82,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         mstPid=8,
         english_id="personal_expense_report",
         items_config={"list_key": "expense_items", "date_key": "expense_date"},
+        is_external_template=False,
     ),
     "법인카드 지출내역서": FormConfig(
         model=CorporateCardStatementSlots,
@@ -81,8 +91,29 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         mstPid=9,
         english_id="corporate_card_statement",
         items_config={"list_key": "card_usage_items", "date_key": "usage_date"},
+        is_external_template=False,
+    ),
+    "사직서": FormConfig(
+        model=ResignationLetterSlots,
+        prompt_template_path="resignation_letter_slots_prompt.txt",
+        html_template_path="http://localhost:5000/resignation_letter",  # 로컬 API 서버 URL
+        mstPid=10,
+        english_id="resignation_letter",
+        is_external_template=True,  # 외부 API 플래그
     ),
 }
+
+# 외부 API URL 예시 (주석 처리)
+# 외부 API를 사용하려면 위의 html_template_path를 URL로 변경하고 is_external_template을 True로 설정하세요.
+# 예시:
+# "연차 신청서": FormConfig(
+#     model=AnnualLeaveSlots,
+#     prompt_template_path="annual_leave_slots_prompt.txt",
+#     html_template_path="https://api.example.com/templates/annual_leave.html",
+#     mstPid=1,
+#     english_id="annual_leave",
+#     is_external_template=True,  # 외부 API 플래그
+# ),
 
 # 사용 가능한 양식 이름 목록
 AVAILABLE_FORM_TYPES = list(FORM_CONFIGS.keys())

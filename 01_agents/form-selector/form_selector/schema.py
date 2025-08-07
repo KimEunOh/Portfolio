@@ -337,3 +337,14 @@ class ApproverInfoResponse(BaseModel):
 
 
 # --- END 결재자 정보 관련 스키마 --- #
+
+
+class ResignationLetterSlots(BaseModel):
+    """사직서 슬롯 모델"""
+    employee_name: str = Field(description="직원 성명")
+    department: str = Field(description="부서명")
+    position: str = Field(description="직급")
+    submission_date: str = Field(description="제출일 (YYYY-MM-DD 형식)")
+    resignation_date: str = Field(description="사직 예정일 (YYYY-MM-DD 형식)")
+    resignation_reason: str = Field(description="사직 사유")
+    contact_info: str = Field(description="연락처 (전화번호 또는 이메일)")
