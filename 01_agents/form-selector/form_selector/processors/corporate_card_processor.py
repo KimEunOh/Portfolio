@@ -160,6 +160,20 @@ class CorporateCardProcessor(BaseFormProcessor):
         # 매핑되지 않으면 기타로 분류
         return "other"
 
+    def convert_category_to_korean(self, english_category: str) -> str:
+        """영어 카테고리를 한글 분류로 변환 (API 전송용)"""
+        korean_mapping = {
+            "meals": "식대",
+            "traffic_transport": "교통비",
+            "supplies": "소모품비",
+            "entertainment": "접대비",
+            "utility": "공과금",
+            "welfare": "복리후생비",
+            "education": "교육훈련비",
+            "other": "기타",
+        }
+        return korean_mapping.get(english_category, "기타")
+
     def convert_fields(self, slots: Dict[str, Any]) -> Dict[str, Any]:
         """필드 변환: 특별한 필드 변환 없음"""
         return slots
@@ -211,13 +225,19 @@ class CorporateCardProcessor(BaseFormProcessor):
 
                 usage_amount = item.get("usageAmount", 0)
                 raw_category = item.get("usageCategory", "기타")
-                mapped_category = self.convert_category(raw_category)
+
+                # 1. 자동 분류용으로 영어 카테고리 변환 (기존 로직 유지)
+                english_category = self.convert_category(raw_category)
+
+                # 2. API 전송용으로 한글 분류 변환
+                korean_category = self.convert_category_to_korean(english_category)
+
                 adit_info = {"notes": item.get("usageNotes", "")}
 
                 payload["amountList"].append(
                     {
                         "useYmd": usage_date,
-                        "dvNm": mapped_category,
+                        "dvNm": korean_category,  # 한글 분류로 API 전송
                         "useRsn": item.get("usageDescription", ""),  # 상점명
                         "qnty": 1,
                         "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
@@ -238,7 +258,9 @@ class CorporateCardProcessor(BaseFormProcessor):
                 payload["amountList"].append(
                     {
                         "useYmd": usage_date,
-                        "dvNm": form_data.get(f"usageCategory_{i}", "기타"),
+                        "dvNm": form_data.get(
+                            f"usageCategory_{i}", "기타"
+                        ),  # 이미 한글 분류
                         "useRsn": form_data.get(f"merchantName_{i}", ""),
                         "qnty": 1,
                         "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
