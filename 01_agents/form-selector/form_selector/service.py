@@ -30,6 +30,7 @@ from .utils import (
     parse_relative_date_to_iso,
     parse_datetime_description_to_iso_local,
     parse_date_range_with_context,
+    convert_keys_to_snake,
 )  # utils 모듈에서 함수 임포트
 from .rag import retrieve_template  # RAG 모듈의 retrieve_template 함수 임포트
 import re
@@ -583,7 +584,14 @@ def get_approval_info(
 def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
     """폼 데이터를 API 페이로드로 변환하는 통합 함수"""
     logger.info(f"Converting form data to API payload for form_type: {form_type}")
-    logger.info(f"Input form_data: {form_data}")
+    logger.info(f"Raw input form_data: {form_data}")
+
+    # 외부 템플릿에서 camelCase로 넘어오는 데이터에 대비하여 snake_case로 정규화
+    try:
+        form_data = convert_keys_to_snake(form_data)
+        logger.info(f"Normalized (snake_case) form_data: {form_data}")
+    except Exception as e:
+        logger.warning(f"Failed to normalize form_data to snake_case: {e}")
 
     # 🆕 approvers가 딕셔너리 리스트인 경우 ApproverDetail 객체로 변환
     if "approvers" in form_data and form_data["approvers"]:

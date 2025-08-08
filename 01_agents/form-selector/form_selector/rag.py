@@ -63,14 +63,27 @@ def _build_or_load_vector_store() -> FAISS:
 
     embeddings = OpenAIEmbeddings()
 
-    if os.path.exists(FAISS_INDEX_PATH):
-        logger.info(f"Loading FAISS index from {FAISS_INDEX_PATH}")
-        vector_store = FAISS.load_local(
-            FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True
-        )
-        return vector_store
+    # 인덱스 디렉터리와 필수 파일 존재 여부 점검
+    faiss_dir_exists = os.path.isdir(FAISS_INDEX_PATH)
+    faiss_file = os.path.join(FAISS_INDEX_PATH, "index.faiss")
+    pkl_file = os.path.join(FAISS_INDEX_PATH, "index.pkl")
+    index_files_exist = os.path.exists(faiss_file) and os.path.exists(pkl_file)
 
-    logger.info(f"Building FAISS index as it does not exist at {FAISS_INDEX_PATH}")
+    if faiss_dir_exists and index_files_exist:
+        logger.info(f"Loading FAISS index from {FAISS_INDEX_PATH}")
+        try:
+            vector_store = FAISS.load_local(
+                FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True
+            )
+            return vector_store
+        except Exception as e:
+            logger.warning(
+                f"Failed to load existing FAISS index, will rebuild. Reason: {e}"
+            )
+
+    logger.info(
+        f"Building FAISS index (path: {FAISS_INDEX_PATH}, dir_exists={faiss_dir_exists}, files_exist={index_files_exist})"
+    )
     documents: List[Document] = []
 
     # FORM_CONFIGS에서 템플릿 정보를 가져와서 처리

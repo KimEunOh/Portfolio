@@ -692,10 +692,40 @@
                     }
                     updateApproverInfoUI(null); 
                 } else {
-                    resultArea.innerHTML = data.html_template;
-                    console.log("[submitRequest] Received html_template (first 500 chars):", data.html_template.substring(0, 500) + "...");
-                    console.log("[submitRequest] Attempting to set resultArea.innerHTML.");
-                    console.log("[submitRequest] SUCCESSFULLY SET resultArea.innerHTML.");
+                    const currentFormType = data.form_type;
+                    const externalForms = ['연차 신청서']; // 외부 URL로 제공되는 폼 목록
+
+                    if (externalForms.includes(currentFormType)) {
+                        console.log(`[submitRequest] External form detected: ${currentFormType}. Rendering via /external-form proxy.`);
+                        try {
+                            const res = await fetch('http://localhost:8000/external-form', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ form_type: currentFormType, slots: data.slots || {} })
+                            });
+                            if (!res.ok) {
+                                const txt = await res.text();
+                                throw new Error(`external-form failed: ${res.status} ${txt}`);
+                            }
+                            const html = await res.text();
+                            resultArea.innerHTML = '';
+                            const iframe = document.createElement('iframe');
+                            iframe.style.width = '100%';
+                            iframe.style.minHeight = '900px';
+                            iframe.style.border = '0';
+                            iframe.srcdoc = html;
+                            resultArea.appendChild(iframe);
+                        } catch (e) {
+                            console.error('[submitRequest] external-form render error:', e);
+                            // 폴백: 기존 방식으로 표시
+                            resultArea.innerHTML = data.html_template;
+                        }
+                    } else {
+                        resultArea.innerHTML = data.html_template;
+                        console.log("[submitRequest] Received html_template (first 500 chars):", data.html_template.substring(0, 500) + "...");
+                        console.log("[submitRequest] Attempting to set resultArea.innerHTML.");
+                        console.log("[submitRequest] SUCCESSFULLY SET resultArea.innerHTML.");
+                    }
 
                     const existingScript = document.getElementById('dynamic-form-script');
                     if (existingScript) {
@@ -784,22 +814,56 @@
 
         // Helper function to get element value or slot value from a specific form
         function getElementValueOrSlot(formElement, elementId, slotKey, slots) {
-            const element = formElement ? formElement.querySelector(`#${elementId}`) : null;
-
-            const currentValue = element ? element.value : `ELEMENT_ID_${elementId}_NOT_FOUND_IN_FORM`;
-            const initialSlotValue = slots && slots[slotKey] !== undefined ? slots[slotKey] : 'SLOT_NOT_FOUND_OR_UNDEFINED';
-            
-            console.log(`[getElementValueOrSlot] Form: ${formElement ? formElement.id : 'NULL_FORM'}, ElementID: '${elementId}', CurrentFormValue: '${currentValue}', InitialSlotValue: '${initialSlotValue}'`);
-
-            // 항상 formElement 내부의 현재 값을 우선으로 사용 (값이 비어있더라도)
-            if (element && element.value !== undefined) {
-                console.log(`[getElementValueOrSlot] Using current form value for '${elementId}': '${element.value.trim()}'`);
-                return element.value.trim(); // 빈 값이라도 현재 폼의 값을 반환
+            if (!formElement) {
+                const fallback = slots && slots[slotKey] !== undefined ? slots[slotKey] : '';
+                console.log(`[getElementValueOrSlot] NULL_FORM. Using slot for '${elementId}': '${fallback}'`);
+                return (fallback ?? '').toString().trim();
             }
-            
-            // 요소가 폼에 없거나 value 속성이 없는 경우에만 슬롯 값을 사용 (이 경우는 거의 없어야 함)
-            console.log(`[getElementValueOrSlot] Element not found in form or no value property. Using initial slot value for '${elementId}': '${initialSlotValue}'`);
-            return initialSlotValue; 
+
+            // Build candidate ids: exact, camelCase, and known aliases
+            const buildCamelCandidate = (id) => {
+                // preserve numeric suffix like _1, _2 ...
+                const m = id.match(/^(.*?)(_[0-9]+)$/);
+                const core = m ? m[1] : id;
+                const suffix = m ? m[2] : '';
+                if (core.indexOf('_') === -1) return null;
+                const parts = core.split('_');
+                const camel = parts[0] + parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+                return camel + suffix;
+            };
+
+            const aliasMap = {
+                start_date: ['startDate', 'searchStDt'],
+                end_date: ['endDate', 'searchEdDt'],
+                leave_type: ['leaveType'],
+                leave_days: ['leaveDays'],
+                reason: ['reason'],
+                draft_date: ['draftDate'],
+            };
+
+            const candidates = [elementId];
+            const camelCandidate = buildCamelCandidate(elementId);
+            if (camelCandidate) candidates.push(camelCandidate);
+            if (aliasMap[elementId]) candidates.push(...aliasMap[elementId]);
+
+            let element = null;
+            for (const cand of candidates) {
+                element = formElement.querySelector(`#${cand}`) || formElement.querySelector(`[name="${cand}"]`);
+                if (!element) {
+                    // loose contains match
+                    element = formElement.querySelector(`[id*="${cand}"]`) || formElement.querySelector(`[name*="${cand}"]`);
+                }
+                if (element) {
+                    const val = (element.value ?? '').toString().trim();
+                    console.log(`[getElementValueOrSlot] Matched '${elementId}' -> '${cand}', value='${val}'`);
+                    return val;
+                }
+            }
+
+            // Fallback to slot
+            const initialSlotValue = slots && slots[slotKey] !== undefined ? slots[slotKey] : '';
+            console.log(`[getElementValueOrSlot] No element found for '${elementId}'. Using slot value='${initialSlotValue}'`);
+            return (initialSlotValue ?? '').toString().trim();
         }
 
         // Form Processors: Object to hold form-specific data extraction logic

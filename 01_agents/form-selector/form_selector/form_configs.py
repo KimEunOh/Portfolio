@@ -28,11 +28,10 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
     "연차 신청서": FormConfig(
         model=AnnualLeaveSlots,
         prompt_template_path="annual_leave_slots_prompt.txt",
-        html_template_path="templates/annual_leave.html",  # 로컬 파일 경로
-        # html_template_path="https://api.example.com/templates/annual_leave.html",  # 외부 API URL 예시
+        html_template_path="https://dev-system.ntoday.kr/api/v1/o/form/master/1",  # 외부 API URL
         mstPid=1,
         english_id="annual_leave",
-        is_external_template=False,  # 로컬 파일
+        is_external_template=True,  # 외부 API 플래그
     ),
     "야근식대비용 신청서": FormConfig(
         model=DinnerExpenseSlots,

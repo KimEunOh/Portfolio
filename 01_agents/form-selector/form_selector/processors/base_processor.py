@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
 from ..converters import DateConverter, ItemConverter, FieldConverter
+from ..utils import convert_keys_to_camel
 
 
 class BaseFormProcessor(ABC):
@@ -128,8 +129,18 @@ class BaseFormProcessor(ABC):
     ) -> str:
         """HTML 템플릿에 슬롯 값 채우기"""
 
-        # 백슬래시 이스케이프 처리
-        processed_slots = self.field_converter.escape_backslashes_for_regex(slots)
+        # 백슬래시 이스케이프 처리 (snake_case 기반 원본)
+        processed_snake_slots = self.field_converter.escape_backslashes_for_regex(slots)
+
+        # 외부 템플릿(camelCase)도 지원하기 위해 키를 camelCase로 변환한 맵 생성
+        processed_camel_slots = convert_keys_to_camel(processed_snake_slots)
+
+        # 템플릿 치환 시 두 케이스를 모두 조회 가능하도록 머지
+        # 우선순위: 명시적 snake_case 키 > 자동 변환된 camelCase 키
+        lookup_slots: Dict[str, Any] = {
+            **processed_camel_slots,
+            **processed_snake_slots,
+        }
 
         # JSON 문자열 생성 (아이템 리스트용)
         items_json_str = self.generate_items_json(slots)
@@ -138,13 +149,14 @@ class BaseFormProcessor(ABC):
         def replacer(match):
             key_in_template = match.group(1)
 
-            if key_in_template == "items_json":
+            # items_json placeholder: support both snake_case and camelCase
+            if key_in_template in ("items_json", "itemsJson"):
                 return items_json_str
 
             if key_in_template == "today":
                 return current_date_iso
 
-            value_to_return = processed_slots.get(key_in_template, "")
+            value_to_return = lookup_slots.get(key_in_template, "")
 
             if isinstance(value_to_return, str):
                 return value_to_return
@@ -163,6 +175,25 @@ class BaseFormProcessor(ABC):
         for item_key in item_keys:
             if item_key in slots and isinstance(slots[item_key], list):
                 items_list = slots[item_key]
+                # 외부 템플릿의 경우 camelCase로 전달되도록 키 변환
+                try:
+                    is_external = False
+                    if isinstance(self.form_config, dict):
+                        is_external = self.form_config.get(
+                            "is_external_template", False
+                        )
+                    else:
+                        is_external = getattr(
+                            self.form_config, "is_external_template", False
+                        )
+
+                    if is_external:
+                        from ..utils import convert_keys_to_camel
+
+                        items_list = convert_keys_to_camel(items_list)
+                except Exception:
+                    pass
+
                 return json.dumps(items_list, ensure_ascii=False)
 
         return "null"

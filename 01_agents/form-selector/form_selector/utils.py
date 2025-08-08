@@ -813,3 +813,34 @@ def convert_keys_to_camel(d: Union[Dict, List]) -> Union[Dict, List]:
         new_key = _snake_to_camel(k)
         new_dict[new_key] = convert_keys_to_camel(v)
     return new_dict
+
+
+# --- New: camelCase -> snake_case utilities --- #
+
+
+def _camel_to_snake(camel_str: str) -> str:
+    """Converts a camelCase or PascalCase string to snake_case."""
+    if not isinstance(camel_str, str) or not camel_str:
+        return ""
+    s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", camel_str)
+    snake = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+    return snake
+
+
+def convert_keys_to_snake(d: Union[Dict, List]) -> Union[Dict, List]:
+    """Recursively converts all keys from camelCase/PascalCase to snake_case.
+
+    - If input is a list, converts each element
+    - If input is a dict, converts keys and recurses into values
+    - Non-dict/list inputs are returned as-is
+    """
+    if isinstance(d, list):
+        return [convert_keys_to_snake(i) for i in d]
+    if not isinstance(d, dict):
+        return d
+
+    new_dict: Dict[str, Any] = {}
+    for k, v in d.items():
+        new_key = _camel_to_snake(k) if isinstance(k, str) else k
+        new_dict[new_key] = convert_keys_to_snake(v)
+    return new_dict

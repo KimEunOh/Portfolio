@@ -11,6 +11,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 import logging
 import httpx
 import json
+from typing import Dict, Any
+from pydantic import BaseModel
+from urllib.parse import urlparse
 
 # schema와 service에서 추가된 모델/함수 임포트
 from form_selector import schema as form_schema  # schema 전체를 form_schema로 임포트
@@ -346,3 +349,138 @@ async def submit_form_endpoint(request: dict):
 
 
 # FastAPI 엔트리포인트 및 라우터 정의 예정
+
+
+# ================== 외부 양식 프록시 렌더링 (치환 + iframe용) ==================
+
+
+class ExternalFormRequest(BaseModel):
+    form_type: str
+    slots: Dict[str, Any] = {}
+
+
+def _inject_base_href(html: str, base_href: str) -> str:
+    try:
+        lower = html.lower()
+        idx = lower.find("<head")
+        if idx != -1:
+            # 첫 <head> 태그의 끝을 찾아 간단히 삽입
+            close_idx = lower.find(">", idx)
+            if close_idx != -1:
+                return (
+                    html[: close_idx + 1]
+                    + f'\n<base href="{base_href}">'
+                    + html[close_idx + 1 :]
+                )
+        return f'<base href="{base_href}">' + html
+    except Exception:
+        return html
+
+
+def _build_fill_script(slots: Dict[str, Any]) -> str:
+    slots_json = json.dumps(slots, ensure_ascii=False).replace(
+        "</script>", "<\\/script>"
+    )
+    return f"""
+<script>
+(function(){{
+  const slots = {slots_json};
+  function snakeToCamel(s){{return s.replace(/_([a-z])/g, (_,c)=>c.toUpperCase());}}
+  const aliasMap = {{
+    start_date: ['startDate','searchStDt'],
+    end_date: ['endDate','searchEdDt'],
+    leave_type: ['leaveType'],
+    leave_days: ['leaveDays'],
+    reason: ['reason'],
+  }};
+  function candidates(id){{
+    const arr=[id];
+    const camel=snakeToCamel(id);
+    if(camel!==id) arr.push(camel);
+    if(aliasMap[id]) arr.push(...aliasMap[id]);
+    return arr;
+  }}
+  function setVal(el,v){{
+    if(!el || v==null) return;
+    if(el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.tagName==='SELECT'){{
+      el.value = v;
+      try{{ el.dispatchEvent(new Event('input',{{bubbles:true}})); }}catch(e){{}}
+      try{{ el.dispatchEvent(new Event('change',{{bubbles:true}})); }}catch(e){{}}
+    }}
+  }}
+  function fillOnce(){{
+    try{{
+      Object.entries(slots).forEach(([k,v])=>{{
+        const ids=candidates(k);
+        let el=null;
+        for(const id of ids){{
+          el = document.getElementById(id) || document.querySelector(`[name="${{id}}"]`) || document.querySelector(`[id*="${{id}}"],[name*="${{id}}"]`);
+          if(el) break;
+        }}
+        if(el) setVal(el,v);
+      }});
+    }}catch(e){{}}
+  }}
+  function schedule(){{
+    fillOnce();
+    setTimeout(fillOnce, 200);
+    setTimeout(fillOnce, 800);
+  }}
+  if(document.readyState==='loading'){{document.addEventListener('DOMContentLoaded', schedule);}} else {{schedule();}}
+}})();
+</script>
+"""
+
+
+@app.post("/external-form", response_class=HTMLResponse)
+async def render_external_form(req: ExternalFormRequest):
+    try:
+        from form_selector.form_configs import FORM_CONFIGS
+
+        form_type = req.form_type
+        config = FORM_CONFIGS.get(form_type)
+        if not config:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "UNKNOWN_FORM_TYPE", "message": form_type},
+            )
+        template_url = config.html_template_path
+        if not (
+            isinstance(template_url, str)
+            and template_url.startswith(("http://", "https://"))
+        ):
+            raise HTTPException(
+                status_code=400, detail={"error": "NOT_EXTERNAL_TEMPLATE"}
+            )
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(template_url)
+            resp.raise_for_status()
+            html = resp.text
+
+        parsed = urlparse(template_url)
+        base_href = f"{parsed.scheme}://{parsed.netloc}/"
+
+        html_with_base = _inject_base_href(html, base_href)
+        lower = html_with_base.lower()
+        if "</body>" in lower:
+            idx = lower.rfind("</body>")
+            html_filled = (
+                html_with_base[:idx]
+                + _build_fill_script(req.slots)
+                + html_with_base[idx:]
+            )
+        else:
+            html_filled = html_with_base + _build_fill_script(req.slots)
+
+        return HTMLResponse(content=html_filled)
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail={"error": "FETCH_FAILED", "message": e.response.text},
+        )
+    except Exception as e:
+        logging.exception("External form render failed")
+        raise HTTPException(
+            status_code=500, detail={"error": "RENDER_FAILED", "message": str(e)}
+        )
