@@ -1,4 +1,5 @@
 from typing import Dict, Type, Optional
+import os
 from pydantic import BaseModel
 
 from .schema import (
@@ -24,73 +25,81 @@ class FormConfig(BaseModel):
     is_external_template: bool = False  # 외부 API 여부 플래그 추가
 
 
+# REST 템플릿 베이스 URL (없으면 로컬 FastAPI 기본값)
+FORM_TEMPLATE_BASE_URL = os.getenv("FORM_TEMPLATE_BASE_URL", "http://localhost:8000")
+
+
+def build_rest_template_url(mst_pid: int) -> str:
+    return f"{FORM_TEMPLATE_BASE_URL}/api/v1/o/form/master/{mst_pid}"
+
+
 FORM_CONFIGS: Dict[str, FormConfig] = {
     "연차 신청서": FormConfig(
         model=AnnualLeaveSlots,
         prompt_template_path="annual_leave_slots_prompt.txt",
-        html_template_path="https://dev-system.ntoday.kr/api/v1/o/form/master/1",  # 외부 API URL
+        html_template_path=build_rest_template_url(1),
         mstPid=1,
         english_id="annual_leave",
-        is_external_template=True,  # 외부 API 플래그
+        is_external_template=True,  # 로컬 REST 템플릿 사용
     ),
     "야근식대비용 신청서": FormConfig(
         model=DinnerExpenseSlots,
         prompt_template_path="dinner_expense_slots_prompt.txt",
-        html_template_path="templates/dinner_expense.html",
+        html_template_path=build_rest_template_url(3),
         mstPid=3,
         english_id="dinner_expense",
-        is_external_template=False,
+        is_external_template=True,
     ),
     "교통비 신청서": FormConfig(
         model=TransportationExpenseSlots,
         prompt_template_path="transportation_expense_slots_prompt.txt",
-        html_template_path="templates/transportation_expense.html",
+        html_template_path=build_rest_template_url(4),
         mstPid=4,
         english_id="transportation_expense",
-        is_external_template=False,
+        is_external_template=True,
     ),
     "파견 및 출장 보고서": FormConfig(
         model=DispatchBusinessTripReportSlots,
         prompt_template_path="dispatch_businesstrip_report_slots_prompt.txt",
-        html_template_path="templates/dispatch_businesstrip_report.html",
+        html_template_path=build_rest_template_url(5),
         mstPid=5,
         english_id="dispatch_businesstrip_report",
-        is_external_template=False,
+        is_external_template=True,
     ),
     "비품/소모품 구입내역서": FormConfig(
         model=InventoryPurchaseReportSlots,
         prompt_template_path="inventory_purchase_report_slots_prompt.txt",
-        html_template_path="templates/inventory_purchase_report.html",
+        html_template_path=build_rest_template_url(6),
         mstPid=6,
         english_id="inventory_purchase_report",
-        is_external_template=False,
+        is_external_template=True,
     ),
     "구매 품의서": FormConfig(
         model=PurchaseApprovalFormSlots,
         prompt_template_path="purchase_approval_form_slots_prompt.txt",
-        html_template_path="templates/purchase_approval_form.html",
+        html_template_path=build_rest_template_url(7),
         mstPid=7,
         english_id="purchase_approval_form",
         items_config={"list_key": "items", "date_key": "item_delivery_request_date"},
-        is_external_template=False,
+        is_external_template=True,
     ),
     "개인 경비 사용 내역서": FormConfig(
         model=PersonalExpenseReportSlots,
         prompt_template_path="personal_expense_report_slots_prompt.txt",
-        html_template_path="templates/personal_expense_report.html",
+        html_template_path=build_rest_template_url(8),
         mstPid=8,
         english_id="personal_expense_report",
         items_config={"list_key": "expense_items", "date_key": "expense_date"},
-        is_external_template=False,
+        is_external_template=True,
     ),
     "법인카드 지출내역서": FormConfig(
         model=CorporateCardStatementSlots,
         prompt_template_path="corporate_card_statement_slots_prompt.txt",
-        html_template_path="templates/corporate_card_statement.html",
+        html_template_path=build_rest_template_url(9),
         mstPid=9,
         english_id="corporate_card_statement",
         items_config={"list_key": "card_usage_items", "date_key": "usage_date"},
-        is_external_template=False,
+        is_external_template=True,
     ),
     "사직서": FormConfig(
         model=ResignationLetterSlots,

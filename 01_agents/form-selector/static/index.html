@@ -701,7 +701,11 @@
                             const res = await fetch('http://localhost:8000/external-form', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ form_type: currentFormType, slots: data.slots || {} })
+                                body: JSON.stringify({ 
+                                    form_type: currentFormType, 
+                                    slots: data.slots || {},
+                                    approver_info: data.approver_info || null
+                                })
                             });
                             if (!res.ok) {
                                 const txt = await res.text();

@@ -38,13 +38,13 @@
                              <span>기안</span>
                              <span class="date">(2025.07.14)</span>
                          </div>
-                         <div class="name">
+                         <div class="name" id="drafterName">
                              이철수 선임
                              <button type="button" class="btn_arr"></button>
                          </div>
                      </div>
                     <div class="lines">
-                        <ul>
+                        <ul id="approverList">
                             <li>
                                 <dl>
                                     <dt>합의</dt>
@@ -107,19 +107,10 @@
                                 </dl>
                             </div>
                             <!-- 기간 및 일시와 중복. 통합 필요 -->
+                            <!-- 연차 일수 입력은 선택일수 배지로 대체되어 제거됨 -->
                             <div class="row">
                                 <dl class="col">
-                                    <dt><label for="leaveDays">연차 일수</label></dt>
-                                    <dd>
-                                        <div class="input">
-                                            <input type="number" id="leaveDays" name="leaveDays" min="0.25" step="0.25" value="{leaveDays}">
-                                        </div>
-                                    </dd>
-                                </dl>
-                            </div>
-                            <div class="row">
-                                <dl class="col">
-                                    <dt><label for="searchStDt">기간 및 일시</label> <span class="badge">선택일수 : 1</span></dt>
+                                    <dt><label for="searchStDt">기간 및 일시</label> <span class="badge">선택일수 : <span id="leaveDays"></span></span></dt>
                                     <dd>
                                         <div class="term_form">
                                             <div class="input">

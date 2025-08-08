@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 import logging
 import httpx
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from urllib.parse import urlparse
 
@@ -37,6 +37,30 @@ app.mount(
     ),
     name="static",
 )
+
+# 정적 템플릿 미리보기용 마운트 (publishing HTML들을 그대로 파일로 제공)
+app.mount(
+    "/publishing",
+    StaticFiles(
+        directory=os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "templates", "publishing")
+        )
+    ),
+    name="publishing",
+)
+
+# mstPid → publishing HTML 파일명 매핑
+MSTPID_TO_PUBLISHING_FILENAME = {
+    1: "annualLeaveForm.html",  # 연차 신청서
+    3: "overTimeDinnerForm.html",  # 야근식대비용 신청서
+    4: "transPortFeeForm.html",  # 교통비 신청서
+    5: "dispatchForm.html",  # 파견 및 출장 보고서
+    6: "purchaseEquipForm.html",  # 비품/소모품 구입내역서
+    7: "purchaseRequestForm.html",  # 구매 품의서
+    8: "personalExpenseForm.html",  # 개인 경비 사용 내역서
+    9: "corCreditCardForm.html",  # 법인카드 지출내역서
+    # 10(사직서)는 publishing 템플릿 없음
+}
 
 
 @app.get("/")
@@ -357,6 +381,7 @@ async def submit_form_endpoint(request: dict):
 class ExternalFormRequest(BaseModel):
     form_type: str
     slots: Dict[str, Any] = {}
+    approver_info: Optional[Dict[str, Any]] = None
 
 
 def _inject_base_href(html: str, base_href: str) -> str:
@@ -377,59 +402,174 @@ def _inject_base_href(html: str, base_href: str) -> str:
         return html
 
 
-def _build_fill_script(slots: Dict[str, Any]) -> str:
+def _inject_head_assets(html: str) -> str:
+    """publishing HTML의 <head>에 필요한 CSS/JS를 삽입하고, Thymeleaf head 조각을 제거한다."""
+    try:
+        # 1) Thymeleaf head 조각 제거
+        html = html.replace(
+            '<th:block th:insert="~{/soulGod/fragments/headChatbot :: headChatbot}"></th:block>',
+            "",
+        )
+
+        # 2) 필요한 리소스 태그 구성 (정적 /ui/publish 경로 사용)
+        head_assets = "\n".join(
+            [
+                # CSS
+                '<link rel="stylesheet" href="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/plugins/datetimepicker/jquery.datetimepicker.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/plugins/dropzone/dropzone.min.css">',
+                # 메인 스타일(정확 경로: /ui/publish/scss/style.min.css)
+                '<link rel="stylesheet" href="/ui/publish/scss/style.min.css">',
+                # 안전한 fallback (개발환경에서 min 파일이 없을 때 대비)
+                '<link rel="stylesheet" href="/ui/publish/scss/style.css">',
+                # JS (jQuery → jQuery UI → plugins → app js)
+                '<script src="/ui/publish/plugins/jquery/jquery-3.7.1.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery.nice-select.min.js"></script>',
+                '<script src="/ui/publish/plugins/datetimepicker/jquery.datetimepicker.full.min.js"></script>',
+                '<script src="/ui/publish/plugins/dropzone/dropzone.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery.inputmask.bundle.js"></script>',
+                '<script src="/ui/publish/js/dropzone.js"></script>',
+                '<script src="/ui/publish/js/style.js"></script>',
+                # External integration for autofill/approver rendering
+                '<script src="/ui/js/external/common/slots.js"></script>',
+                '<script src="/ui/js/external/common/approver.js"></script>',
+                '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
+                # 초기화 스크립트 (선택/입력 UI 활성화)
+                '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){}});</script>',
+            ]
+        )
+
+        # 3) <head> 바로 뒤에 삽입. <base>도 함께 두면 상대경로 안정성↑
+        injected = _inject_base_href(html, base_href="/ui/")
+        lower = injected.lower()
+        idx = lower.find("<head")
+        if idx != -1:
+            close_idx = lower.find(">", idx)
+            if close_idx != -1:
+                return (
+                    injected[: close_idx + 1]
+                    + "\n"
+                    + head_assets
+                    + "\n"
+                    + injected[close_idx + 1 :]
+                )
+        # <head>가 없으면 문서 맨 앞에 최대한 안전하게 삽입
+        return head_assets + "\n" + injected
+    except Exception:
+        return html
+
+
+@app.get("/publishing-render/{file_path:path}", response_class=HTMLResponse)
+async def render_publishing_html(file_path: str):
+    """templates/publishing 안의 HTML을 열어 <head> 리소스를 자동 주입해 반환한다.
+
+    사용 예: /publishing-render/annualLeaveForm.html
+    """
+    try:
+        base_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "templates", "publishing")
+        )
+        # 디렉토리 탈출 방지
+        target_path = os.path.abspath(os.path.join(base_dir, file_path))
+        if not target_path.startswith(base_dir):
+            raise HTTPException(status_code=403, detail={"error": "FORBIDDEN"})
+
+        if not os.path.exists(target_path) or not os.path.isfile(target_path):
+            raise HTTPException(status_code=404, detail={"error": "NOT_FOUND"})
+
+        with open(target_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        html = _inject_head_assets(html)
+        return HTMLResponse(content=html)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "RENDER_FAILED", "message": str(e)}
+        )
+
+
+@app.get("/api/v1/o/form/master/{mstPid}", response_class=HTMLResponse)
+async def render_publishing_by_mstpid(mstPid: int):
+    """사내 API 스타일 엔드포인트로 publishing 템플릿을 반환한다.
+
+    예: /api/v1/o/form/master/1 → annualLeaveForm.html의 리소스 주입 버전
+    """
+    try:
+        filename = MSTPID_TO_PUBLISHING_FILENAME.get(mstPid)
+        if not filename:
+            raise HTTPException(
+                status_code=404, detail={"error": "UNKNOWN_MSTPID", "mstPid": mstPid}
+            )
+
+        base_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "templates", "publishing")
+        )
+        target_path = os.path.abspath(os.path.join(base_dir, filename))
+        if not os.path.exists(target_path) or not os.path.isfile(target_path):
+            raise HTTPException(
+                status_code=404, detail={"error": "NOT_FOUND", "file": filename}
+            )
+
+        with open(target_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        html = _inject_head_assets(html)
+        return HTMLResponse(content=html)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "RENDER_FAILED", "message": str(e)}
+        )
+
+
+def _build_fill_script(
+    slots: Dict[str, Any], approver_info: Optional[Dict[str, Any]] = None
+) -> str:
     slots_json = json.dumps(slots, ensure_ascii=False).replace(
         "</script>", "<\\/script>"
     )
-    return f"""
+    approver_json = json.dumps(approver_info or {}, ensure_ascii=False).replace(
+        "</script>", "<\\/script>"
+    )
+    script = """
 <script>
-(function(){{
-  const slots = {slots_json};
-  function snakeToCamel(s){{return s.replace(/_([a-z])/g, (_,c)=>c.toUpperCase());}}
-  const aliasMap = {{
-    start_date: ['startDate','searchStDt'],
-    end_date: ['endDate','searchEdDt'],
-    leave_type: ['leaveType'],
-    leave_days: ['leaveDays'],
-    reason: ['reason'],
-  }};
-  function candidates(id){{
-    const arr=[id];
-    const camel=snakeToCamel(id);
-    if(camel!==id) arr.push(camel);
-    if(aliasMap[id]) arr.push(...aliasMap[id]);
-    return arr;
-  }}
-  function setVal(el,v){{
-    if(!el || v==null) return;
-    if(el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.tagName==='SELECT'){{
-      el.value = v;
-      try{{ el.dispatchEvent(new Event('input',{{bubbles:true}})); }}catch(e){{}}
-      try{{ el.dispatchEvent(new Event('change',{{bubbles:true}})); }}catch(e){{}}
-    }}
-  }}
-  function fillOnce(){{
-    try{{
-      Object.entries(slots).forEach(([k,v])=>{{
-        const ids=candidates(k);
-        let el=null;
-        for(const id of ids){{
-          el = document.getElementById(id) || document.querySelector(`[name="${{id}}"]`) || document.querySelector(`[id*="${{id}}"],[name*="${{id}}"]`);
-          if(el) break;
-        }}
-        if(el) setVal(el,v);
-      }});
-    }}catch(e){{}}
-  }}
-  function schedule(){{
-    fillOnce();
-    setTimeout(fillOnce, 200);
-    setTimeout(fillOnce, 800);
-  }}
-  if(document.readyState==='loading'){{document.addEventListener('DOMContentLoaded', schedule);}} else {{schedule();}}
-}})();
+(function(){
+  window.__FORM_SLOTS__ = __SLOTS_JSON__;
+  window.__APPROVER_INFO__ = __APPROVER_JSON__;
+
+  function tryBootstrap(){
+    try{
+      if (window.AnnualLeaveAdapter && typeof window.AnnualLeaveAdapter.bootstrap === 'function'){
+        window.AnnualLeaveAdapter.bootstrap(window.__FORM_SLOTS__ || {}, window.__APPROVER_INFO__ || {});
+        return true;
+      }
+      return false;
+    }catch(e){ return false; }
+  }
+
+  function startAttempts(){
+    var attempts = 0;
+    var timer = setInterval(function(){
+      attempts++;
+      if (tryBootstrap() || attempts > 20){ clearInterval(timer); }
+    }, 150);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', startAttempts);
+  } else {
+    startAttempts();
+  }
+})();
 </script>
 """
+    return script.replace("__SLOTS_JSON__", slots_json).replace(
+        "__APPROVER_JSON__", approver_json
+    )
 
 
 @app.post("/external-form", response_class=HTMLResponse)
@@ -467,11 +607,13 @@ async def render_external_form(req: ExternalFormRequest):
             idx = lower.rfind("</body>")
             html_filled = (
                 html_with_base[:idx]
-                + _build_fill_script(req.slots)
+                + _build_fill_script(req.slots, req.approver_info)
                 + html_with_base[idx:]
             )
         else:
-            html_filled = html_with_base + _build_fill_script(req.slots)
+            html_filled = html_with_base + _build_fill_script(
+                req.slots, req.approver_info
+            )
 
         return HTMLResponse(content=html_filled)
     except httpx.HTTPStatusError as e:

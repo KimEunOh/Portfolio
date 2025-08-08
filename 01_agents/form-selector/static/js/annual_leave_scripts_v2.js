@@ -41,6 +41,16 @@
              */
             onAfterInit() {
                 this.setupLeaveSpecificFeatures();
+                // 외부 퍼블리싱 템플릿으로부터 주입된 슬롯/결재라인이 있다면 공통 모듈로 채우기
+                try {
+                    const slots = window.__FORM_SLOTS__ || null;
+                    const approver = window.__APPROVER_INFO__ || null;
+                    if (slots && window.AnnualLeaveAdapter && window.AnnualLeaveAdapter.bootstrap) {
+                        window.AnnualLeaveAdapter.bootstrap(slots, approver);
+                    }
+                } catch (e) {
+                    console.warn('[AnnualLeaveProcessor] external integration skipped:', e);
+                }
             }
 
             /**
