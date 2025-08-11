@@ -693,17 +693,23 @@
                     updateApproverInfoUI(null); 
                 } else {
                     const currentFormType = data.form_type;
-                    const externalForms = ['연차 신청서']; // 외부 URL로 제공되는 폼 목록
+                    const externalForms = ['연차 신청서', '야근식대비용 신청서']; // 외부 URL로 제공되는 폼 목록 확장
 
                     if (externalForms.includes(currentFormType)) {
                         console.log(`[submitRequest] External form detected: ${currentFormType}. Rendering via /external-form proxy.`);
                         try {
+                            const mergedSlots = Object.assign({}, data.slots || {}, {
+                                mstPid: data.mstPid,
+                                mst_pid: data.mstPid,
+                                drafterId: selectedDrafter ? selectedDrafter.id : undefined,
+                                drafter_id: selectedDrafter ? selectedDrafter.id : undefined
+                            });
                             const res = await fetch('http://localhost:8000/external-form', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
                                     form_type: currentFormType, 
-                                    slots: data.slots || {},
+                                    slots: mergedSlots,
                                     approver_info: data.approver_info || null
                                 })
                             });
@@ -742,7 +748,7 @@
 
                     if (formType === '연차 신청서') {
                         scriptSrc = 'js/annual_leave_scripts_v2.js';
-                    } else if (formType === '야근 식대 신청서') {
+                    } else if (formType === '야근 식대 신청서' || formType === '야근식대비용 신청서') {
                         scriptSrc = 'js/dinner_expense_scripts_v2.js';
                     } else if (formType === '교통비 신청서') {
                         scriptSrc = 'js/transportation_expense_scripts_v2.js';

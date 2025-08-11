@@ -598,11 +598,18 @@ def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
         converted_approvers = []
         for approver in form_data["approvers"]:
             if isinstance(approver, dict):
-                # 딕셔너리를 ApproverDetail 객체로 변환
-                # aprvPsNm이 누락된 경우 기본값 추가
-                if "aprvPsNm" not in approver:
-                    approver["aprvPsNm"] = ""  # 빈 문자열로 기본값 설정
-                converted_approvers.append(schema.ApproverDetail(**approver))
+                # 키 스키마 정규화: snake_case/camelCase 모두 수용
+                mapped = {
+                    "aprvPsId": approver.get("aprvPsId") or approver.get("aprv_ps_id"),
+                    "aprvPsNm": (
+                        approver.get("aprvPsNm")
+                        or approver.get("aprv_ps_nm")
+                        or ""
+                    ),
+                    "aprvDvTy": approver.get("aprvDvTy") or approver.get("aprv_dv_ty"),
+                    "ordr": approver.get("ordr"),
+                }
+                converted_approvers.append(schema.ApproverDetail(**mapped))
             else:
                 # 이미 ApproverDetail 객체인 경우
                 converted_approvers.append(approver)

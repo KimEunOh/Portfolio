@@ -33,6 +33,7 @@
   }
 
   async function bootstrapAnnualLeave(slots, approverInfo){
+    try{ if(window.__FORM_DEBUG__){ console.log('[AnnualAdapter] bootstrap slots=', slots, 'approver=', approverInfo); } }catch(e){}
     if(window.ExternalSlots && window.ExternalSlots.fillSlots){
       window.ExternalSlots.fillSlots({ slots: slots||{}, aliasMap: aliasMap, normalizers: normalizers });
       setTimeout(function(){ window.ExternalSlots.fillSlots({ slots: slots||{}, aliasMap: aliasMap, normalizers: normalizers }); }, 200);
@@ -40,6 +41,7 @@
     }
 
     if(window.ApproverIntegration && window.ApproverIntegration.renderApprovalLine){
+      try{ if(window.__FORM_DEBUG__){ console.log('[AnnualAdapter] renderApprovalLine initial'); } }catch(e){}
       window.ApproverIntegration.renderApprovalLine(approverInfo||{});
       setTimeout(function(){ window.ApproverIntegration.renderApprovalLine(approverInfo||{}); }, 300);
 
@@ -48,7 +50,9 @@
         var pid = (slots && (slots.mst_pid || slots.mstPid)) || getPidFromPath();
         var drafterId = (slots && (slots.drafter_id || slots.drafterId)) || null;
         if(window.ApproverIntegration.fetchApproverInfo && pid){
+          try{ if(window.__FORM_DEBUG__){ console.log('[AnnualAdapter] fetchApproverInfo pid=', pid, 'drafterId=', drafterId); } }catch(e){}
           var updated = await window.ApproverIntegration.fetchApproverInfo({ mstPid: pid, drafterId: drafterId });
+          try{ if(window.__FORM_DEBUG__){ console.log('[AnnualAdapter] fetched approver=', updated); } }catch(e){}
           if(updated){ window.ApproverIntegration.renderApprovalLine(updated); }
         }
       }

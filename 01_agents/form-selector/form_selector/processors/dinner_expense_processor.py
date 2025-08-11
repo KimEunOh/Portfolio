@@ -150,17 +150,39 @@ class DinnerExpenseProcessor(BaseFormProcessor):
         """야근 식대 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
         logging.info("DinnerExpenseProcessor: Converting form data to API payload")
 
+        def get_any(keys, default=""):
+            for k in keys:
+                if k in form_data and form_data.get(k) not in (None, ""):
+                    return form_data.get(k)
+            return default
+
+        def parse_amount(value) -> int:
+            try:
+                if value is None:
+                    return 0
+                if isinstance(value, (int, float)):
+                    return int(value)
+                # 문자열: 숫자 이외 제거 후 정수화
+                s = str(value)
+                digits = "".join(ch for ch in s if ch.isdigit())
+                return int(digits) if digits else 0
+            except Exception:
+                return 0
+
         payload = {
             "mstPid": "3",
             "aprvNm": "야근 식대 신청서",
-            "drafterId": form_data.get("drafterId", ""),
-            "docCn": form_data.get("work_details", "야근 식대 신청"),
+            # drafterId: snake/camel 모두 지원
+            "drafterId": get_any(["drafter_id", "drafterId"], ""),
+            # 문서 내용: 업무내용 사용 (snake/camel)
+            "docCn": get_any(["work_details", "workDetails"], "야근 식대 신청"),
             "apdInfo": json.dumps(
                 {
-                    "workLocation": form_data.get("work_location", ""),
-                    "overtimeTime": form_data.get("overtime_time", ""),
-                    "bankAccountForDeposit": form_data.get(
-                        "bank_account_for_deposit", ""
+                    # snake/camel 모두 지원
+                    "workLocation": get_any(["work_location", "workLocation"], ""),
+                    "overtimeTime": get_any(["overtime_time", "overtimeTime"], ""),
+                    "bankAccountForDeposit": get_any(
+                        ["bank_account_for_deposit", "bankAccountForDeposit"], ""
                     ),
                 },
                 ensure_ascii=False,
@@ -171,17 +193,17 @@ class DinnerExpenseProcessor(BaseFormProcessor):
         }
 
         # amountList 구성 (비용 정산 정보)
-        work_date = form_data.get("work_date", "")
-        dinner_amount = form_data.get("dinner_expense_amount", 0)
+        work_date = get_any(["work_date", "workDate"], "")
+        dinner_amount = get_any(["dinner_expense_amount", "dinnerExpenseAmount"], 0)
 
         if work_date and dinner_amount:
             payload["amountList"].append(
                 {
                     "useYmd": work_date,
                     "dvNm": "식대",
-                    "useRsn": form_data.get("work_details", ""),
+                    "useRsn": get_any(["work_details", "workDetails"], ""),
                     "qnty": 1,
-                    "amt": int(dinner_amount) if str(dinner_amount).isdigit() else 0,
+                    "amt": parse_amount(dinner_amount),
                     "aditInfo": json.dumps({}, ensure_ascii=False),
                 }
             )

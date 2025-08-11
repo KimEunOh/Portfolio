@@ -2,6 +2,7 @@
 # fastapi, uvicorn, langchain, langchain_openai, pydantic
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from form_selector.schema import UserInput
 from form_selector.service import classify_and_extract_slots_for_template
@@ -27,6 +28,20 @@ load_dotenv()
 
 # FastAPI 앱 생성
 app = FastAPI()
+
+# CORS 설정 (외부 템플릿 서버에서 메인 서버로 제출 가능하도록)
+ALLOWED_CORS_ORIGINS = os.getenv(
+    "ALLOWED_CORS_ORIGINS",
+    "http://localhost:9000,http://127.0.0.1:9000,http://localhost:8000,http://127.0.0.1:8000,null",
+)
+_origins = [o.strip() for o in ALLOWED_CORS_ORIGINS.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins or ["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 정적 파일 마운트 (static 폴더를 /ui 경로로 접근 가능하게 함)
 # HTML, CSS, JS 파일들을 static 폴더에 위치시킵니다.
@@ -382,6 +397,7 @@ class ExternalFormRequest(BaseModel):
     form_type: str
     slots: Dict[str, Any] = {}
     approver_info: Optional[Dict[str, Any]] = None
+    drafter_id: Optional[str] = None
 
 
 def _inject_base_href(html: str, base_href: str) -> str:
@@ -412,6 +428,7 @@ def _inject_head_assets(html: str) -> str:
         )
 
         # 2) 필요한 리소스 태그 구성 (정적 /ui/publish 경로 사용)
+        submit_base = os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
         head_assets = "\n".join(
             [
                 # CSS
@@ -431,10 +448,16 @@ def _inject_head_assets(html: str) -> str:
                 '<script src="/ui/publish/plugins/jquery.inputmask.bundle.js"></script>',
                 '<script src="/ui/publish/js/dropzone.js"></script>',
                 '<script src="/ui/publish/js/style.js"></script>',
-                # External integration for autofill/approver rendering
+                # 제출 API 베이스 (빈 문자열이면 동일 오리진)
+                f'<script>window.__FORM_SUBMIT_BASE__="{submit_base}";</script>',
+                # External integration for autofill/approver rendering + common submit
                 '<script src="/ui/js/external/common/slots.js"></script>',
                 '<script src="/ui/js/external/common/approver.js"></script>',
+                '<script src="/ui/js/external/common/ui_reinit.js"></script>',
+                '<script src="/ui/js/external/common/submit.js"></script>',
                 '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
+                '<script src="/ui/js/external/adapters/dinner_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/adapter-bootstrap.js"></script>',
                 # 초기화 스크립트 (선택/입력 UI 활성화)
                 '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){}});</script>',
             ]
@@ -541,10 +564,36 @@ def _build_fill_script(
   window.__FORM_SLOTS__ = __SLOTS_JSON__;
   window.__APPROVER_INFO__ = __APPROVER_JSON__;
 
+  function getEnglishFormType(){
+    try{
+      if(window.__FORM_SLOTS__ && window.__FORM_SLOTS__.form_type){ return String(window.__FORM_SLOTS__.form_type); }
+    }catch(e){}
+    // heuristic by path
+    try{
+      var path = (window.location.pathname||'').toLowerCase();
+      if(/master\/1\b/.test(path)) return 'annual_leave';
+      if(/master\/3\b/.test(path)) return 'dinner_expense';
+      if(/master\/4\b/.test(path)) return 'transportation_expense';
+      if(/master\/5\b/.test(path)) return 'dispatch_businesstrip_report';
+      if(/master\/6\b/.test(path)) return 'inventory_purchase_report';
+      if(/master\/7\b/.test(path)) return 'purchase_approval_form';
+      if(/master\/8\b/.test(path)) return 'personal_expense_report';
+      if(/master\/9\b/.test(path)) return 'corporate_card_statement';
+    }catch(e){}
+    return null;
+  }
+
   function tryBootstrap(){
     try{
-      if (window.AnnualLeaveAdapter && typeof window.AnnualLeaveAdapter.bootstrap === 'function'){
+      // 1) 우선 adapter-bootstrap이 있다면 그쪽 자동 감지 로직에 위임
+      if (window.UIReinit && window.UIReinit.schedule){ try{ window.UIReinit.schedule(); }catch(_e){} }
+      var ft = getEnglishFormType();
+      if (ft === 'annual_leave' && window.AnnualLeaveAdapter && typeof window.AnnualLeaveAdapter.bootstrap === 'function'){
         window.AnnualLeaveAdapter.bootstrap(window.__FORM_SLOTS__ || {}, window.__APPROVER_INFO__ || {});
+        return true;
+      }
+      if (ft === 'dinner_expense' && window.DinnerExpenseAdapter && typeof window.DinnerExpenseAdapter.bootstrap === 'function'){
+        window.DinnerExpenseAdapter.bootstrap(window.__FORM_SLOTS__ || {}, window.__APPROVER_INFO__ || {});
         return true;
       }
       return false;
@@ -601,18 +650,78 @@ async def render_external_form(req: ExternalFormRequest):
         parsed = urlparse(template_url)
         base_href = f"{parsed.scheme}://{parsed.netloc}/"
 
+        # 1) 외부 호스트 기준 base href 유지 (원본 상대경로 보존)
         html_with_base = _inject_base_href(html, base_href)
-        lower = html_with_base.lower()
+
+        # 2) 필요한 head 자산 주입 (base 재삽입 없이, 동일 오리진 /ui 자산 사용)
+        submit_base = os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
+        head_assets = "\n".join(
+            [
+                '<link rel="stylesheet" href="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/plugins/datetimepicker/jquery.datetimepicker.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/plugins/dropzone/dropzone.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/scss/style.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/scss/style.css">',
+                '<script src="/ui/publish/plugins/jquery/jquery-3.7.1.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery.nice-select.min.js"></script>',
+                '<script src="/ui/publish/plugins/datetimepicker/jquery.datetimepicker.full.min.js"></script>',
+                '<script src="/ui/publish/plugins/dropzone/dropzone.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery.inputmask.bundle.js"></script>',
+                '<script src="/ui/publish/js/dropzone.js"></script>',
+                '<script src="/ui/publish/js/style.js"></script>',
+                f'<script>window.__FORM_SUBMIT_BASE__="{submit_base}"; window.__FORM_DEBUG__=true; try{{console.log("[ExternalForm] DEBUG enabled, submit base:", "{submit_base}");}}catch(e){{}} </script>',
+                '<script src="/ui/js/external/common/slots.js"></script>',
+                '<script src="/ui/js/external/common/approver.js"></script>',
+                '<script src="/ui/js/external/common/ui_reinit.js"></script>',
+                '<script src="/ui/js/external/common/submit.js"></script>',
+                '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
+                '<script src="/ui/js/external/adapters/dinner_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/adapter-bootstrap.js"></script>',
+                '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){} try{ if(window.UIReinit){ window.UIReinit.schedule(); } }catch(e){} });</script>',
+            ]
+        )
+
+        html_augmented = html_with_base
+        if "</head>" in html_augmented:
+            html_augmented = html_augmented.replace(
+                "</head>", f"\n{head_assets}\n</head>"
+            )
+        else:
+            html_augmented = head_assets + html_augmented
+
+        # 3) 데이터 전역 주입 및 어댑터 부트스트랩
+        # 외부 추천 플로우에서는 /master/{pid} 경로가 없어 mstPid가 비는 경우가 있어 슬롯에 주입
+        effective_slots = dict(req.slots or {})
+        try:
+            effective_slots.setdefault("mstPid", config.mstPid)
+            effective_slots.setdefault("mst_pid", config.mstPid)
+            effective_slots.setdefault("form_type", config.english_id)
+            # approver_info에 drafterId가 있으면 전역 부트스트랩 데이터에도 반영되도록 슬롯에 힌트 추가
+            if req.approver_info and isinstance(req.approver_info, dict):
+                di = req.approver_info.get("drafterId") or req.approver_info.get(
+                    "drafter_id"
+                )
+                if di:
+                    effective_slots.setdefault("drafterId", di)
+                    effective_slots.setdefault("drafter_id", di)
+            # 요청 본문에 drafter_id가 오면 우선 반영
+            if req.drafter_id:
+                effective_slots["drafterId"] = req.drafter_id
+                effective_slots["drafter_id"] = req.drafter_id
+        except Exception:
+            pass
+        lower = html_augmented.lower()
         if "</body>" in lower:
             idx = lower.rfind("</body>")
             html_filled = (
-                html_with_base[:idx]
-                + _build_fill_script(req.slots, req.approver_info)
-                + html_with_base[idx:]
+                html_augmented[:idx]
+                + _build_fill_script(effective_slots, req.approver_info)
+                + html_augmented[idx:]
             )
         else:
-            html_filled = html_with_base + _build_fill_script(
-                req.slots, req.approver_info
+            html_filled = html_augmented + _build_fill_script(
+                effective_slots, req.approver_info
             )
 
         return HTMLResponse(content=html_filled)

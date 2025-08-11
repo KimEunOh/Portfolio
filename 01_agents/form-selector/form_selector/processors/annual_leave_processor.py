@@ -131,12 +131,20 @@ class AnnualLeaveProcessor(BaseFormProcessor):
         logging.info("AnnualLeaveProcessor: Converting form data to API payload")
 
         # 기존 Legacy API 형식과 동일한 구조 사용
+        drafter_id = (
+            form_data.get("drafterId") or form_data.get("drafter_id") or "00009"
+        )
+        # 최소 메타를 apdInfo에 포함(필요 시 확장)
+        apd_info_meta = {
+            "leaveType": form_data.get("leave_type", "annual"),
+            "leaveDays": form_data.get("leave_days", ""),
+        }
         payload = {
             "mstPid": "1",  # API 명세에 맞게 string 형태로 수정
             "aprvNm": "연차 신청서",
-            "drafterId": form_data.get("drafterId", "00009"),
+            "drafterId": drafter_id,
             "docCn": form_data.get("reason", "개인 사유"),
-            "apdInfo": json.dumps({}, ensure_ascii=False),
+            "apdInfo": json.dumps(apd_info_meta, ensure_ascii=False),
             "lineList": [],
             "dayList": [],
             "amountList": [],

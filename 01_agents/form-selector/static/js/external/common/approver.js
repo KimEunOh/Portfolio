@@ -16,6 +16,7 @@
 
   function renderApprovalLine(approverInfo, selectors){
     if(!approverInfo || typeof approverInfo !== 'object') return;
+    try{ window.__APPROVER_INFO__ = approverInfo; }catch(e){}
     var sel = Object.assign({}, DEFAULT_SELECTORS, selectors||{});
 
     try{
@@ -91,13 +92,39 @@
     var endpoint = (params && params.endpoint) || '/myLine';
     var mstPid = params && params.mstPid;
     var drafterId = params && params.drafterId;
+    // Fallbacks when not provided
+    try{
+      if(!mstPid){
+        if(window.__FORM_SLOTS__ && (window.__FORM_SLOTS__.mstPid || window.__FORM_SLOTS__.mst_pid)){
+          mstPid = window.__FORM_SLOTS__.mstPid || window.__FORM_SLOTS__.mst_pid;
+        } else {
+          var m = (window.location.pathname||'').match(/\/master\/(\d+)/);
+          if(m && m[1]) mstPid = Number(m[1]);
+        }
+      }
+      if(!drafterId){
+        if(typeof window.__DRAFTER_ID__ !== 'undefined' && window.__DRAFTER_ID__!=null){
+          drafterId = String(window.__DRAFTER_ID__);
+        } else if (window.__FORM_SLOTS__ && (window.__FORM_SLOTS__.drafterId || window.__FORM_SLOTS__.drafter_id)){
+          drafterId = String(window.__FORM_SLOTS__.drafterId || window.__FORM_SLOTS__.drafter_id);
+        } else {
+          try{ var url = new URL(window.location.href); drafterId = url.searchParams.get('drafterId') || url.searchParams.get('drafter_id'); }catch(e){}
+        }
+      }
+    }catch(e){}
     if(!mstPid) return null;
     try{
+      try{ if(drafterId){ window.__DRAFTER_ID__ = drafterId; } }catch(e){}
       var body = JSON.stringify({ mstPid: Number(mstPid), drafterId: drafterId || '' });
       var resp = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body });
       if(!resp.ok) return null;
       var data = await resp.json();
-      return (data && data.data) ? data.data : null;
+      var info = (data && data.data) ? data.data : null;
+      if(info){
+        try{ window.__APPROVER_INFO__ = info; }catch(e){}
+        try{ if(drafterId){ window.__DRAFTER_ID__ = drafterId; } }catch(e){}
+      }
+      return info;
     }catch(e){ return null; }
   }
 

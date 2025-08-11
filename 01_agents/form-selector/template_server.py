@@ -4,6 +4,142 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 
+app = FastAPI(title="Template Server")
+
+
+# 정적 파일 마운트 (/ui → static, /publishing → templates/publishing)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+PUBLISHING_DIR = os.path.join(BASE_DIR, "templates", "publishing")
+
+app.mount("/ui", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/publishing", StaticFiles(directory=PUBLISHING_DIR), name="publishing")
+
+
+# mstPid → publishing HTML 파일명 매핑 (메인과 동일하게 유지)
+MSTPID_TO_PUBLISHING_FILENAME = {
+    1: "annualLeaveForm.html",  # 연차 신청서
+    3: "overTimeDinnerForm.html",  # 야근식대비용 신청서
+    4: "transPortFeeForm.html",  # 교통비 신청서
+    5: "dispatchForm.html",  # 파견 및 출장 보고서
+    6: "purchaseEquipForm.html",  # 비품/소모품 구입내역서
+    7: "purchaseRequestForm.html",  # 구매 품의서
+    8: "personalExpenseForm.html",  # 개인 경비 사용 내역서
+    9: "corCreditCardForm.html",  # 법인카드 지출내역서
+}
+
+
+def _inject_base_href(html: str, base_href: str = "/ui/") -> str:
+    try:
+        lower = html.lower()
+        idx = lower.find("<head")
+        if idx != -1:
+            close_idx = lower.find(">", idx)
+            if close_idx != -1:
+                return (
+                    html[: close_idx + 1]
+                    + f'\n<base href="{base_href}">'
+                    + html[close_idx + 1 :]
+                )
+        return f'<base href="{base_href}">' + html
+    except Exception:
+        return html
+
+
+def _inject_head_assets(html: str) -> str:
+    try:
+        # 1) Thymeleaf head 조각 제거 (있을 경우)
+        html = html.replace(
+            '<th:block th:insert="~{/soulGod/fragments/headChatbot :: headChatbot}"></th:block>',
+            "",
+        )
+
+        # 2) 필요한 CSS/JS 리소스
+        submit_base = os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
+        head_assets = "\n".join(
+            [
+                # CSS
+                '<link rel="stylesheet" href="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/plugins/datetimepicker/jquery.datetimepicker.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/plugins/dropzone/dropzone.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/scss/style.min.css">',
+                '<link rel="stylesheet" href="/ui/publish/scss/style.css">',
+                # JS
+                '<script src="/ui/publish/plugins/jquery/jquery-3.7.1.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery.nice-select.min.js"></script>',
+                '<script src="/ui/publish/plugins/datetimepicker/jquery.datetimepicker.full.min.js"></script>',
+                '<script src="/ui/publish/plugins/dropzone/dropzone.min.js"></script>',
+                '<script src="/ui/publish/plugins/jquery.inputmask.bundle.js"></script>',
+                '<script src="/ui/publish/js/dropzone.js"></script>',
+                '<script src="/ui/publish/js/style.js"></script>',
+                # 템플릿 서버에서 렌더되더라도 메인 서버(또는 설정된 호스트)로 제출하도록 베이스 주입
+                f'<script>try{{window.__FORM_SUBMIT_BASE__ = "{submit_base}";}}catch(e){{}}</script>',
+                # 외부 통합 스크립트 (공통 채움/결재/제출 + 양식별 어댑터)
+                '<script src="/ui/js/external/common/slots.js"></script>',
+                '<script src="/ui/js/external/common/approver.js"></script>',
+                '<script src="/ui/js/external/common/submit.js"></script>',
+                '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
+                # UI 초기화 (niceSelect/inputActive)
+                '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){}});</script>',
+            ]
+        )
+
+        injected = _inject_base_href(html, base_href="/ui/")
+        lower = injected.lower()
+        idx = lower.find("<head")
+        if idx != -1:
+            close_idx = lower.find(">", idx)
+            if close_idx != -1:
+                return (
+                    injected[: close_idx + 1]
+                    + "\n"
+                    + head_assets
+                    + "\n"
+                    + injected[close_idx + 1 :]
+                )
+        return head_assets + "\n" + injected
+    except Exception:
+        return html
+
+
+@app.get("/api/v1/o/form/master/{mstPid}", response_class=HTMLResponse)
+async def render_publishing_by_mstpid(mstPid: int):
+    filename = MSTPID_TO_PUBLISHING_FILENAME.get(mstPid)
+    if not filename:
+        raise HTTPException(
+            status_code=404, detail={"error": "UNKNOWN_MSTPID", "mstPid": mstPid}
+        )
+
+    target_path = os.path.abspath(os.path.join(PUBLISHING_DIR, filename))
+    if not target_path.startswith(PUBLISHING_DIR):
+        raise HTTPException(status_code=403, detail={"error": "FORBIDDEN"})
+    if not os.path.exists(target_path) or not os.path.isfile(target_path):
+        raise HTTPException(
+            status_code=404, detail={"error": "NOT_FOUND", "file": filename}
+        )
+
+    with open(target_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    html = _inject_head_assets(html)
+    return HTMLResponse(content=html)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+# 실행 방법 (예):
+# uvicorn template_server:app --host 0.0.0.0 --port 9000 --reload
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+import os
+
+
 app = FastAPI(title="Template Server", version="1.0.0")
 
 
