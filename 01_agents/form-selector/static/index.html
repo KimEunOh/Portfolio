@@ -701,7 +701,7 @@
                         '파견 및 출장 보고서',
                         '비품/소모품 구입내역서',
                         '구매 품의서',
-                        '개인 경비 사용 내역서',
+                        '개인 경비 사용내역서',
                         '법인카드 지출내역서'
                     ];
 
@@ -771,7 +771,7 @@
                         scriptSrc = 'js/transportation_expense_scripts_v2.js';
                     } else if (formType === '파견 및 출장 보고서') {
                         scriptSrc = 'js/dispatch_report_scripts_v2.js';
-                    } else if (formType === '개인 경비 사용 내역서') {
+                    } else if (formType === '개인 경비 사용내역서') {
                         scriptSrc = 'js/personal_expense_scripts_v2.js';
                     } else if (formType === '법인카드 지출내역서') {
                         scriptSrc = 'js/corporate_card_scripts_v2.js';
@@ -1252,7 +1252,7 @@
                     formData // 백엔드로 바로 전송 가능한 완전한 데이터
                 };
             },
-            "개인 경비 사용 내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // "개인경비 사용내역서" -> "개인 경비 사용 내역서" (띄어쓰기 추가)
+            "개인 경비 사용내역서": function(activeForm, slots, getElementValueOrSlotFunc) { // "개인경비 사용내역서" -> "개인 경비 사용내역서" (띄어쓰기 추가)
                 console.log("%c[개인경비 사용내역서 Processor] 시작", "color: green; font-weight: bold;", { formId: activeForm ? activeForm.id : 'NO_FORM', slots: JSON.parse(JSON.stringify(slots)) });
 
                 // 모든 필드 수집 (백엔드 API 요구사항에 맞춰)
@@ -1483,7 +1483,7 @@
                 "파견 및 출장 보고서": "dispatch_businesstrip_report",
                 "비품/소모품 구입내역서": "inventory_purchase_report",
                 "구매 품의서": "purchase_approval_form",
-                "개인 경비 사용 내역서": "personal_expense_report", 
+                "개인 경비 사용내역서": "personal_expense_report", 
                 "법인카드 지출내역서": "corporate_card_statement"
             };
             return typeMapping[frontendFormType] || frontendFormType;
@@ -1556,7 +1556,7 @@
                 activeFormElement = resultArea.querySelector('form#inventory_purchase_form');
             } else if (formType === "구매 품의서") {
                 activeFormElement = resultArea.querySelector('form#purchase_approval_form');
-            } else if (formType === "개인 경비 사용 내역서") { // "개인경비 사용내역서" -> "개인 경비 사용 내역서"
+            } else if (formType === "개인 경비 사용내역서") { // "개인경비 사용내역서" -> "개인 경비 사용내역서"
                 activeFormElement = resultArea.querySelector('form#personal_expense_form');
             } else if (formType === "법인카드 지출내역서") {
                 activeFormElement = resultArea.querySelector('form#corporate_card_form');

@@ -26,15 +26,35 @@ from form_selector.service import (
 # .env 파일 로드 (OPENAI_API_KEY 등을 환경변수로 로드)
 load_dotenv()
 
+# 중앙 설정 로드
+try:
+    from form_selector.core.config import get_settings
+
+    settings = get_settings()
+except Exception:
+    settings = None  # 설정 모듈이 없더라도 기존 동작 유지
+
 # FastAPI 앱 생성
 app = FastAPI()
 
+# Include modular API router
+try:
+    from app.api.forms import router as forms_router
+
+    app.include_router(forms_router)
+except Exception:
+    # Keep backward compatibility if app package not available
+    pass
+
 # CORS 설정 (외부 템플릿 서버에서 메인 서버로 제출 가능하도록)
-ALLOWED_CORS_ORIGINS = os.getenv(
-    "ALLOWED_CORS_ORIGINS",
-    "http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000,null",
-)
-_origins = [o.strip() for o in ALLOWED_CORS_ORIGINS.split(",") if o.strip()]
+if settings and getattr(settings, "allowed_origins_list", None):
+    _origins = settings.allowed_origins_list or ["*"]
+else:
+    ALLOWED_CORS_ORIGINS = os.getenv(
+        "ALLOWED_CORS_ORIGINS",
+        "http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000,null",
+    )
+    _origins = [o.strip() for o in ALLOWED_CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins or ["*"],
@@ -72,7 +92,7 @@ MSTPID_TO_PUBLISHING_FILENAME = {
     5: "dispatchForm.html",  # 파견 및 출장 보고서
     6: "purchaseEquipForm.html",  # 비품/소모품 구입내역서
     7: "purchaseRequestForm.html",  # 구매 품의서
-    8: "personalExpenseForm.html",  # 개인 경비 사용 내역서
+    8: "personalExpenseForm.html",  # 개인 경비 사용내역서
     9: "corCreditCardForm.html",  # 법인카드 지출내역서
     # 10(사직서)는 publishing 템플릿 없음
 }
@@ -160,9 +180,12 @@ async def fetch_my_line_endpoint(request: form_schema.ApproverInfoRequest):
         f"외부 myLine API 직접 호출 요청: mstPid={request.mstPid}, drafterId={request.drafterId}"
     )
 
-    api_base_url = os.getenv(
-        "APPROVAL_API_BASE_URL",
-        "https://dev-api.ntoday.kr/api/v1/epaper",  # 기본 URL은 예시
+    api_base_url = (
+        settings.APPROVAL_API_BASE_URL
+        if settings and getattr(settings, "APPROVAL_API_BASE_URL", None)
+        else os.getenv(
+            "APPROVAL_API_BASE_URL", "https://dev-api.ntoday.kr/api/v1/epaper"
+        )
     )
     endpoint = "myLine"
     url = f"{api_base_url}/{endpoint}"
@@ -317,8 +340,12 @@ async def submit_form_endpoint(request: dict):
         api_payload = convert_form_data_to_api_payload(form_type, form_data)
 
         # 2단계: 외부 API로 제출
-        api_base_url = os.getenv(
-            "APPROVAL_API_BASE_URL", "https://dev-api.ntoday.kr/api/v1/epaper"
+        api_base_url = (
+            settings.APPROVAL_API_BASE_URL
+            if settings and getattr(settings, "APPROVAL_API_BASE_URL", None)
+            else os.getenv(
+                "APPROVAL_API_BASE_URL", "https://dev-api.ntoday.kr/api/v1/epaper"
+            )
         )
 
         # 모든 양식에 대해 동일한 엔드포인트 사용
@@ -428,7 +455,11 @@ def _inject_head_assets(html: str) -> str:
         )
 
         # 2) 필요한 리소스 태그 구성 (정적 /ui/publish 경로 사용)
-        submit_base = os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
+        submit_base = (
+            settings.SUBMIT_API_BASE_URL
+            if settings and getattr(settings, "SUBMIT_API_BASE_URL", None)
+            else os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
+        )
         head_assets = "\n".join(
             [
                 # CSS
@@ -704,7 +735,11 @@ async def render_external_form(req: ExternalFormRequest):
         html_with_base = _inject_base_href(html, base_href)
 
         # 2) 필요한 head 자산 주입 (base 재삽입 없이, 동일 오리진 /ui 자산 사용)
-        submit_base = os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
+        submit_base = (
+            settings.SUBMIT_API_BASE_URL
+            if settings and getattr(settings, "SUBMIT_API_BASE_URL", None)
+            else os.getenv("SUBMIT_API_BASE_URL", "http://localhost:8000")
+        )
         head_assets = "\n".join(
             [
                 '<link rel="stylesheet" href="/ui/publish/plugins/jquery/jquery-ui-1.14.1.min.css">',

@@ -1,5 +1,6 @@
 from typing import Dict, Type, Optional
 import os
+from form_selector.core.config import get_settings
 from pydantic import BaseModel
 
 from .schema import (
@@ -26,7 +27,7 @@ class FormConfig(BaseModel):
 
 
 # REST 템플릿 베이스 URL (없으면 로컬 FastAPI 기본값)
-FORM_TEMPLATE_BASE_URL = os.getenv("FORM_TEMPLATE_BASE_URL", "http://localhost:8080")
+FORM_TEMPLATE_BASE_URL = get_settings().FORM_TEMPLATE_BASE_URL
 
 
 def build_rest_template_url(mst_pid: int) -> str:
@@ -85,7 +86,7 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         items_config={"list_key": "items", "date_key": "item_delivery_request_date"},
         is_external_template=True,
     ),
-    "개인 경비 사용 내역서": FormConfig(
+    "개인 경비 사용내역서": FormConfig(
         model=PersonalExpenseReportSlots,
         prompt_template_path="personal_expense_report_slots_prompt.txt",
         html_template_path=build_rest_template_url(8),

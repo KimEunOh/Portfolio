@@ -315,7 +315,7 @@ def classify_and_extract_slots_for_template(
     time_context_llm_forms = ["연차 신청서", "파견 및 출장 보고서"]
     past_fixed_forms = [
         "야근식대비용 신청서",
-        "개인 경비 사용 내역서",
+        "개인 경비 사용내역서",
         "법인카드 지출내역서",
         "교통비 신청서",
     ]

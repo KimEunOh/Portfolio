@@ -24,7 +24,7 @@ MSTPID_TO_PUBLISHING_FILENAME = {
     5: "dispatchForm.html",  # 파견 및 출장 보고서
     6: "purchaseEquipForm.html",  # 비품/소모품 구입내역서
     7: "purchaseRequestForm.html",  # 구매 품의서
-    8: "personalExpenseForm.html",  # 개인 경비 사용 내역서
+    8: "personalExpenseForm.html",  # 개인 경비 사용내역서
     9: "corCreditCardForm.html",  # 법인카드 지출내역서
 }
 
@@ -181,7 +181,7 @@ MSTPID_TO_PUBLISHING_FILENAME = {
     5: "dispatchForm.html",  # 파견 및 출장 보고서
     6: "purchaseEquipForm.html",  # 비품/소모품 구입내역서
     7: "purchaseRequestForm.html",  # 구매 품의서
-    8: "personalExpenseForm.html",  # 개인 경비 사용 내역서
+    8: "personalExpenseForm.html",  # 개인 경비 사용내역서
     9: "corCreditCardForm.html",  # 법인카드 지출내역서
 }
 
