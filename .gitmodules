@@ -3,3 +3,5 @@
 	url = git@github.com:KimEunOh/Usebase.git
 [submodule "01_agents/form-selector"]
 	branch = form-selector
+	path = 01_agents/form-selector
+	url = git@gitlab.ntoday.kr:lab/ai/eform.git
