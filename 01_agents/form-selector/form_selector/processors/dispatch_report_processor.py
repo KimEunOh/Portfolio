@@ -80,17 +80,64 @@ class DispatchReportProcessor(BaseFormProcessor):
         """파견 및 출장 보고서 폼 데이터를 API Payload로 변환"""
         logging.info("DispatchReportProcessor: Converting form data to API payload")
 
+        # drafterId: snake/camel 모두 수용
+        drafter_id = form_data.get("drafter_id") or form_data.get("drafterId") or ""
+
+        # 총 일수(periodDays) 계산: 우선 duration_days/durationDays 사용, 없으면 날짜 차이로 계산(포함일 기준)
+        start_date = form_data.get("start_date", "")
+        end_date = form_data.get("end_date", "")
+        duration_raw = (
+            form_data.get("duration_days")
+            or form_data.get("durationDays")
+            or form_data.get("duration")
+        )
+        period_days = 0
+        try:
+            if duration_raw is not None and str(duration_raw).strip() != "":
+                try:
+                    period_days = int(duration_raw)
+                except ValueError:
+                    period_days = self.convert_duration_days(str(duration_raw))
+        except Exception:
+            period_days = 0
+
+        # duration 정보가 없으면 날짜 차이로 포함일 계산
+        if period_days <= 0 and start_date and end_date:
+            try:
+                sd = datetime.strptime(start_date, "%Y-%m-%d").date()
+                ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+                if sd <= ed:
+                    period_days = (ed - sd).days + 1
+            except Exception:
+                period_days = 0
+
+        # 보고/비고 플레이스홀더 방지: 템플릿 플레이스홀더가 그대로 전달된 경우 빈 문자열로 정리
+        def clean_placeholder(val: Optional[str]) -> str:
+            if not val:
+                return ""
+            try:
+                s = str(val)
+                if s.startswith("{") and s.endswith("}"):
+                    return ""
+                if "SLOT_NOT_FOUND" in s:
+                    return ""
+                return s
+            except Exception:
+                return ""
+
         payload = {
             "mstPid": "5",  # API 명세에 맞게 string 형태로 수정
             "aprvNm": "파견 및 출장 보고서",
-            "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("purpose", "파견/출장 보고서"),
+            "drafterId": drafter_id,
+            "docCn": clean_placeholder(form_data.get("purpose", "파견/출장 보고서")),
             "apdInfo": json.dumps(
                 {
                     "destination": form_data.get("destination", ""),
-                    "periodDays": int(form_data.get("duration_days", 0)),
-                    "reportDetails": form_data.get("report_details", ""),
-                    "notes": form_data.get("notes", ""),
+                    "periodDays": int(period_days),
+                    "reportDetails": clean_placeholder(
+                        form_data.get("report_details", "")
+                    ),
+                    "notes": clean_placeholder(form_data.get("notes", "")),
                 },
                 ensure_ascii=False,
             ),
@@ -100,8 +147,6 @@ class DispatchReportProcessor(BaseFormProcessor):
         }
 
         # dayList 구성 (파견/출장 날짜 정보)
-        start_date = form_data.get("start_date", "")
-        end_date = form_data.get("end_date", "")
 
         if start_date and end_date:
             try:
@@ -133,6 +178,16 @@ class DispatchReportProcessor(BaseFormProcessor):
                         "ordr": int(approver.ordr),
                     }
                 )
+
+        # 안전장치: periodDays가 0일 때 dayList 길이로 보정
+        try:
+            apd = json.loads(payload.get("apdInfo", "{}"))
+            cur_days = int(apd.get("periodDays", 0) or 0)
+            if cur_days <= 0 and payload.get("dayList"):
+                apd["periodDays"] = len(payload["dayList"])
+                payload["apdInfo"] = json.dumps(apd, ensure_ascii=False)
+        except Exception:
+            pass
 
         logging.info("DispatchReportProcessor: API payload conversion completed")
         return payload

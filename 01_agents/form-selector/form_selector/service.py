@@ -602,9 +602,7 @@ def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
                 mapped = {
                     "aprvPsId": approver.get("aprvPsId") or approver.get("aprv_ps_id"),
                     "aprvPsNm": (
-                        approver.get("aprvPsNm")
-                        or approver.get("aprv_ps_nm")
-                        or ""
+                        approver.get("aprvPsNm") or approver.get("aprv_ps_nm") or ""
                     ),
                     "aprvDvTy": approver.get("aprvDvTy") or approver.get("aprv_dv_ty"),
                     "ordr": approver.get("ordr"),
@@ -617,6 +615,73 @@ def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
         logger.info(
             f"Converted {len(converted_approvers)} approvers from dict to ApproverDetail objects"
         )
+
+    # 문자열 JSON으로 들어오는 배열 필드들을 리스트로 파싱 (어댑터 hidden 필드 대응)
+    def _parse_json_array_field(fd: dict, key: str) -> None:
+        try:
+            if key in fd and isinstance(fd[key], str):
+                raw = fd[key].strip()
+                # JSON 배열 형태([{"..."}, ...])로 보이는 경우만 파싱 시도
+                if raw.startswith("[{") and raw.endswith("]"):
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        fd[key] = parsed
+        except Exception as e:
+            logger.warning(f"Failed to parse JSON array field '{key}': {e}")
+
+    # 1) FormConfig 기반 키 (있다면) 우선 파싱
+    try:
+        cfg = None
+        if form_type in FORM_CONFIGS:
+            cfg = FORM_CONFIGS.get(form_type)
+        else:
+            # 영어 ID로 들어온 경우 역탐색
+            for _name, _cfg in FORM_CONFIGS.items():
+                try:
+                    if getattr(_cfg, "english_id", None) == form_type:
+                        cfg = _cfg
+                        break
+                except Exception:
+                    continue
+        if cfg and getattr(cfg, "items_config", None):
+            list_key = cfg.items_config.get("list_key")
+            if list_key:
+                _parse_json_array_field(form_data, list_key)
+            # 날짜 기본값 처리: items_config.date_key가 있고 값이 비어있으면 오늘 날짜로 보정
+            date_key = cfg.items_config.get("date_key")
+            if date_key:
+                try:
+                    val = form_data.get(date_key)
+                    if not val:
+                        form_data[date_key] = datetime.now().date().isoformat()
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # 2) 일반적인 배열 키들 파싱 (후행 호환)
+    for _key in [
+        "items",  # inventory_purchase_report
+        "purchase_items",  # purchase_approval_form
+        "card_usage_items",  # corporate_card_statement
+        "expense_items",  # personal_expense_report
+    ]:
+        _parse_json_array_field(form_data, _key)
+
+    # 3) 제네릭 스캔: 값이 문자열 JSON 배열처럼 보이면 파싱 (새 양식에도 자동 대응)
+    try:
+        for _k, _v in list(form_data.items()):
+            if isinstance(_v, str):
+                s = _v.strip()
+                if s.startswith("[") and s.endswith("]"):
+                    try:
+                        parsed = json.loads(s)
+                        if isinstance(parsed, list):
+                            form_data[_k] = parsed
+                    except Exception:
+                        continue
+    except Exception:
+        pass
 
     try:
         # V2 프로세서 사용 시도
@@ -636,6 +701,7 @@ def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
 
     # Legacy 변환 함수들 사용
     legacy_converters = {
+        # 과거 명칭
         "annual_leave": _convert_annual_leave_to_payload,
         "personal_expense": _convert_personal_expense_to_payload,
         "dinner_expense": _convert_dinner_expense_to_payload,
@@ -644,6 +710,12 @@ def convert_form_data_to_api_payload(form_type: str, form_data: dict) -> dict:
         "purchase_approval": _convert_purchase_approval_to_payload,
         "corporate_card": _convert_corporate_card_to_payload,
         "dispatch_report": _convert_dispatch_report_to_payload,
+        # 현재 영어 ID (FormConfig 기준)
+        "inventory_purchase_report": _convert_inventory_report_to_payload,
+        "purchase_approval_form": _convert_purchase_approval_to_payload,
+        "personal_expense_report": _convert_personal_expense_to_payload,
+        "corporate_card_statement": _convert_corporate_card_to_payload,
+        "dispatch_businesstrip_report": _convert_dispatch_report_to_payload,
     }
 
     if form_type in legacy_converters:

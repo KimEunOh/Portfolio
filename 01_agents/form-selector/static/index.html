@@ -693,7 +693,17 @@
                     updateApproverInfoUI(null); 
                 } else {
                     const currentFormType = data.form_type;
-                    const externalForms = ['연차 신청서', '야근식대비용 신청서']; // 외부 URL로 제공되는 폼 목록 확장
+                    // 외부 URL로 제공되는 폼 목록 (iframe + /external-form 프록시 사용)
+                    const externalForms = [
+                        '연차 신청서',
+                        '야근식대비용 신청서',
+                        '교통비 신청서',
+                        '파견 및 출장 보고서',
+                        '비품/소모품 구입내역서',
+                        '구매 품의서',
+                        '개인 경비 사용 내역서',
+                        '법인카드 지출내역서'
+                    ];
 
                     if (externalForms.includes(currentFormType)) {
                         console.log(`[submitRequest] External form detected: ${currentFormType}. Rendering via /external-form proxy.`);
@@ -704,7 +714,8 @@
                                 drafterId: selectedDrafter ? selectedDrafter.id : undefined,
                                 drafter_id: selectedDrafter ? selectedDrafter.id : undefined
                             });
-                            const res = await fetch('http://localhost:8000/external-form', {
+                            // 동일 오리진 상대 경로 사용 (배포 환경 호환)
+                            const res = await fetch('/external-form', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
@@ -723,8 +734,14 @@
                             iframe.style.width = '100%';
                             iframe.style.minHeight = '900px';
                             iframe.style.border = '0';
-                            iframe.srcdoc = html;
+                            iframe.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-modals');
+                            iframe.srcdoc = html; // 서버가 head자산/어댑터/부트스트랩을 주입함
                             resultArea.appendChild(iframe);
+                            // 외부 폼은 iframe 내 submit.js가 제출 바인딩을 처리하므로 상단 제출 버튼 유지X
+                            updateApproverInfoUI(data.approver_info);
+                            submitBtn.style.display = 'none';
+                            // 외부 폼 경로에서는 로컬 v2 스크립트 로드 및 공통 보정 로직을 수행하지 않음
+                            return;
                         } catch (e) {
                             console.error('[submitRequest] external-form render error:', e);
                             // 폴백: 기존 방식으로 표시

@@ -33,8 +33,8 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         if "items" in slots and slots["items"]:
             items = slots["items"]
 
-            # 최대 3개 아이템까지 처리
-            for i, item in enumerate(items[:3], 1):
+            # 최대 12개 아이템까지 처리 (퍼블리싱/어댑터 상한과 일치)
+            for i, item in enumerate(items[:12], 1):
                 result[f"item_name_{i}"] = item.get("item_name", "")
                 result[f"item_spec_{i}"] = item.get("item_spec", "")
                 result[f"item_quantity_{i}"] = item.get("item_quantity", 0)
@@ -92,21 +92,95 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         """구매품의서 폼 데이터를 API Payload로 변환"""
         logging.info("PurchaseApprovalProcessor: Converting form data to API payload")
 
+        # 유틸: 혼용 키 수용 및 금액 파싱
+        def get_any(keys, default=""):
+            for k in keys:
+                if k in form_data and form_data.get(k) not in (None, ""):
+                    return form_data.get(k)
+            return default
+
+        def parse_amount(value) -> int:
+            try:
+                if value is None:
+                    return 0
+                if isinstance(value, (int, float)):
+                    return int(value)
+                s = str(value)
+                digits = "".join(ch for ch in s if ch.isdigit())
+                return int(digits) if digits else 0
+            except Exception:
+                return 0
+
+        def normalize_ymd(value: Any) -> str:
+            """다양한 날짜 입력을 YYYY-MM-DD로 통일. 실패 시 원문 반환 또는 빈 문자열."""
+            if value is None:
+                return ""
+            try:
+                s = str(value).strip()
+                if not s:
+                    return ""
+                # 구분자 통일
+                s2 = s.replace(".", "-").replace("/", "-")
+                # 상대 날짜 파서 시도
+                try:
+                    rel = parse_relative_date_to_iso(s2)
+                    if rel:
+                        return rel
+                except Exception:
+                    pass
+                # 명시적 포맷 파싱 시도
+                from datetime import datetime as _dt
+
+                for fmt in ("%Y-%m-%d", "%Y-%m", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        return _dt.strptime(s2, fmt).date().isoformat()
+                    except Exception:
+                        continue
+                # 8자리 숫자 형태(YYYYMMDD)
+                if len(s2) == 8 and s2.isdigit():
+                    return f"{s2[0:4]}-{s2[4:6]}-{s2[6:8]}"
+                return s2
+            except Exception:
+                return ""
+
         # 1. form_data에서 items 리스트를 가져옵니다. (purchase_items 키 사용)
         items_snake = form_data.get("purchase_items", [])
         logging.info(f"PurchaseApprovalProcessor: items_snake = {items_snake}")
+        # 문자열로 전달된 hidden JSON 방어 처리
+        if isinstance(items_snake, str):
+            s = items_snake.strip()
+            if s.startswith("[{") and s.endswith("]"):
+                try:
+                    parsed = json.loads(s)
+                    items_snake = parsed if isinstance(parsed, list) else []
+                except Exception:
+                    items_snake = []
+            else:
+                items_snake = []
+        if not isinstance(items_snake, list):
+            items_snake = []
 
         # 2. items 리스트의 키를 camelCase로 변환합니다.
-        items_camel = convert_keys_to_camel(items_snake)
+        items_camel = convert_keys_to_camel(items_snake) if items_snake else []
         logging.info(f"PurchaseApprovalProcessor: items_camel = {items_camel}")
+        # 리스트 내 원소 타입 방어: dict가 아닌 값은 제거
+        if items_camel and any(not isinstance(it, dict) for it in items_camel):
+            try:
+                items_camel = [it for it in items_camel if isinstance(it, dict)]
+            except Exception:
+                items_camel = []
 
         # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다. (items 제외)
         apd_info_dict = {
-            "deliveryLocation": form_data.get("delivery_location", ""),
-            "paymentTerms": form_data.get("payment_terms", ""),
-            "attachedFilesDescription": form_data.get("attached_files_description", ""),
-            "totalPurchaseAmount": form_data.get("total_purchase_amount", 0),
-            "specialNotes": form_data.get("special_notes", ""),
+            "deliveryLocation": get_any(["delivery_location", "deliveryLocation"], ""),
+            "paymentTerms": get_any(["payment_terms", "paymentTerms"], ""),
+            "attachedFilesDescription": get_any(
+                ["attached_files_description", "attachedFilesDescription"], ""
+            ),
+            "totalPurchaseAmount": parse_amount(
+                get_any(["total_purchase_amount", "totalPurchaseAmount"], 0)
+            ),
+            "specialNotes": get_any(["special_notes", "specialNotes"], ""),
         }
         final_apd_info_str = json.dumps(
             convert_keys_to_camel(apd_info_dict), ensure_ascii=False
@@ -116,8 +190,8 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         payload = {
             "mstPid": "7",
             "aprvNm": "구매 품의서",
-            "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("purpose", "구매 품의서"),
+            "drafterId": get_any(["drafter_id", "drafterId"], "00009"),
+            "docCn": get_any(["purpose", "docCn"], "구매 품의서"),
             "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
@@ -125,7 +199,7 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
         }
 
         # 5. amountList를 구성합니다 (camelCase로 변환된 items_camel 사용).
-        draft_date = form_data.get("draft_date", "")
+        draft_date = normalize_ymd(get_any(["draft_date", "draftDate"], ""))
         logging.info(
             f"PurchaseApprovalProcessor: Processing {len(items_camel) if items_camel else 0} items for amountList"
         )
@@ -147,13 +221,11 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
                 }
 
                 amount_item = {
-                    "useYmd": item.get("itemDeliveryDate") or draft_date,
+                    "useYmd": normalize_ymd(item.get("itemDeliveryDate") or draft_date),
                     "dvNm": item_name,
                     "useRsn": item.get("itemNotes", ""),
-                    "qnty": (int(item_quantity) if str(item_quantity).isdigit() else 0),
-                    "amt": (
-                        int(item_total_price) if str(item_total_price).isdigit() else 0
-                    ),
+                    "qnty": parse_amount(item_quantity),
+                    "amt": parse_amount(item_total_price),
                     "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                 }
                 payload["amountList"].append(amount_item)
@@ -164,29 +236,107 @@ class PurchaseApprovalProcessor(BaseFormProcessor):
             logging.info(
                 "PurchaseApprovalProcessor: No items_camel, trying fallback..."
             )
-            # Fallback for older format (HTML 필드 직접 참조)
-            for i in range(1, 4):
-                item_name = form_data.get(f"itemName_{i}")
+
+            # Fallback for older/newer format (HTML 필드 직접 참조, 다양한 네이밍 수용)
+            def get_indexed(keys_patterns, idx, default=None):
+                for pattern in keys_patterns:
+                    key = pattern.format(i=idx)
+                    if key in form_data and form_data.get(key) not in (None, ""):
+                        return form_data.get(key)
+                return default
+
+            for i in range(1, 13):
+                item_name = get_indexed(
+                    ["item_name_{i}", "item_name{i}", "itemName{i}", "itemName_{i}"],
+                    i,
+                    default=None,
+                )
                 if not item_name or item_name == "SLOT_NOT_FOUND_OR_UNDEFINED":
                     continue
 
-                item_total_price = form_data.get(f"itemTotalPrice_{i}", 0)
-                item_quantity = form_data.get(f"itemQuantity_{i}", 0)
+                item_total_price = get_indexed(
+                    [
+                        "item_total_price_{i}",
+                        "item_total_price{i}",
+                        "itemTotalPrice{i}",
+                        "itemTotalPrice_{i}",
+                    ],
+                    i,
+                    default=0,
+                )
+                item_quantity = get_indexed(
+                    [
+                        "item_quantity_{i}",
+                        "item_quantity{i}",
+                        "itemQuantity{i}",
+                        "itemQuantity_{i}",
+                    ],
+                    i,
+                    default=0,
+                )
 
                 adit_info = {
-                    "spec": form_data.get(f"itemSpec_{i}", ""),
-                    "unitPrice": form_data.get(f"itemUnitPrice_{i}", 0),
-                    "supplier": form_data.get(f"itemSupplier_{i}", ""),
+                    "spec": get_indexed(
+                        [
+                            "item_spec_{i}",
+                            "item_spec{i}",
+                            "itemSpec{i}",
+                            "itemSpec_{i}",
+                        ],
+                        i,
+                        default="",
+                    ),
+                    "unitPrice": parse_amount(
+                        get_indexed(
+                            [
+                                "item_unit_price_{i}",
+                                "item_unit_price{i}",
+                                "itemUnitPrice{i}",
+                                "itemUnitPrice_{i}",
+                            ],
+                            i,
+                            default=0,
+                        )
+                    ),
+                    "supplier": get_indexed(
+                        [
+                            "item_supplier_{i}",
+                            "item_supplier{i}",
+                            "itemSupplier{i}",
+                            "itemSupplier_{i}",
+                        ],
+                        i,
+                        default="",
+                    ),
                 }
 
                 amount_item = {
-                    "useYmd": form_data.get(f"itemDeliveryDate_{i}") or draft_date,
-                    "dvNm": item_name,
-                    "useRsn": form_data.get(f"itemNotes_{i}", ""),
-                    "qnty": (int(item_quantity) if str(item_quantity).isdigit() else 0),
-                    "amt": (
-                        int(item_total_price) if str(item_total_price).isdigit() else 0
+                    "useYmd": normalize_ymd(
+                        get_indexed(
+                            [
+                                "item_delivery_date_{i}",
+                                "item_delivery_date{i}",
+                                "itemDeliveryDate{i}",
+                                "itemDeliveryDate_{i}",
+                            ],
+                            i,
+                            default=None,
+                        )
+                        or draft_date
                     ),
+                    "dvNm": item_name,
+                    "useRsn": get_indexed(
+                        [
+                            "item_notes_{i}",
+                            "item_notes{i}",
+                            "itemNotes{i}",
+                            "itemNotes_{i}",
+                        ],
+                        i,
+                        default="",
+                    ),
+                    "qnty": parse_amount(item_quantity),
+                    "amt": parse_amount(item_total_price),
                     "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                 }
                 payload["amountList"].append(amount_item)

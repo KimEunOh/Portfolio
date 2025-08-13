@@ -78,8 +78,17 @@ def _inject_head_assets(html: str) -> str:
                 # 외부 통합 스크립트 (공통 채움/결재/제출 + 양식별 어댑터)
                 '<script src="/ui/js/external/common/slots.js"></script>',
                 '<script src="/ui/js/external/common/approver.js"></script>',
+                '<script src="/ui/js/external/common/ui_reinit.js"></script>',
                 '<script src="/ui/js/external/common/submit.js"></script>',
                 '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
+                '<script src="/ui/js/external/adapters/dinner_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/transportation_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/dispatch_businesstrip_report.js"></script>',
+                '<script src="/ui/js/external/adapters/inventory_purchase_report.js"></script>',
+                '<script src="/ui/js/external/adapters/purchase_approval_form.js"></script>',
+                '<script src="/ui/js/external/adapters/personal_expense_report.js"></script>',
+                '<script src="/ui/js/external/adapters/corporate_card_statement.js"></script>',
+                '<script src="/ui/js/external/adapters/adapter_bootstrap.js"></script>',
                 # UI 초기화 (niceSelect/inputActive)
                 '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){}});</script>',
             ]
@@ -132,7 +141,7 @@ async def health():
 
 
 # 실행 방법 (예):
-# uvicorn template_server:app --host 0.0.0.0 --port 9000 --reload
+# uvicorn template_server:app --host 0.0.0.0 --port 8080 --reload
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -226,7 +235,12 @@ def _inject_head_assets(html: str) -> str:
                 # External integration (COMMON → ADAPTER → page script)
                 '<script src="/ui/js/external/common/slots.js"></script>',
                 '<script src="/ui/js/external/common/approver.js"></script>',
+                '<script src="/ui/js/external/common/ui_reinit.js"></script>',
+                '<script src="/ui/js/external/common/submit.js"></script>',
                 '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
+                '<script src="/ui/js/external/adapters/dinner_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/transportation_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/adapter_bootstrap.js"></script>',
                 # 초기화 스크립트 (선택/입력 UI 활성화)
                 '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){}});</script>',
             ]

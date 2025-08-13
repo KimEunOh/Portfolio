@@ -113,15 +113,99 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         return 0
 
     def convert_to_api_payload(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """교통비 신청서 폼 데이터를 API Payload로 변환 (New Spec)"""
+        """교통비 신청서 폼 데이터를 API Payload로 변환 (New Spec)
 
-        # 1. form_data에서 items와 notes를 직접 가져옵니다.
-        #    service.py에서 넘어오는 데이터는 snake_case 키를 가집니다.
-        items_snake = form_data.get("items", [])
-        notes = form_data.get("notes", "")
+        - snake/camel 케이스를 모두 수용
+        - items가 문자열(JSON)로 전달되어도 파싱하여 처리
+        """
+
+        def get_any(keys, default=""):
+            for k in keys:
+                if k in form_data and form_data.get(k) not in (None, ""):
+                    return form_data.get(k)
+            return default
+
+        # 1. items와 notes 확보 (items는 문자열(JSON)일 수도 있음)
+        items_raw = get_any(["items"], [])
+        if isinstance(items_raw, str):
+            try:
+                items_snake = json.loads(items_raw)
+            except Exception:
+                items_snake = []
+        else:
+            items_snake = items_raw
+
+        notes = get_any(["notes", "other_notes", "otherNotes"], "")
 
         # 2. items 리스트의 키를 snake_case에서 camelCase로 변환합니다.
         items_camel = convert_keys_to_camel(items_snake)
+
+        # 2-1. 폴백: hidden `items`가 비어있거나 파싱 실패 시, 퍼블리싱 개별 필드에서 항목 구성
+        if not items_camel:
+
+            def _get_indexed_value(patterns, idx, default=None):
+                for p in patterns:
+                    key = p.format(i=idx)
+                    if key in form_data and form_data.get(key) not in (None, ""):
+                        return form_data.get(key)
+                return default
+
+            fallback_items = []
+            # 퍼블리싱 최대 행 수를 여유 있게 스캔
+            for i in range(1, 31):
+                amount_val = _get_indexed_value(
+                    ["amount_{i}", "amount{i}", "usage_amount_{i}", "usage_amount{i}"],
+                    i,
+                    default=None,
+                )
+                transport_val = _get_indexed_value(
+                    [
+                        "transport_type_{i}",
+                        "transport_type{i}",
+                        "transportType{i}",
+                        "transportType_{i}",
+                    ],
+                    i,
+                    default=None,
+                )
+                origin_val = _get_indexed_value(
+                    ["origin_{i}", "origin{i}"], i, default=None
+                )
+                destination_val = _get_indexed_value(
+                    ["destination_{i}", "destination{i}"], i, default=None
+                )
+                notes_val = _get_indexed_value(
+                    ["notes_{i}", "notes{i}"], i, default=None
+                )
+
+                # 아무 값도 없으면 스킵
+                if not (
+                    amount_val
+                    or transport_val
+                    or origin_val
+                    or destination_val
+                    or notes_val
+                ):
+                    continue
+
+                item = {
+                    "amount": self._convert_amount_to_int(amount_val),
+                    "transportType": transport_val or "",
+                    "origin": origin_val or "",
+                    "destination": destination_val or "",
+                    "notes": notes_val or "",
+                }
+                # 의미있는 값이 하나라도 있으면 추가
+                if (
+                    item["amount"]
+                    or item["transportType"]
+                    or item["origin"]
+                    or item["destination"]
+                    or item["notes"]
+                ):
+                    fallback_items.append(item)
+
+            items_camel = fallback_items
 
         # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다. (items 제외)
         apd_info_dict = {
@@ -133,8 +217,10 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         payload = {
             "mstPid": "4",
             "aprvNm": "교통비 신청서",
-            "drafterId": form_data.get("drafterId", "00009"),
-            "docCn": form_data.get("purpose", "교통비 신청"),
+            # drafterId: snake/camel 모두 수용
+            "drafterId": get_any(["drafter_id", "drafterId"], ""),
+            # 문서 내용: 목적 사용
+            "docCn": get_any(["purpose", "docCn"], "교통비 신청"),
             "apdInfo": final_apd_info_str,
             "lineList": [],
             "dayList": [],
@@ -144,10 +230,10 @@ class TransportationExpenseProcessor(BaseFormProcessor):
         # 5. amountList를 구성합니다.
         #    - form_data에서 snake_case 키로 날짜를 가져옵니다.
         #    - 키 변환이 완료된 items_camel 리스트를 사용합니다.
-        departure_date = form_data.get("departure_date", "")
-        purpose = form_data.get("purpose", "")
+        departure_date = get_any(["departure_date", "departureDate"], "")
+        purpose = get_any(["purpose"], "")
 
-        for item in items_camel:  # camelCase로 변환된 아이템 리스트 사용
+        for item in items_camel:  # camelCase 아이템 리스트 사용 (hidden 또는 폴백)
             # useRsn: 목적(용무)를 기본으로, 아이템별 비고가 있으면 함께 표시
             reason_parts = [purpose]
             if item.get("notes"):

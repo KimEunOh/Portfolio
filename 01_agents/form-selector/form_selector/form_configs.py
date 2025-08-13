@@ -26,7 +26,7 @@ class FormConfig(BaseModel):
 
 
 # REST 템플릿 베이스 URL (없으면 로컬 FastAPI 기본값)
-FORM_TEMPLATE_BASE_URL = os.getenv("FORM_TEMPLATE_BASE_URL", "http://localhost:8000")
+FORM_TEMPLATE_BASE_URL = os.getenv("FORM_TEMPLATE_BASE_URL", "http://localhost:8080")
 
 
 def build_rest_template_url(mst_pid: int) -> str:
@@ -72,6 +72,8 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         html_template_path=build_rest_template_url(6),
         mstPid=6,
         english_id="inventory_purchase_report",
+        # 충돌 방지: hidden 배열 키를 purchase_items로 표준화
+        items_config={"list_key": "purchase_items", "date_key": "request_date"},
         is_external_template=True,
     ),
     "구매 품의서": FormConfig(
@@ -100,14 +102,6 @@ FORM_CONFIGS: Dict[str, FormConfig] = {
         english_id="corporate_card_statement",
         items_config={"list_key": "card_usage_items", "date_key": "usage_date"},
         is_external_template=True,
-    ),
-    "사직서": FormConfig(
-        model=ResignationLetterSlots,
-        prompt_template_path="resignation_letter_slots_prompt.txt",
-        html_template_path="http://localhost:5000/resignation_letter",  # 로컬 API 서버 URL
-        mstPid=10,
-        english_id="resignation_letter",
-        is_external_template=True,  # 외부 API 플래그
     ),
 }
 

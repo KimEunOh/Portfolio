@@ -32,7 +32,7 @@ app = FastAPI()
 # CORS 설정 (외부 템플릿 서버에서 메인 서버로 제출 가능하도록)
 ALLOWED_CORS_ORIGINS = os.getenv(
     "ALLOWED_CORS_ORIGINS",
-    "http://localhost:9000,http://127.0.0.1:9000,http://localhost:8000,http://127.0.0.1:8000,null",
+    "http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000,null",
 )
 _origins = [o.strip() for o in ALLOWED_CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
@@ -457,7 +457,13 @@ def _inject_head_assets(html: str) -> str:
                 '<script src="/ui/js/external/common/submit.js"></script>',
                 '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
                 '<script src="/ui/js/external/adapters/dinner_expense.js"></script>',
-                '<script src="/ui/js/external/adapters/adapter-bootstrap.js"></script>',
+                '<script src="/ui/js/external/adapters/transportation_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/dispatch_businesstrip_report.js"></script>',
+                '<script src="/ui/js/external/adapters/inventory_purchase_report.js"></script>',
+                '<script src="/ui/js/external/adapters/purchase_approval_form.js"></script>',
+                '<script src="/ui/js/external/adapters/personal_expense_report.js"></script>',
+                '<script src="/ui/js/external/adapters/corporate_card_statement.js"></script>',
+                '<script src="/ui/js/external/adapters/adapter_bootstrap.js"></script>',
                 # 초기화 스크립트 (선택/입력 UI 활성화)
                 '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){}});</script>',
             ]
@@ -596,6 +602,10 @@ def _build_fill_script(
         window.DinnerExpenseAdapter.bootstrap(window.__FORM_SLOTS__ || {}, window.__APPROVER_INFO__ || {});
         return true;
       }
+      if (ft === 'transportation_expense' && window.TransportationExpenseAdapter && typeof window.TransportationExpenseAdapter.bootstrap === 'function'){
+        window.TransportationExpenseAdapter.bootstrap(window.__FORM_SLOTS__ || {}, window.__APPROVER_INFO__ || {});
+        return true;
+      }
       return false;
     }catch(e){ return false; }
   }
@@ -642,10 +652,50 @@ async def render_external_form(req: ExternalFormRequest):
                 status_code=400, detail={"error": "NOT_EXTERNAL_TEMPLATE"}
             )
 
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(template_url)
-            resp.raise_for_status()
-            html = resp.text
+        # 2.1) 외부 템플릿 가져오기 (실패 시 로컬 퍼블리싱 템플릿으로 폴백)
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.get(template_url)
+                resp.raise_for_status()
+                html = resp.text
+        except httpx.RequestError:
+            # 폴백: 로컬 퍼블리싱 템플릿 사용 (개발/오프라인 환경 대비)
+            try:
+                from pathlib import Path
+
+                filename = MSTPID_TO_PUBLISHING_FILENAME.get(config.mstPid)
+                if not filename:
+                    raise HTTPException(
+                        status_code=502,
+                        detail={
+                            "error": "TEMPLATE_FETCH_FAILED",
+                            "message": f"External fetch failed and no local filename for mstPid {config.mstPid}",
+                        },
+                    )
+                base_dir = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "templates", "publishing")
+                )
+                target_path = os.path.abspath(os.path.join(base_dir, filename))
+                if not (os.path.exists(target_path) and os.path.isfile(target_path)):
+                    raise HTTPException(
+                        status_code=502,
+                        detail={
+                            "error": "TEMPLATE_FETCH_FAILED",
+                            "message": f"External fetch failed and local file not found: {filename}",
+                        },
+                    )
+                with open(target_path, "r", encoding="utf-8") as f:
+                    html = f.read()
+            except HTTPException:
+                raise
+            except Exception as _e:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "error": "TEMPLATE_FETCH_FAILED",
+                        "message": f"External fetch failed and local fallback errored: {_e}",
+                    },
+                )
 
         parsed = urlparse(template_url)
         base_href = f"{parsed.scheme}://{parsed.netloc}/"
@@ -670,14 +720,20 @@ async def render_external_form(req: ExternalFormRequest):
                 '<script src="/ui/publish/plugins/jquery.inputmask.bundle.js"></script>',
                 '<script src="/ui/publish/js/dropzone.js"></script>',
                 '<script src="/ui/publish/js/style.js"></script>',
-                f'<script>window.__FORM_SUBMIT_BASE__="{submit_base}"; window.__FORM_DEBUG__=true; try{{console.log("[ExternalForm] DEBUG enabled, submit base:", "{submit_base}");}}catch(e){{}} </script>',
+                f'<script>window.__FORM_SUBMIT_BASE__="{submit_base}";</script>',
                 '<script src="/ui/js/external/common/slots.js"></script>',
                 '<script src="/ui/js/external/common/approver.js"></script>',
                 '<script src="/ui/js/external/common/ui_reinit.js"></script>',
                 '<script src="/ui/js/external/common/submit.js"></script>',
                 '<script src="/ui/js/external/adapters/annual_leave.js"></script>',
                 '<script src="/ui/js/external/adapters/dinner_expense.js"></script>',
-                '<script src="/ui/js/external/adapters/adapter-bootstrap.js"></script>',
+                '<script src="/ui/js/external/adapters/transportation_expense.js"></script>',
+                '<script src="/ui/js/external/adapters/dispatch_businesstrip_report.js"></script>',
+                '<script src="/ui/js/external/adapters/inventory_purchase_report.js"></script>',
+                '<script src="/ui/js/external/adapters/purchase_approval_form.js"></script>',
+                '<script src="/ui/js/external/adapters/personal_expense_report.js"></script>',
+                '<script src="/ui/js/external/adapters/corporate_card_statement.js"></script>',
+                '<script src="/ui/js/external/adapters/adapter_bootstrap.js"></script>',
                 '<script>document.addEventListener("DOMContentLoaded",function(){try{if(typeof niceSelect==="function"){niceSelect("body");}}catch(e){} try{if(typeof inputActive==="function"){inputActive("body");}}catch(e){} try{ if(window.UIReinit){ window.UIReinit.schedule(); } }catch(e){} });</script>',
             ]
         )

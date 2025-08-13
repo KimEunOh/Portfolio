@@ -109,8 +109,8 @@ class CorporateCardProcessor(BaseFormProcessor):
         if "card_usage_items" in slots and slots["card_usage_items"]:
             items = slots["card_usage_items"]
 
-            # 최대 6개 사용 내역까지 처리
-            for i, item in enumerate(items[:6], 1):
+            # 최대 12개 사용 내역까지 처리 (프런트 스캔 범위와 정렬)
+            for i, item in enumerate(items[:12], 1):
                 result[f"usage_date_{i}"] = item.get("usage_date", "")
 
                 # 카테고리 매핑
@@ -186,19 +186,82 @@ class CorporateCardProcessor(BaseFormProcessor):
         """법인카드 지출내역서 폼 데이터를 API Payload로 변환"""
         logging.info("CorporateCardProcessor: Converting form data to API payload")
 
-        # 1. form_data에서 필요한 데이터를 snake_case 키로 가져옵니다.
-        doc_cn_reason = form_data.get("expense_reason", "법인카드 사용 내역서")
+        # 유틸: 혼용 키 수용 및 금액 파싱
+        def get_any(keys, default=""):
+            for k in keys:
+                if k in form_data and form_data.get(k) not in (None, ""):
+                    return form_data.get(k)
+            return default
+
+        def parse_amount(value) -> int:
+            try:
+                if value is None:
+                    return 0
+                if isinstance(value, (int, float)):
+                    return int(value)
+                s = str(value)
+                digits = "".join(ch for ch in s if ch.isdigit())
+                return int(digits) if digits else 0
+            except Exception:
+                return 0
+
+        def normalize_ymd(value):
+            if value is None:
+                return ""
+            try:
+                s = str(value).strip()
+                if not s:
+                    return ""
+                s2 = s.replace(".", "-").replace("/", "-")
+                try:
+                    rel = parse_relative_date_to_iso(s2)
+                    if rel:
+                        return rel
+                except Exception:
+                    pass
+                from datetime import datetime as _dt
+
+                for fmt in ("%Y-%m-%d", "%Y-%m", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        return _dt.strptime(s2, fmt).date().isoformat()
+                    except Exception:
+                        continue
+                if len(s2) == 8 and s2.isdigit():
+                    return f"{s2[0:4]}-{s2[4:6]}-{s2[6:8]}"
+                return s2
+            except Exception:
+                return ""
+
+        # 1. form_data에서 필요한 데이터를 snake/camel 혼용으로 가져옵니다.
+        doc_cn_reason = get_any(
+            ["expense_reason", "expenseReason"], "법인카드 사용 내역서"
+        )
         items_snake = form_data.get("card_usage_items", [])
+        # 문자열로 전달된 hidden JSON 방어 처리
+        if isinstance(items_snake, str):
+            s = items_snake.strip()
+            if s.startswith("[{") and s.endswith("]"):
+                try:
+                    parsed = json.loads(s)
+                    items_snake = parsed if isinstance(parsed, list) else []
+                except Exception:
+                    items_snake = []
+            else:
+                items_snake = []
+        if not isinstance(items_snake, list):
+            items_snake = []
 
         # 2. items 리스트의 키를 camelCase로 변환합니다.
         items_camel = convert_keys_to_camel(items_snake)
 
         # 3. 변환된 데이터를 사용하여 apdInfo JSON 문자열을 생성합니다.
         apd_info_dict = {
-            "cardNumber": form_data.get("card_number", ""),
+            "cardNumber": get_any(["card_number", "cardNumber"], ""),
             "expenseReason": doc_cn_reason,
-            "statementDate": form_data.get("statement_date", ""),
-            "totalAmount": int(form_data.get("total_usage_amount", 0) or 0),
+            "statementDate": get_any(["statement_date", "statementDate"], ""),
+            "totalAmount": parse_amount(
+                get_any(["total_usage_amount", "totalUsageAmount", "totalAmount"], 0)
+            ),
         }
         final_apd_info_str = json.dumps(
             convert_keys_to_camel(apd_info_dict), ensure_ascii=False
@@ -208,7 +271,7 @@ class CorporateCardProcessor(BaseFormProcessor):
         payload = {
             "mstPid": "9",
             "aprvNm": "법인카드 지출내역서",
-            "drafterId": form_data.get("drafterId", "00009"),
+            "drafterId": get_any(["drafter_id", "drafterId"], "00009"),
             "docCn": doc_cn_reason,
             "apdInfo": final_apd_info_str,
             "lineList": [],
@@ -236,18 +299,18 @@ class CorporateCardProcessor(BaseFormProcessor):
 
                 payload["amountList"].append(
                     {
-                        "useYmd": usage_date,
+                        "useYmd": normalize_ymd(usage_date),
                         "dvNm": korean_category,  # 한글 분류로 API 전송
                         "useRsn": item.get("usageDescription", ""),  # 상점명
                         "qnty": 1,
-                        "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
+                        "amt": parse_amount(usage_amount),
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )
         else:
             # Fallback for older format (HTML 필드 직접 참조)
             # 이 부분의 키들도 service.py에 의해 camelCase로 변환되었을 가능성이 있으므로 camelCase로 참조
-            for i in range(1, 7):
+            for i in range(1, 13):
                 usage_date = form_data.get(f"usageDate_{i}")
                 if not usage_date or "SLOT_NOT_FOUND" in usage_date:
                     continue
@@ -257,13 +320,13 @@ class CorporateCardProcessor(BaseFormProcessor):
 
                 payload["amountList"].append(
                     {
-                        "useYmd": usage_date,
+                        "useYmd": normalize_ymd(usage_date),
                         "dvNm": form_data.get(
                             f"usageCategory_{i}", "기타"
                         ),  # 이미 한글 분류
                         "useRsn": form_data.get(f"merchantName_{i}", ""),
                         "qnty": 1,
-                        "amt": int(usage_amount) if str(usage_amount).isdigit() else 0,
+                        "amt": parse_amount(usage_amount),
                         "aditInfo": json.dumps(adit_info, ensure_ascii=False),
                     }
                 )

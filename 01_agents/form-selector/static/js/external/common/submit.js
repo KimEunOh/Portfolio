@@ -1,6 +1,13 @@
 (function(){
   var SUBMIT_BASE = '';
   try{ SUBMIT_BASE = String(window.__FORM_SUBMIT_BASE__ || '').replace(/\/$/, ''); }catch(e){}
+  // 폴백: 주입이 실패했다면 부모 창의 오리진(메인 FastAPI 서버)을 사용
+  try{
+    if(!SUBMIT_BASE && window.parent && window.parent.location && window.parent.location.origin){
+      SUBMIT_BASE = String(window.parent.location.origin).replace(/\/$/, '');
+    }
+  }catch(_){ }
+  try{ console.log('[FormSubmit][DEBUG] SUBMIT_BASE=', SUBMIT_BASE, 'location.origin=', window.location.origin); }catch(_){ }
   function getQueryParam(name){
     try{ var url = new URL(window.location.href); return url.searchParams.get(name); }catch(e){ return null; }
   }
@@ -110,7 +117,7 @@
 
     try{
       var url = (SUBMIT_BASE ? (SUBMIT_BASE + '/submit-form') : '/submit-form');
-      try{ console.log('[FormSubmit] submit url =', url, 'origin =', window.location.origin, 'base =', SUBMIT_BASE); }catch(e){}
+      try{ console.log('[FormSubmit] submit url =', url, 'origin =', window.location.origin, 'base =', SUBMIT_BASE, 'formType=', formType); }catch(e){}
       try{ if(window.__FORM_DEBUG__){ console.log('[FormSubmit] payload preview =', { form_type: formType, form_data: formData }); } }catch(e){}
       var resp = await fetch(url, {
         method: 'POST',
@@ -122,11 +129,18 @@
         throw new Error('제출 실패: ' + text);
       }
       var json = await resp.json();
-      alert('제출 성공\n' + JSON.stringify(json));
+      var msg = '';
+      try{
+        msg = (json && (json.message || json.msg))
+          || (json && json.api_response && (json.api_response.message || json.api_response.msg))
+          || '';
+      }catch(_){ msg = ''; }
+      alert(msg ? ('제출 완료: ' + msg) : '제출이 완료되었습니다.');
       return json;
     } catch(e){
       console.error('[FormSubmit] submit error:', e);
-      alert('제출 중 오류가 발생했습니다. 콘솔을 확인하세요.');
+      var em = (e && e.message) ? e.message : '알 수 없는 오류가 발생했습니다.';
+      alert('제출 중 오류가 발생했습니다: ' + em);
     }
   }
 
@@ -172,6 +186,12 @@
         var el = t;
         while(el && el !== document){
           if(matches(el)){
+            try{
+              if(el.dataset && el.dataset.formSubmitBound === '1'){
+                console.log('[FormSubmit] delegated handler skipped (direct-bound button)');
+                break;
+              }
+            }catch(_){}
             try{ console.log('[FormSubmit] delegated click detected on', el); }catch(_){}
             e.preventDefault();
             var form = el.closest('form') || document.querySelector('.form_area form') || document.querySelector('form');
