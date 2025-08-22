@@ -18,7 +18,6 @@ template: |
     * 할인액: Discount amount (e.g. '▲8,600', '▲1,000', etc.)
     * 할인율: Discount rate (e.g. ▲30.2, ▲8.3, etc.)
     * 단위당가격: Price per unit of Capacity. (e.g. '2,212', '1,990', etc.)
-    * 목표 매출 수량: Target sales quantity (e.g. 676, 149, etc.)
     * Promotion 세부정보 : Promotion details( 주말특가! 리엔 흑모비책 2천원 할인, 말특가! 케라시스 퍼퓸 샴푸/린스, etc.)
   2. must not contain any missing contents.
   3. Do not create contents arbitrarily.  
