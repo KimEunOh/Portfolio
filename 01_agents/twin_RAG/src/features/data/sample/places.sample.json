@@ -1,0 +1,32 @@
+[
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name_ko": "서울병원",
+    "name_en": "Seoul Hospital",
+    "category": "HOSPITAL",
+    "latitude": 37.5665,
+    "longitude": 126.978,
+    "address_ko": "서울특별시 중구 세종대로",
+    "address_en": "Sejong-daero, Jung-gu, Seoul",
+    "phone": "02-000-0000",
+    "source_url": "https://example.com/hospital",
+    "source_name": "EX",
+    "verified_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174001",
+    "name_ko": "하나은행",
+    "name_en": "Hana Bank",
+    "category": "BANK",
+    "latitude": 37.5651,
+    "longitude": 126.98955,
+    "address_ko": "서울특별시 종로구 종로",
+    "address_en": "Jong-ro, Jongno-gu, Seoul",
+    "phone": "02-111-2222",
+    "source_url": "https://example.com/bank",
+    "source_name": "EX",
+    "verified_at": "2025-01-02T00:00:00.000Z"
+  }
+]
+
+

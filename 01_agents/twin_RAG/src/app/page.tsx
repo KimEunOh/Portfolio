@@ -5,6 +5,7 @@ import { CheckCircle, Github, Copy, Sparkles } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
+import { SearchContainer } from '@/features/search/components/SearchContainer';
 
 const PACKAGE_NAME = '@easynext/cli';
 const CURRENT_VERSION = 'v0.1.35';
@@ -41,79 +42,23 @@ export default function Home() {
   const needsUpdate = latest && latest !== CURRENT_VERSION;
 
   return (
-    <div className="flex min-h-screen relative overflow-hidden">
-      {/* Main Content */}
-      <div className="min-h-screen flex bg-gray-100">
-        <div className="flex flex-col p-5 md:p-8 space-y-4">
-          <h1 className="text-3xl md:text-5xl font-semibold tracking-tighter !leading-tight text-left">
-            Easiest way to start
-            <br /> Next.js project
-            <br /> with Cursor
-          </h1>
-
-          <p className="text-lg text-muted-foreground">
-            Get Pro-created Next.js bootstrap just in seconds
-          </p>
-
-          <div className="flex items-center gap-2">
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="gap-2 w-fit rounded-full px-4 py-2 border border-black"
-            >
-              <a href="https://github.com/easynextjs/easynext" target="_blank">
-                <Github className="w-4 h-4" />
-                GitHub
-              </a>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="gap-2 w-fit rounded-full px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white"
-            >
-              <a href="https://easynext.org/premium" target="_blank">
-                <Sparkles className="w-4 h-4" />
-                Premium
-              </a>
-            </Button>
-          </div>
-          <Section />
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-start gap-8 py-10">
+      <div className="flex flex-col items-center text-center gap-2">
+        <h1 className="text-3xl md:text-5xl font-semibold tracking-tighter !leading-tight">
+          Korea Assist 검색
+        </h1>
+        <p className="text-muted-foreground">행정·생활·문화 정보를 검색해 보세요.</p>
+        <p className="text-xs text-muted-foreground">
+          Current: {CURRENT_VERSION} · Latest: {latest || 'Loading...'}
+          {needsUpdate && (
+            <button onClick={handleCopyCommand} className="ml-2 underline">
+              업데이트 명령 복사
+            </button>
+          )}
+        </p>
       </div>
 
-      <div className="min-h-screen ml-16 flex-1 flex flex-col items-center justify-center space-y-4">
-        <div className="flex flex-col items-center space-y-2">
-          <p className="text-muted-foreground">
-            Current Version: {CURRENT_VERSION}
-          </p>
-          <p className="text-muted-foreground">
-            Latest Version:{' '}
-            <span className="font-bold">{latest || 'Loading...'}</span>
-          </p>
-        </div>
-
-        {needsUpdate && (
-          <div className="flex flex-col items-center space-y-2">
-            <p className="text-yellow-600">New version available!</p>
-            <p className="text-sm text-muted-foreground">
-              Copy and run the command below to update:
-            </p>
-            <div className="relative group">
-              <pre className="bg-gray-100 p-4 rounded-lg">
-                npm install -g {PACKAGE_NAME}@latest
-              </pre>
-              <button
-                onClick={handleCopyCommand}
-                className="absolute top-2 right-2 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <SearchContainer />
     </div>
   );
 }
@@ -148,19 +93,9 @@ function Section() {
   );
 }
 
-function SectionItem({
-  children,
-  href,
-}: {
-  children: React.ReactNode;
-  href: string;
-}) {
+function SectionItem({ children, href }: { children: React.ReactNode; href: string }) {
   return (
-    <a
-      href={href}
-      className="flex items-center gap-2 underline"
-      target="_blank"
-    >
+    <a href={href} className="flex items-center gap-2 underline" target="_blank">
       <CheckCircle className="w-4 h-4" />
       <p>{children}</p>
     </a>

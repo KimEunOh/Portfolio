@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { ChangeEvent, useRef } from "react";
+import { cn } from '@/lib/utils';
+import { ChangeEvent, useRef } from 'react';
 
 interface FileUploadProps extends React.HTMLAttributes<HTMLDivElement> {
   onFileChange: (file: File) => void;
@@ -11,7 +11,7 @@ interface FileUploadProps extends React.HTMLAttributes<HTMLDivElement> {
 export function FileUpload({
   className,
   onFileChange,
-  accept = "image/*",
+  accept = 'image/*',
   children,
   ...props
 }: FileUploadProps) {
@@ -32,8 +32,8 @@ export function FileUpload({
     <div
       onClick={handleClick}
       className={cn(
-        "cursor-pointer rounded-md border-2 border-dashed border-gray-300 p-4 hover:border-gray-400",
-        className
+        'cursor-pointer rounded-md border-2 border-dashed border-gray-300 p-4 hover:border-gray-400',
+        className,
       )}
       {...props}
     >
