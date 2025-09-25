@@ -5,18 +5,19 @@ template: |
   Please provide your answers in CSV format.
   Be sure to follow the rules outlined below.
   Answer in Korean.
+  회사명 이전, 위치 이후에 관련없는 내용이 있는 경우 제외하세요.
 
   1. the column list is as follows
-    * 매대위치 : display location(END, BIN, Event, GON, HBAE, OTH, POW, etc.)
-    * 테마 : theme(e.g., HBA, 위생, 위생용품, etc.)
-    * Section : 4 digit number(e.g., 3401, 3405, etc.)
-    * 상품 코드: 7~9 digit number
+    * 회사명: Company name (e.g., FUTURA Drogerie-Marken Vertrie, (주)엘지생활건강, etc.)
+    * 상품 코드: 13-digit number
     * 상품명: The name of the product (e.g., VT Sika Mild Eye Cream (Special Edition), etc.)
-    * 행사속성 : attribute of the event(e.g. MSV, Original, etc.)
-    * MSV :  (e.g., 1+1, 4+1, etc.)
-    * 기준가: original price, Unit of KRW (e.g. 28500)
-    * 행사가: promotion price, Unit of KRW (e.g. 19900)
-    * Remark 2 : event note (e.g., 2개 구매시 50% 할인 교차구매, 30% MHC 할인, etc.)
+    * 용량: Capacity (e.g. 30ML*3, 30ML*4, etc.)
+    * 기준가: Unit of KRW (e.g. 28,500)
+    * 행사가: Unit of KRW (e.g. 19,900)
+    * 위치: display location(END, 동선평대, 본매대, etc.)
+    * Promotion 세부정보 : Promotion details( 주말특가! 리엔 흑모비책 2천원 할인, 주말특가! 케라시스 퍼퓸 샴푸/린스, 2개 이상 구매시 50% 할인 etc.)
+
+ 
   2. must not contain any missing contents.
   3. Do not create contents arbitrarily.  
   4. if there is no value in the column, write “Nan”.

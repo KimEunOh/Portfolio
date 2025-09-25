@@ -4,6 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SearchItem } from '@/features/search/api';
 import Image from 'next/image';
+import { ResultMeta } from '@/components/ui/ResultMeta';
 
 export type ResultListProps = {
   items: SearchItem[];
@@ -40,9 +41,7 @@ export function ResultList({ items }: ResultListProps) {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">{item.description || '설명이 없습니다.'}</p>
-            {item.source && (
-              <p className="mt-2 text-xs text-gray-500">출처: {item.source}</p>
-            )}
+            <ResultMeta source={item.source} source_name={(item as any).source_name} verified_at={(item as any).verified_at} />
           </CardContent>
         </Card>
       ))}

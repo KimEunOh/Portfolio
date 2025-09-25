@@ -1,4 +1,5 @@
 require('@testing-library/jest-dom');
+require('whatwg-fetch');
 
 const React = require('react');
 jest.mock('next/image', () => {
