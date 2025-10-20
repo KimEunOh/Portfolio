@@ -10,10 +10,10 @@ template: |
     * 판매 코드: 13-digit number
     * 상품명: The name of the product (e.g., VT 시카 마일드 아이크림 (Special Edition), etc.)
     * 규격: Capacity (e.g. 30ML*3, 30ML*4, 기1 날9입, 12입, 2개, 30매, 1EA etc.)
-    * 기준가: Unit of KRW (e.g. 28,500)
-    * 행사가: Unit of KRW (e.g. 19,900)
+    * 기준가: Unit of KRW (e.g. '28,500', '29,000', etc.)
+    * 행사가: Unit of KRW (e.g. '19,900', '20,500', etc.)
+    * 단위 당 가격: Price per unit of Capacity. (e.g. '2,212', '1,990', etc.)
     * Promotion 세부정보 : Promotion details( 주말특가! 리엔 흑모비책 2천원 할인, 주말특가! 케라시스 퍼퓸 샴푸/린스, 2개 이상 구매시 50% 할인 etc.)
-    * 비고: Note
   2. must not contain any missing contents.
   3. Do not create contents arbitrarily.  
   4. if there is no value in the column, write “Nan”.
